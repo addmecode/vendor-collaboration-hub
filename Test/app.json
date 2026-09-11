@@ -1,0 +1,58 @@
+{
+  "id": "0a210a97-ffc0-4426-bb7a-d58505691f83",
+  "name": "Vendor Collaboration Hub Test",
+  "publisher": "Addmecode",
+  "version": "1.0.0.0",
+  "brief": "",
+  "description": "Unit tests for the Vendor Collaboration Hub app.",
+  "privacyStatement": "",
+  "EULA": "",
+  "help": "",
+  "url": "",
+  "logo": "",
+  "dependencies": [
+    {
+      "id": "bad1dba6-c803-4655-afe2-e19f5d288d4d",
+      "name": "Vendor Collaboration Hub",
+      "publisher": "Addmecode",
+      "version": "1.0.0.0"
+    },
+    {
+      "id": "dd0be2ea-f733-4d65-bb34-a28f4624fb14",
+      "name": "Library Assert",
+      "publisher": "Microsoft",
+      "version": "28.5.54151.54178"
+    },
+    {
+      "id": "e7320ebb-08b3-4406-b1ec-b4927d3e280b",
+      "name": "Any",
+      "publisher": "Microsoft",
+      "version": "28.5.54151.54178"
+    },
+    {
+      "id": "23de40a6-dfe8-4f80-80db-d70f83ce8caf",
+      "name": "Test Runner",
+      "publisher": "Microsoft",
+      "version": "28.5.54151.54178"
+    }
+  ],
+  "screenshots": [],
+  "platform": "1.0.0.0",
+  "application": "28.0.0.0",
+  "idRanges": [
+    {
+      "from": 50130,
+      "to": 50149
+    }
+  ],
+  "resourceExposurePolicy": {
+    "allowDebugging": true,
+    "allowDownloadingSource": true,
+    "includeSourceInSymbolFile": true
+  },
+  "runtime": "17.0",
+  "features": [
+    "NoImplicitWith",
+    "TranslationFile"
+  ]
+}
