@@ -19,3 +19,6 @@ rad.json
 .snapshots/
 cache_*
 ~$*
+.build/
+.claude/
+launch.json

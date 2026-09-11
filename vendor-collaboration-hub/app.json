@@ -1,6 +1,6 @@
 {
   "id": "bad1dba6-c803-4655-afe2-e19f5d288d4d",
-  "name": "vendor-collaboration-hub",
+  "name": "Vendor Collaboration Hub",
   "publisher": "Addmecode",
   "version": "1.0.0.0",
   "brief": "",
@@ -13,19 +13,21 @@
   "dependencies": [],
   "screenshots": [],
   "platform": "1.0.0.0",
-  "application": "22.0.0.0",
+  "application": "28.0.0.0",
   "idRanges": [
     {
-      "from": 100000,
-      "to": 100100
+      "from": 50100,
+      "to": 50149
     }
   ],
+  "runtime": "17.0",
   "features": [
-    "NoImplicitWith"
+    "NoImplicitWith",
+    "TranslationFile"
   ],
   "resourceExposurePolicy": {
     "allowDebugging": true,
-    "allowDownloadingSource": false,
-    "includeSourceInSymbolFile": false
+    "allowDownloadingSource": true,
+    "includeSourceInSymbolFile": true
   }
 }

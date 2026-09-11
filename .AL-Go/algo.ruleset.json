@@ -1,0 +1,11 @@
+{
+    "name": "Addmecode ruleset",
+    "description": "Custom ruleset from Addmecode",
+    "includedRuleSets": [
+        {
+            "action": "Default",
+            "path": "https://raw.githubusercontent.com/addmecode/al-ruleset/refs/heads/main/custom.ruleset.json"
+        }
+    ],
+    "rules": []
+}
