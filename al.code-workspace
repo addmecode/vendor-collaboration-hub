@@ -6,8 +6,11 @@
     {
       "path": ".AL-Go"
     },
-	{
+    {
       "path": "Test"
+    },
+    {
+      "path": "Docs"
     }
   ],
   "settings": {}
