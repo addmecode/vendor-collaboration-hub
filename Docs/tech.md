@@ -96,17 +96,21 @@ writes to purchasing data, and it is the only one reached from the BC client.
 
 Nothing in this chain lets the vendor's browser reach Business Central. The browser
 talks only to the Function; the Function talks to Business Central with its own
-identity, and that identity can read requests and insert proposals and comments —
-nothing else (§4.7). Step 6 writes only to `AMC Vendor Proposal*`; step 8, triggered
-by a BC user in the BC client, is the only path into purchasing data.
+shared application identity. Its BC permissions cover the listed tables across
+vendors (§4.7); the Function limits each browser session to the request resolved
+from its link. BC blocks purchase-order writes and buyer decisions by that
+application. Step 6 records vendor intent; step 8, triggered by a BC buyer, is the
+path that applies it to purchasing data.
 
 **Why there is a Function between the page and the ERP.** The page is a bundle of
 static files. It cannot hold the client secret the Business Central API requires,
 and it cannot be trusted to state which vendor it is. The Function solves both: it
 holds the credential (from Key Vault, through a managed identity) and it derives
 `vendorNumber` and `requestNumber` from the access token instead of accepting them
-from the browser. It carries no business rules — §13 draws that line, and §9 covers
-what the token is and how it is validated.
+from the browser. It also enforces the vendor-facing read scope before using its
+shared BC credential; this access control is part of the trusted middle tier,
+while ERP business rules remain in AL (§13). §9 covers the token and both trust
+boundaries.
 
 Step 6 is deliberately **one call carrying the whole answer**, and stays one call
 all the way through to Business Central. A proposal is a single business statement
@@ -128,14 +132,15 @@ nothing until the last one. §8.3 covers the mechanics and the trade-off.
 | **Contract** | 6 API pages, `AMC Idempotency Mgt`, `AMC Proposal Validator` (error codes) | being a stable, versioned, minimal projection for the vendor API | expose standard tables or allow writes outside proposals and comments |
 | **Memory** | `AMC Collaboration Entry` | the business history a buyer or auditor reads in BC: events and comments in one timeline | be edited or deleted by anyone |
 | **Diagnostics** | `AMC Telemetry` → Application Insights | technical signal that survives a rollback and can be alerted on | contain secrets, tokens or be used as the audit trail |
-| **Edge** | Static Web App (page), Azure Function (vendor API) | vendor UX, exchanging the link for a session, holding the BC credential, rate limiting, error translation | contain ERP business rules, or trust a vendor number that came from the browser |
+| **Edge** | Static Web App (page), Azure Function (vendor API) | vendor UX, exchanging the link for a session, enforcing each browser session’s request/vendor scope, holding the shared BC credential, rate limiting, error translation | contain ERP business rules, or trust a vendor number that came from the browser |
 | **Outside BC** | Power Automate, Power Apps | buyer notifications and buyer convenience | contain ERP business rules |
 
 The two columns that matter most are the last one and the fact that they are
 *enforced*, not documented: by the permission set (§4.7), by `Editable = false`
 status fields (§5), by API page write rules (§8.2), by re-validating the access
-token in AL on every vendor write (§9.2), and by the absence of any `IsHandled`
-escape hatch (§6.2).
+token/request pairing in AL on vendor writes (§9.2), by Function authorization
+checks on every browser read/write (§13.3), and by the absence of any `IsHandled`
+escape hatch (§6.2). The shared BC permission set does not isolate reads per link.
 
 ## 0.4 Worked example — PO-10482
 
@@ -211,8 +216,9 @@ unexpired, calls `registerAccess` — which writes a `LinkOpened` entry to the
 timeline and stamps `Last Accessed At` — and returns a 30-minute session plus the
 request:
 
-`GET vendorRequests?$filter=number eq 'VCR-000148'&$expand=vendorRequestLines`
-returns exactly the JSON in §8.3. The raw token is dropped from the browser URL at
+`GET vendorRequests?$filter=number eq 'VCR-000148' and vendorNumber eq 'V10000'&$expand=vendorRequestLines`
+uses identities resolved by the Function from the link, not supplied by the
+browser, and returns the request JSON of §8.3. The raw token is dropped from the browser URL at
 this point (§9.4).
 
 *Tables:* `AMC Vendor Access Token` read by hash and modified in place (access
@@ -794,7 +800,9 @@ and for reasons that have nothing to do with counting:
 `Entry Type = Comment` carries a human remark in `Description`; every other value
 records a process event. `Visible to Vendor = false` covers both an internal buyer
 note and an event the vendor has no business seeing, and the API page filters on it
-at page level — the integration permission set gives no way around the filter.
+at page level for this API endpoint. The Function additionally restricts the
+source request/proposal to the current session. The page projection and visibility
+filter are not per-link table permissions for the shared S2S identity (§4.7).
 
 The page over this table is `Editable = false`, `InsertAllowed = false`,
 `ModifyAllowed = false`, `DeleteAllowed = false`. Only `AMC Collab Log` writes to
@@ -1104,13 +1112,45 @@ extension-model answer.
 | `AMC Collaboration Admin` | 50102 | includes Buyer; RIMD on Setup |
 | `AMC Api Integration` | 50103 | R on Request/Request Line; RI on Proposal/Proposal Line; **Rm** on Vendor Access Token (direct read, indirect modify via `registerAccess` only); I on Collaboration Entry; R on Purchase Header/Line, Vendor, Item; X on `AMC Proposal Mgt`, `AMC Proposal Validator`, `AMC Validation Result`, `AMC Idempotency Mgt`, `AMC Access Token Mgt`, `AMC Unknown Line Handler` — **no D anywhere, no Setup, no access to the decision, apply, notification or order-version codeunits** |
 
-`AMC Api Integration` is the set assigned to the Entra application registration
-used by the Azure Function. It is deliberately the narrowest one: the integration
-can look a token up by its hash, read the request that token belongs to, and create
-proposals and comments on it. It cannot approve, cannot apply, cannot delete,
-cannot change setup, cannot issue a token and cannot read a request it has no token
-for. That property is what makes the "vendor cannot modify the PO" rule enforced by
-the platform and not merely by convention.
+`AMC Api Integration` is assigned to the Entra application used by the Function,
+shared by all vendors. It grants direct `R` on the listed request, proposal,
+token and standard tables, across all their rows in the companies where those
+permissions apply. It has **no per-link or per-vendor security filter**. A
+`vendorRequests` GET does not require a token or page-session proof; an S2S caller
+can change/remove its OData vendor/request filter and read other authorized rows.
+The token-page guard of §8.2 restricts that endpoint's lookup shape, not request
+reads or the application's table-level permissions.
+
+**The two boundaries are distinct:**
+
+- **Browser → Function:** the Function validates the link/session, derives request
+  and vendor identity, builds the BC read query itself and verifies returned
+  ownership. It is the V1 enforcement point for a vendor seeing only their linked
+  request. Browser routes cannot accept arbitrary BC query options, vendor ids,
+  request ids or company ids to widen that scope (§13.3).
+- **Function → BC:** BC authenticates the application, applies its assigned
+  table/object/company permissions and validates token/request/vendor consistency
+  on vendor writes. The role cannot approve, apply, delete, change setup, issue
+  tokens or modify purchasing data. These restrictions protect the purchase order;
+  they do not prove possession of a particular link for an S2S read.
+
+The portal's configured `companyId` limits normal Function calls, not the BC
+credential itself. Scope the BC application's role assignment to the intended
+company and verify its effective permissions; a blank/all-company assignment or
+additional roles can widen credential exposure. Assess compromise against **every
+company and table actually authorized in BC**, not just the Function's configured
+URL. Custom API projections restrict their own HTTP surface; read permissions may
+also allow other accessible API/web-service surfaces over the same tables. See
+[Microsoft Learn — Company scope and record-level security](https://learn.microsoft.com/en-us/dynamics365/business-central/ui-define-granular-permissions#control-access-to-specific-companies).
+
+V1 accepts this trusted-middle-tier model. If BC itself must enforce link
+possession on every read, replace the general request read APIs with controlled
+AL read operations that verify an access proof and return a limited projection,
+and remove the unrestricted table-read path. That stronger read boundary is not
+provided by the current role.
+
+Platform basis: [Microsoft Learn — S2S application identity and assigned permissions](https://learn.microsoft.com/en-us/dynamics365/business-central/dev-itpro/administration/automation-apis-using-s2s-authentication)
+and [Permission set objects](https://learn.microsoft.com/en-us/dynamics365/business-central/dev-itpro/developer/devenv-permissionset-object).
 
 Token modification is **indirect**: the permission set declares
 `tabledata "AMC Vendor Access Token" = Rm`. Uppercase `R` permits reads;
@@ -1715,7 +1755,9 @@ surface serves one Business Central company, and its id is an app setting of the
 Function (§13.3). Nothing downstream can influence it: not the link, not the page,
 not a request body. That is a security property as much as a scoping one — a token
 id or a token hash from one company simply does not resolve when the lookup is
-pinned to another, so there is no cross-company probing surface to reason about.
+pinned to another. The browser cannot choose a company through the Function.
+This is not a company restriction on the S2S credential: its BC assignments must
+be scoped separately (§4.7).
 
 A second company would get its own Function configuration and its own link host,
 which is the cheap answer and the one that keeps this property. Carrying a company
@@ -1857,7 +1899,13 @@ GET .../vendorAccessTokens
 An empty result and an expired or revoked token are the same outcome for the
 vendor: the page shows that the link no longer works and who to contact.
 
-**List open requests for a vendor**
+**Trusted S2S example — list open requests for a vendor**
+
+This BC endpoint accepts the shared application credential without proving link
+possession. Its vendor filter selects rows; it is not authorization. The portal
+exposes no list-all-requests route. For `/api/request`, the Function constructs an
+exact request-number and vendor-number filter from validated session claims and
+checks the returned request and expanded lines before returning the portal DTO.
 
 ```http
 GET /api/adrianoth/collaboration/v1.0/companies({id})/vendorRequests
@@ -1960,9 +2008,11 @@ AMC Api Vendor Proposal.OnInsertRecord
   9. business event VendorProposalSubmitted
 ```
 
-Step 2 is the check that makes the trust boundary real rather than declared: the
-token was minted by Business Central, so Business Central can verify the vendor
-scope for itself instead of accepting the Function's word for it.
+Step 2 enforces consistency on the BC write path: BC checks that the supplied
+token id is active and belongs to the request/vendor. It does not require the raw
+link and does not authenticate the browser independently. The Function proves
+browser link/session access; BC validates the submitted record pairing. This
+write check does not authorize or scope the general S2S request GETs (§4.7).
 
 Any failure in steps 1–6 rolls back the whole insert. There is no half-written
 proposal, and no `Draft` row left behind for someone to clean up.
@@ -2183,7 +2233,7 @@ VENDOR              STATIC WEB APP        AZURE FUNCTION       BUSINESS CENTRAL
 |---|---|---|---|
 | Vendor → page | the access link | possession | in the vendor's mailbox, until it expires or is revoked |
 | Page → Function | a signed page session (JWT, 30 min) | that a valid link was presented recently | in the browser tab, in `sessionStorage` |
-| Function → BC | OAuth 2.0 client credentials, Entra app registration | that the caller is this application | in Key Vault, read through a managed identity |
+| Function → BC | OAuth 2.0 client credentials, Entra app registration | application identity and its assigned BC scope; no browser/link-possession proof | in Key Vault, read through a managed identity |
 
 The vendor never holds a Business Central credential. Business Central mints the
 raw link and sends it through the Email module; vendor-facing API calls send only
@@ -2211,8 +2261,10 @@ There is no system-wide guarantee that only a hash is stored.
 > `GenerateHash` returns and normalize it — the Function computes the same hash
 > independently, and a casing mismatch fails every lookup.
 
-**Validation.** Every vendor-originated call is checked twice, in two systems, and
-neither check trusts the other:
+**Validation.** The Function authorizes browser access from the link/session on
+every vendor-facing call. AL independently validates token/request/vendor pairing
+on writes; general S2S request reads rely on the trusted Function for browser
+request scope (§4.7):
 
 | Check | Where | Failure |
 |---|---|---|
@@ -2222,10 +2274,12 @@ neither check trusts the other:
 | the token still belongs to the request being written to | AL, inside `OnInsertRecord` | `VCH-AUT-0004` |
 | the request is still open | AL | `VCH-VAL-0001` |
 
-The last two are what matters architecturally. In a design where the middle tier is
-simply trusted, validation stops at the Function. Here the vendor scope is carried
-by a record Business Central minted itself, so AL can re-derive which vendor is
-calling instead of believing a `vendorNumber` that arrived in a payload.
+The last two checks protect write consistency: AL derives the vendor/request
+pairing from a BC token record instead of trusting a supplied `vendorNumber`.
+A token id identifies that record and is not proof of possession of its raw link.
+This check prevents mismatched writes, while the Function remains trusted to
+authorize the browser and scope reads. Compromise of the shared S2S credential
+bypasses that Function authorization boundary (§9.6).
 
 **Lifetime.** The token's states are driven by the request, not by the vendor:
 
@@ -2344,11 +2398,12 @@ review, not a setting.
 **Why service-to-service and not a BC user per vendor:** external vendors are not
 BC users, would consume licenses, and would have to be provisioned and
 deprovisioned in Entra by the buying company — which is exactly the onboarding cost
-the link model exists to avoid. The usual consequence of S2S, that BC sees one
-identity for all vendors, is answered by the access token: the caller proves which
-vendor it is with a record BC issued itself, and AL re-checks the pairing on every
-write. A payload claiming another vendor's request fails with `VCH-AUT-0004`
-regardless of what the Function believed.
+the link model exists to avoid. BC sees one application identity for all vendors.
+The Function enforces browser-session isolation; AL checks the token record pairing
+on writes, so a mismatched token/request/vendor payload fails with `VCH-AUT-0004`.
+The token id supplies no browser-possession proof to BC and no per-link restriction
+on general request reads. This shared identity therefore has broader access than
+any one vendor session; V1 accepts that distinction (§4.7, §9.6).
 
 This trade-off — and the fact that it is a *conscious* one with compensating
 controls — is what ADR-010 and ADR-013 should record.
@@ -2415,7 +2470,8 @@ mean a vendor waiting on someone who has no idea they are waiting.
 | A mailbox scanner pre-fetches the link | Opening a link changes no business state beyond an access entry, and tokens are multi-use, so a pre-fetch neither consumes nor invalidates it |
 | Someone reads AMC token/application tables | These tables contain no generated raw token or full link; the token hash does not reconstruct the raw token |
 | Someone reads retained Email content, mailboxes, archives or a BC database copy including Email storage | Message bodies contain the full bearer link and can grant access while its token is active. Hashing the AMC token row does not protect this copy. Restrict Email/body and privileged database access; expiry, revocation and supersession stop the link working even when the message remains (§9.7) |
-| The Function's credential is compromised | Key Vault and managed identity, nothing in the browser or the repository; `AMC Api Integration` bounds the blast radius to reading one request and inserting proposals |
+| The Function's BC credential is compromised | Key Vault/managed identity reduce exposure but do not limit it to one link. An attacker can bypass the Function and read authorized request/line/proposal/token data across vendors and companies covered by the application's effective BC permissions, plus standard data reachable through authorized surfaces. Valid token ids discovered through permitted reads may allow matching proposals/comments for other requests; AL pairing checks do not prove raw-link possession. BC still denies purchasing writes, approval/apply, deletion, setup and token lifecycle writes (§4.7). Disable the BC application, rotate the compromised credential and review cross-vendor access/submissions |
+| The Function runtime or session-signing key is compromised | Browser-session isolation depends on the trusted Function. A runtime compromise can use its shared BC access; signing-key compromise can forge session scope. Assess exposure across reachable authorized data and invalidate affected sessions/credentials rather than treating it as a single stolen link |
 | A vendor answers another vendor's request | The session claims come from the token, the token is bound to one request, and AL re-validates the pairing on every write (`VCH-AUT-0004`) |
 | A submit is replayed, or retried after a timeout | The idempotency key (§8.5) |
 | A link outlives the negotiation | `Expires At`, revocation when the request closes or is cancelled, supersession when a new link is sent |
@@ -2698,6 +2754,8 @@ comments, `LibraryPurchase` / `LibraryInventory` / `LibraryRandom` /
 | Re-sending a link supersedes the previous one | `Token_Reissue_SupersedesPrevious` |
 | An expired, revoked or superseded token is refused | `Token_NotActive_IsRejected` |
 | A token from another request cannot write to this one | `Token_ForeignRequest_IsRejected` |
+| A browser session cannot read another request, its lines or proposal status, or attach a comment to a foreign source through the Function | `Function_Session_ForeignResource_IsRejected` |
+| Shared S2S request reads can retrieve authorized rows for multiple vendors without a link; the company boundary follows BC assignments | `S2S_RequestRead_IsNotLinkScoped` / `S2S_CompanyScope_FollowsAssignedPermissions` |
 | Closing or cancelling a request revokes its token | `Request_Close_RevokesToken` |
 | Registering an access changes only Access Count / Last Accessed At and logs LinkOpened; status, hash, vendor, request and expiry stay unchanged | `Token_RegisterAccess_KeepsStatus` / `Token_RegisterAccess_ChangesCountersOnly` |
 | The integration role cannot directly modify token data or call lifecycle writes; controlled registerAccess succeeds with Rm | `Permission_ApiUser_CannotModifyTokenDirectly` / `Permission_ApiUser_CannotWriteTokenLifecycle` / `Permission_ApiUser_RegisterAccess_WithIndirectModify_Succeeds` |
@@ -2728,6 +2786,17 @@ model changes.
 Function ↔ BC HTTP behavior (auth, `429` retry, paging, error mapping) is covered by
 integration tests **in the Function solution** against a sandbox, not by AL tests.
 AL tests must never make outbound HTTP calls.
+
+Read-isolation tests use two vendors/requests. With vendor A's browser session,
+try request/line/proposal ids and comment sources from vendor B, query-option
+injection and a different company; the Function must reject or ignore attempts to
+widen scope and never return B's data. Check the actual upstream query and returned
+ownership, including expanded lines. Separately call BC with the shared S2S
+credential and no link/session: changing the vendor filter can return B's
+authorized request. That is the documented V1 trust boundary, not a failed
+per-link permission test. Confirm a company outside the application's BC-assigned
+scope is refused, using the effective deployed permissions. AL tests still check
+foreign token/request pairings and denied purchase-order/decision writes.
 
 Sandbox HTTP contract tests verify that `tokenHash` exists as `Edm.String` in
 `$metadata`; the exact-hash lookup returns one record for a known hash and no
@@ -2995,6 +3064,15 @@ vendor-portal/api/test/ unit tests + integration tests against a sandbox
 
 Rules the API must follow:
 
+- **The Function authorizes every browser read and write.** Verify session signature,
+  expiry and configured company; derive request/vendor identity from validated
+  claims. Build BC queries internally with both exact request and vendor scope;
+  never forward browser-supplied OData filters, `$expand`, `$select` or BC URLs.
+  Check that returned headers/lines belong to that request/vendor before serializing
+  a portal DTO. For a proposal number or comment source in a route/body, load its
+  parent and reject it unless it belongs to the session's request/vendor. Do not
+  return foreign data to the browser before that check. These are access controls,
+  not ERP quantity/date/substitution rules.
 - **Identity comes from the token, never from the body.** `vendorNumber`,
   `requestNumber` and `accessTokenId` are attached from the session; if the body
   contains them, they are overwritten rather than merged.
@@ -3182,7 +3260,7 @@ M3, M4, M6 and M9 each end with the ADRs listed in §15.1.
 
 | # | Task | Delivers | See it work | Status |
 |---|---|---|---|---|
-| 16 | **Read API** | API pages `vendorRequests` (50120), `vendorRequestLines` (50121) and `vendorAccessTokens` (50125) with a read-only `tokenHash` property in metadata, an exact hash/id scope guard, `$select` excluding the hash and the `registerAccess` bound action (§8.2); page 50125 alone elevates token M in the integration path, backed by role Rm and counter-only updates (§4.7); the Entra application registration, enabled in BC and granted `AMC Api Integration` only | Acquire an S2S token, resolve a real link's hash, then read the request and its lines. Try to list `vendorAccessTokens` without a filter and be refused. Try to read a request the token does not belong to and get nothing | |
+| 16 | **Read API** | API pages `vendorRequests` (50120), `vendorRequestLines` (50121) and `vendorAccessTokens` (50125) with a read-only `tokenHash` property in metadata, an exact hash/id scope guard, `$select` excluding the hash and the `registerAccess` bound action (§8.2); page 50125 alone elevates token M in the integration path, backed by role Rm and counter-only updates (§4.7); the Entra application registration, enabled in BC and granted `AMC Api Integration` only | Acquire an S2S token, resolve a real link's hash, then read the request and its lines. Try to list `vendorAccessTokens` without a filter and be refused. Verify direct S2S can read another authorized vendor’s request without a link, while the Function rejects that same foreign read under the original browser session; verify the BC-assigned company boundary | |
 | 17 | **Write API** | `vendorProposals` (50122) with the nested `vendorProposalLines` part (50123) and the nine-step `OnInsertRecord` of §8.3; `collaborationComments` (50124); `AMC Idempotency Mgt` (50121); the error contract of §8.4 and the generated `docs/api/error-codes.md`; `docs/api/collaboration-v1.yaml` | Post the whole PO-10482 answer in one call and get `201`. Post it again with the same key and get `VCH-IDM-0000` with the original id. Break one line and confirm nothing at all was written. Try to PATCH the proposal and be refused | |
 
 ## M6 — The middle tier
@@ -3252,7 +3330,7 @@ M3, M4, M6 and M9 each end with the ADRs listed in §15.1.
 | 13 | **One atomic POST with nested lines (deep insert), validated and submitted in a single transaction** | create draft → add lines → `submit` action; bound action with a JSON payload | validation here is cross-line, so incremental inserts validate nothing until the last call; one call makes the idempotency key cover exactly one operation; an unsubmitted answer is client state, not ERP state. The JSON-payload action stays as the fallback if deep insert cannot return usable per-line errors |
 | 14 | `idempotencyKey` in the **body**, unique index | `Idempotency-Key` HTTP header | a BC API page cannot read request headers — this is a platform constraint, not a preference |
 | 15 | `VCH-xxx-nnnn` prefix in every error message | relying on `error.code` | BC controls `error.code`; a prefixed message is the only stable machine-readable channel |
-| 16 | S2S client credentials, the Function as trusted middle tier | one BC user per vendor; delegated auth | external vendors are not BC users and would consume licenses; the risk is bounded by a minimal permission set and by AL re-deriving the vendor from the access token rather than from the payload |
+| 16 | Shared S2S application, Function-enforced browser isolation, AL write-pairing checks | one BC user per vendor; delegated auth; claiming the shared permission set isolates reads per link | keeps onboarding simple; accepts cross-vendor application read scope within assigned BC companies. Credential compromise affects that full scope, while buyer decisions and purchasing writes remain denied (§4.7, §9.6) |
 | 17 | `AMC Api Integration` cannot approve, apply or delete | one broad permission set | makes "the vendor cannot change the PO" a platform guarantee rather than a convention |
 | 18 | Business events for Power Automate | polling flows; HTTP calls from AL | polling costs a run per interval and adds latency; calling HTTP from AL puts retry/timeout inside the ERP transaction |
 | 19 | Two channels: BC audit log + Application Insights | one of them only | business history must be readable in BC and survive; technical diagnostics must survive a rollback and be alertable |
@@ -3272,7 +3350,7 @@ M3, M4, M6 and M9 each end with the ADRs listed in §15.1.
 | 33 | `AMC Token Expiry Job`, scheduled by an explicit setup action | comparing dates lazily at validation time; a job queue entry created on install | a row that still says `Active` a month after the link died is a lie the buyer reads on the request page; and an extension should not put entries in an administrator's job queue unasked |
 | 34 | BC owns token validity; AMC tables store its SHA-256 hash while standard Email content retains the bearer link under separate access/retention controls (§9.7) | a JWT signed by the Function; the token kept in Azure storage | the token shares its lifetime with the request, and the request is a BC record; a self-signed token is hard to revoke, and a token held in Azure could outlive the negotiation that justified it |
 | 35 | Tokens are multi-use, expiring, revocable, superseded on re-send | single-use tokens | vendors come back to the page, and corporate mail scanners pre-fetch links; a single-use token breaks both, and turns a scanner's fetch into a fake vendor visit |
-| 36 | AL re-validates the token on every vendor write | trusting the middle tier to scope the vendor | it turns "the Function scopes the vendor" from a promise into a check BC makes for itself, and it closes the one real weakness of service-to-service authentication |
+| 36 | AL checks active token/request/vendor pairing on writes; Function authorizes browser access | accepting mismatched token/request payloads; treating a token id as raw-link proof | BC rejects inconsistent writes independently, while the trusted Function enforces browser read scope. This does not isolate shared S2S reads or contain credential compromise to one request (§4.7) |
 | 37 | Azure Static Web Apps with a linked Function App | the managed API included with Static Web Apps; App Service; a server-rendered app | static files plus an API is exactly the SWA shape, and linking a Function App keeps `/api` same-origin while still getting a managed identity, which the managed API cannot have |
 | 38 | The Function holds the only BC credential and carries no business rules | calling BC from the browser; re-validating in the Function as well | a static page cannot hold a secret; and validation written twice, in two languages, drifts |
 | 39 | The link is sent by the Business Central Email module | Power Automate; SendGrid or Communication Services from a Function | the standard module provides accounts, scenarios, Sent Emails and outbox retry; its retained message content contains the raw link and requires access/retention controls (§9.7). Another sender would add delivery stores and possible flow/log copies to control |
