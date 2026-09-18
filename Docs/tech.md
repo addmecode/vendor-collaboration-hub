@@ -202,7 +202,8 @@ pointing at `https://vendorhub.example.com/r/0Jw7X9uF...`. Log entries `LinkIssu
 
 The Static Web App serves the page for `/r/<token>`; the page immediately
 `POST`s the token to `/api/session`. The Function hashes it, looks it up
-(`GET vendorAccessTokens?$filter=tokenHash eq '9C4E...A17B'`), finds it `Active` and
+(an exact `tokenHash` equality filter, with `$select` excluding the hash — §8.2),
+finds it `Active` and
 unexpired, calls `registerAccess` — which writes a `LinkOpened` entry to the
 timeline and stamps `Last Accessed At` — and returns a 30-minute session plus the
 request:
@@ -1692,17 +1693,58 @@ OData surface while behaving like a command.
 | `vendorProposals` | 50122 | ✓ | ✓ (deep insert, submits immediately) | | |
 | `vendorProposalLines` | 50123 | ✓ | only nested inside a `vendorProposals` insert | | |
 | `collaborationComments` | 50124 | ✓ | ✓ | | |
-| `vendorAccessTokens` | 50125 | ✓ (by hash only) | | | |
+| `vendorAccessTokens` | 50125 | ✓ (one exact hash or resolved token id; §8.2) | | | |
 
 `vendorProposalLines` is exposed on page 50122 as a `part`, which is what makes the
 deep insert in §8.3 possible; it is also addressable directly for reads
 (`GET .../vendorProposals({id})/vendorProposalLines`).
 
 `vendorAccessTokens` is the Function's only lookup path from a link to a request.
-It projects `id`, `requestNumber`, `vendorNumber`, `status` and `expiresAt` — never
-`tokenHash` itself — and its `OnOpenPage` errors when no `tokenHash` filter is
-present, so the entity set cannot be listed or walked. Its one bound action stamps
-an access:
+Page 50125 declares read-only API fields `id`, `tokenHash`, `requestNumber`,
+`vendorNumber`, `status` and `expiresAt`. In particular,
+`field(tokenHash; Rec."Token Hash")` is a real field in the page layout, with
+`Editable = false`: `tokenHash` is an `Edm.String` property in `$metadata`
+and is therefore addressable in an OData `$filter`. A table field absent from the
+API layout is not a substitute for this property. The raw token is never an API
+property; page writes remain restricted to `registerAccess` (§4.7).
+
+**Lookup contract (Function → BC only):**
+
+- The Function computes SHA-256 as exactly 64 uppercase hexadecimal characters
+  (`0–9`, `A–F`) and sends `$filter=tokenHash eq '<64-character hash>'`.
+  Construct and URL-encode the query through the HTTP client's query builder.
+- It always requests
+  `$select=id,requestNumber,vendorNumber,status,expiresAt`. The hash is filterable
+  even though it is omitted from this response projection. `$select` is a client
+  projection, not a security boundary: an authenticated S2S caller omitting it can
+  receive `tokenHash` for the matched record.
+- Before reading rows, the page validates its effective AL filters. Accept only a
+  single exact hash of that format; reject missing, malformed, wildcard, range,
+  inequality and multi-value hash filters. Check the complete filter value, not
+  merely whether `GetFilter("Token Hash")` is non-empty. Apply the validated hash
+  again with `SetRange` in a server-controlled filter group so additional client
+  options cannot broaden the lookup. The unique `Token Hash` key means the result
+  contains zero or one row; `$top` is not the restriction mechanism.
+- The existing keyed `registerAccess` action uses the previously resolved
+  `SystemId`. The guard also accepts a single exact `SystemId` scope for keyed
+  access, without requiring the hash to be resent. Reject unscoped collection reads
+  and any filter that could match several ids; a known id is not permission to list
+  tokens. If both id and hash are supplied, keep both constraints. The action reloads
+  and validates the bound token before writing (§4.7).
+- Zero rows means an unknown link; more than one row is a contract violation and
+  fails closed. For one row, the Function checks status/expiry before creating a
+  session. It never passes `tokenHash` to the browser, JWT claims, business events
+  or logs. Suppress/redact the BC lookup query string and response bodies in Function
+  HTTP diagnostics and dependency telemetry; they can contain a sensitive hash.
+
+This guarded projection is the V1 contract for the trusted S2S caller; it does not
+make hashes generally unreadable to that caller. The UI token pages still omit
+`Token Hash` (§4.6), and browser responses contain only the portal DTO.
+
+Contract basis: [Microsoft Learn — Custom API pages](https://learn.microsoft.com/en-us/dynamics365/business-central/dev-itpro/developer/devenv-develop-custom-api)
+and [API/OData filters](https://learn.microsoft.com/en-us/dynamics365/business-central/dev-itpro/developer/devenv-connect-apps-filtering).
+
+The page's one bound action stamps an access:
 
 ```http
 POST .../vendorAccessTokens({tokenId})/Microsoft.NAV.registerAccess
@@ -1739,10 +1781,14 @@ It is refused once the buyer has made a decision (`VCH-STA-0001`).
 
 **Resolve an access link**
 
-The Function's first call — everything else in this section depends on it:
+The Function's first call — everything else in this section depends on it. The
+64-character hash below is illustrative; the actual value is computed from the
+presented token. The HTTP client URL-encodes the query shown here for readability:
 
 ```http
-GET .../vendorAccessTokens?$filter=tokenHash eq '9C4E...A17B'
+GET .../vendorAccessTokens
+    ?$filter=tokenHash eq '9C4E00000000000000000000000000000000000000000000000000000000A17B'
+    &$select=id,requestNumber,vendorNumber,status,expiresAt
 ```
 
 ```jsonc
@@ -2496,6 +2542,7 @@ comments, `LibraryPurchase` / `LibraryInventory` / `LibraryRandom` /
 | The integration role cannot directly modify token data or call lifecycle writes; controlled registerAccess succeeds with Rm | `Permission_ApiUser_CannotModifyTokenDirectly` / `Permission_ApiUser_CannotWriteTokenLifecycle` / `Permission_ApiUser_RegisterAccess_WithIndirectModify_Succeeds` |
 | Without indirect m, registerAccess fails despite the API page’s Permissions property | `Permission_RegisterAccess_WithoutIndirectModify_Fails` |
 | Ordinary POST/PATCH/DELETE on vendorAccessTokens are refused | `Api_TokenCrud_IsRejected` |
+| The token lookup guard accepts only one exact hash or SystemId scope and rejects unscoped, malformed, wildcard, range and multi-value filters | `Api_TokenLookup_ExactScopeOnly` |
 | Sending a request with no vendor e-mail address fails loudly, before a token exists | `Request_NoRecipient_Fails` |
 | The collaboration address wins over the vendor's general one | `Notification_PortalContactOverridesVendorEmail` |
 | A vendor with a language code is written to in it; one without gets the company's | `Notification_VendorLanguage_IsUsed` |
@@ -2520,6 +2567,15 @@ model changes.
 Function ↔ BC HTTP behavior (auth, `429` retry, paging, error mapping) is covered by
 integration tests **in the Function solution** against a sandbox, not by AL tests.
 AL tests must never make outbound HTTP calls.
+
+Sandbox HTTP contract tests verify that `tokenHash` exists as `Edm.String` in
+`$metadata`; the exact-hash lookup returns one record for a known hash and no
+records for an unknown hash; malformed or broad filters are refused; and the
+lookup still works when `$select` excludes `tokenHash`. Verify an unselected
+response can contain the hash, while the Function's browser DTO, session claims
+and captured diagnostics never contain it. Test keyed `registerAccess` after a
+lookup without resending the hash, and confirm its indirect-modify checks from
+§4.7 still hold. These are endpoint tests, not just direct AL procedure calls.
 
 Token hashing is tested on both sides against the same fixed vector — one known
 token, one expected uppercase-hex digest, asserted in `AMCAccessTokenTests` and in
@@ -2946,7 +3002,7 @@ M3, M4, M6 and M9 each end with the ADRs listed in §15.1.
 
 | # | Task | Delivers | See it work | Status |
 |---|---|---|---|---|
-| 16 | **Read API** | API pages `vendorRequests` (50120), `vendorRequestLines` (50121) and `vendorAccessTokens` (50125) with the `tokenHash` filter guard and the `registerAccess` bound action (§8.2); page 50125 alone elevates token M in the integration path, backed by role Rm and counter-only updates (§4.7); the Entra application registration, enabled in BC and granted `AMC Api Integration` only | Acquire an S2S token, resolve a real link's hash, then read the request and its lines. Try to list `vendorAccessTokens` without a filter and be refused. Try to read a request the token does not belong to and get nothing | |
+| 16 | **Read API** | API pages `vendorRequests` (50120), `vendorRequestLines` (50121) and `vendorAccessTokens` (50125) with a read-only `tokenHash` property in metadata, an exact hash/id scope guard, `$select` excluding the hash and the `registerAccess` bound action (§8.2); page 50125 alone elevates token M in the integration path, backed by role Rm and counter-only updates (§4.7); the Entra application registration, enabled in BC and granted `AMC Api Integration` only | Acquire an S2S token, resolve a real link's hash, then read the request and its lines. Try to list `vendorAccessTokens` without a filter and be refused. Try to read a request the token does not belong to and get nothing | |
 | 17 | **Write API** | `vendorProposals` (50122) with the nested `vendorProposalLines` part (50123) and the nine-step `OnInsertRecord` of §8.3; `collaborationComments` (50124); `AMC Idempotency Mgt` (50121); the error contract of §8.4 and the generated `docs/api/error-codes.md`; `docs/api/collaboration-v1.yaml` | Post the whole PO-10482 answer in one call and get `201`. Post it again with the same key and get `VCH-IDM-0000` with the original id. Break one line and confirm nothing at all was written. Try to PATCH the proposal and be refused | |
 
 ## M6 — The middle tier
