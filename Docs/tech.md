@@ -273,8 +273,10 @@ deep link.
 
 **Step 6 — buyer approves**
 
-`AMC Proposal Decision Svc.Approve` sets `Status = Approved`, stamps the decision
-user and time, then calls `AMC Apply Proposal Svc`:
+`AMC Proposal Decision Svc.Approve` checks permissions without writing, then runs
+`AMC Apply Proposal Svc` through `Codeunit.Run` with its Boolean result captured
+(§7.1). The approval status, decision stamp and approval log are written inside
+that codeunit, in the same transaction as the order changes:
 
 1. The order is still locked by VCR-000148, so it is exactly as the vendor saw it.
    *(A colleague who needed to change line 10000 yesterday would have had to unlock
@@ -958,7 +960,7 @@ another extension without touching this app.
 | `AMC Proposal Mgt` | 50101 | submit, withdraw, supersede; creates drafts for BC-client entry |
 | `AMC Proposal Validator` | 50102 | **pure validation, no side effects** — fills a `AMC Validation Result`; owns the `VCH-xxx-nnnn` error labels |
 | `AMC Proposal Decision Svc` | 50103 | Approve / Reject / Request Changes, with permission checks and logging — the single entry point for a decision, whichever UI it came from (§5.2) |
-| `AMC Apply Proposal Svc` | 50104 | orchestrator: lock check → dispatch handlers → release the order → close the request → log |
+| `AMC Apply Proposal Svc` | 50104 | atomic approve/apply worker, entered through `OnRun` with the Boolean result of `Codeunit.Run` captured: decision stamp → lock check → dispatch handlers → release the order → close the request → log (§7.1) |
 | `AMC Collab Log` | 50105 | the only writer to `AMC Collaboration Entry`, for both events and comments |
 | `AMC Telemetry` | 50106 | wrapper over `Session.LogMessage`; event ids and dimension names as labels |
 | `AMC Purchase Events` | 50107 | subscribers on Purchase Header/Line that forward to `AMC Order Lock Mgt`, plus syncing collaboration status on release. It holds no rules of its own, and it never creates a request — that is a buyer action only (§5.1) |
@@ -1247,9 +1249,11 @@ vendor offered?"* — a commercial judgement about a counterparty's statement, m
 the person who owns the order, with no hierarchy to walk and nobody to delegate to.
 
 A technical reason reinforces it. `Approve` and apply are one operation:
-`AMC Proposal Decision Svc` calls `AMC Apply Proposal Svc` inside the same
-transaction, so a buyer who approves either sees the purchase order change or sees
-why it could not — while they are still looking at it. A workflow approval is
+`AMC Proposal Decision Svc` synchronously runs `AMC Apply Proposal Svc` with the
+Boolean result of `Codeunit.Run` captured. Approval and order changes share the
+worker transaction; the caller writes a failure outcome only after that transaction
+has rolled back (§7.1). A buyer who approves either sees the purchase order change
+or sees why it could not — while they are still looking at it. A workflow approval is
 asynchronous by design: approval is granted, a response runs afterwards, and an
 apply that fails then fails into a background job nobody is watching. Turning a
 visible refusal into an unattended error is the wrong trade for a decision that
@@ -1399,7 +1403,9 @@ ERP transaction, which is the anti-pattern this whole architecture avoids.
 ## 7.1 Orchestration
 
 ```text
-AMC Apply Proposal Svc.Apply(Proposal)
+AMC Apply Proposal Svc.OnRun(DecisionContext) — atomic approve/apply worker
+ 0. Re-read and lock the proposal; re-check permission and allowed decision/retry
+    transition; set Approved, stamp decision user/time, log ProposalApproved
  1. Check Proposal.Status = Approved                    else VCH-APL-0001
  2. Get Purchase Header (SetLoadFields)                 else VCH-APL-0002
  3. AMC Order Lock Mgt.AssertLockedBy(Proposal, Header) else VCH-APL-0003
@@ -1415,23 +1421,60 @@ AMC Apply Proposal Svc.Apply(Proposal)
  7. Release Purchase Document.Run(Header)  -> Released: the vendor's answer is
                                               what commits this order
  8. Close the request, clear AMC Active Request No. -> the order unlocks;
-    supersede every other open proposal on this order; AMC Order Lock Mgt.Resume
+    revoke the request token; supersede every other open proposal on this order
  9. Proposal.Status := Applied
-10. Telemetry VCH0220 with duration + line count
-11. Business event VendorProposalApproved
+10. Business event VendorProposalApproved
 ```
 
 The two outcomes are `Applied` and `Apply Failed`. There is no partial outcome to
 represent: the decision covered the whole proposal (§5.2) and the transaction covers
 the whole apply, so either every line reached the purchase order or none did.
 
-Steps 1–11 run in **one transaction**. Any handler error rolls the whole thing back;
-the caller catches it via a `[TryFunction]` wrapper, then writes
-`Status = Apply Failed`, `Last Error Code`, `Last Error Message` and a log entry in
-a **new** transaction (the error state must survive the rollback). Nothing is
-partially applied to a purchase order, and the rollback also restores the
-suppression flag, so a failed apply does not leave the order lock switched off for
-the session — and does not leave the order unlocked with a request still open.
+**The transaction boundary is the captured Boolean result of `Codeunit.Run`.**
+`AMC Apply Proposal Svc` has `TableNo = "AMC Vendor Proposal"`; its `OnRun`
+receives a temporary proposal record carrying the proposal identity and decision
+context, then loads the persisted records afresh. Steps 0–10 run in **one worker
+transaction**: approval status/stamp/log, purchase header and lines, line-applied
+flags, request recalculation/closure, token revocation, superseding other proposals
+and all success audit entries commit together on a successful Run. Any error rolls
+back all those writes before Run returns `false`. A `[TryFunction]` wrapper must
+never be used as the rollback boundary for this write path.
+
+`AMC Proposal Decision Svc` owns the call and the outcome handling:
+
+1. Enter with **no open write transaction**. Before Run, only read/check permissions
+   and prepare temporary context; do not persist `Approved`, decision stamps or
+   logs. BC page and buyer API entry points must finish any unrelated page-save or
+   request writes at their own explicit boundary before invoking this service.
+   Never commit an approval separately just to make Run callable.
+2. Save the previous suppression state (and any other session flags changed by
+   apply), call `ClearLastError()`, then capture the result of
+   `Codeunit.Run(Codeunit::"AMC Apply Proposal Svc", DecisionContext)`.
+3. On `false`, immediately copy the error details to local variables before another
+   call can overwrite the session error buffer. Restore the saved session flags
+   explicitly on **both** success and failure; database rollback does not restore
+   session state. Reload persisted records rather than reusing worker record buffers.
+4. On success, the worker has already committed `Applied` and the complete order
+   change. Emit `VCH0220` with duration and line count after Run returns `true`.
+5. On failure, the order is untouched, still locked and `Open`; the request and token
+   keep their pre-apply state, and no approval stamp or success audit entry remains.
+   In a **new transaction**, write `Status = Apply Failed`, `Last Error Code`,
+   `Last Error Message` and `ProposalApplyFailed`; emit `VCH0221`. Complete this
+   transaction normally and return the failure outcome to the UI. Do not raise an
+   uncaught `Error` afterwards that would erase the failure record. A retry enters
+   the same worker boundary with the allowed `Apply Failed` transition re-checked.
+
+**No intermediate commits are allowed inside the worker**, its handlers, standard
+release path or subscribers. Invoke the standard release routine without capturing
+a nested Run result that would introduce an implicit commit. Where the target
+runtime supports it (runtime 6.0+), use `[CommitBehavior(CommitBehavior::Error)]`
+on the worker entry method to reject explicit `Commit()` calls in its call tree.
+This attribute does not block implicit commits from Boolean `Codeunit.Run` calls;
+those nested calls must be excluded by design and review.
+
+Platform semantics: [Microsoft Learn — Codeunit.Run](https://learn.microsoft.com/en-us/dynamics365/business-central/dev-itpro/developer/methods-auto/codeunit/codeunit-run-method),
+[Try methods](https://learn.microsoft.com/en-us/dynamics365/business-central/dev-itpro/developer/devenv-handling-errors-using-try-methods)
+and [CommitBehavior](https://learn.microsoft.com/en-us/dynamics365/business-central/dev-itpro/developer/attributes/devenv-commitbehavior-attribute).
 
 ## 7.2 Per-handler rules
 
@@ -1563,8 +1606,10 @@ click and a warning, not a support call.
 
 **During apply.** `AMC Apply Proposal Svc` writes to the order it locked, so
 `AMC Order Lock Mgt.Suppress` opens a window for the duration of the transaction and
-`Resume` closes it. Suppression is session state that a rollback does not undo, so
-the `[TryFunction]` wrapper of §7.1 restores it on the failure path too.
+`AMC Proposal Decision Svc` restores the saved suppression state explicitly after
+`Codeunit.Run` on both success and failure (§7.1). Suppression is session state that
+a database rollback does not undo; restore the previous value rather than blindly
+clearing it. The same rule applies to every session flag changed during apply.
 
 ---
 
@@ -2399,9 +2444,9 @@ comments, `LibraryPurchase` / `LibraryInventory` / `LibraryRandom` /
 | An unconfirmed order cannot be posted, because it is still `Open` | `Lock_OpenRequest_CannotPost` |
 | Unlocking cancels the request, revokes the token and supersedes open proposals | `Lock_Unlock_CancelsRequest` |
 | Applying a proposal closes the request and unlocks the order | `Apply_Success_UnlocksOrder` |
-| A failed apply leaves the purchase order untouched | `Apply_HandlerError_RollsBack` |
+| A later handler error rolls back earlier line changes/inserts, release/unlock, request/token changes, applied flags and success audit entries | `Apply_HandlerError_RollsBack` |
 | An approval decides the whole proposal — every line is applied | `Decision_Approve_AppliesEveryLine` |
-| Apply writes through the lock, and a failed apply leaves the lock intact | `Lock_DuringApply_IsSuppressed` / `Lock_ApplyError_RestoresLock` |
+| Apply writes through the lock; success and failure both restore the previous suppression state, and failure keeps the order locked | `Lock_DuringApply_IsSuppressed` / `Lock_ApplyError_RestoresLock` / `Lock_ApplySuccess_RestoresSuppression` |
 | A validator collects every failure, not only the first | `Validate_ThreeBadLines_ReturnsThree` |
 | A split and a substitution produce lines with copied dimensions and UoM | `Builder_NewLine_CopiesDimensions` |
 | A split with no free line-number gap fails instead of renumbering | `Builder_NoGap_Fails` |
@@ -2427,7 +2472,9 @@ comments, `LibraryPurchase` / `LibraryInventory` / `LibraryRandom` /
 | A deep insert whose lines break a cross-line rule writes nothing at all | `Api_DeepInsert_InvalidLines_RollsBackHeader` |
 | `AMC Api Integration` cannot approve or apply | `Permission_ApiUser_CannotApprove` |
 | Approving without `AMC Collaboration Buyer` fails | `Decision_Approve_WithoutBuyerPermission_Fails` |
-| Approve and apply happen in one transaction — a failed apply leaves the proposal undecided-and-failed, never approved-and-unapplied | `Decision_ApproveThenApplyFails_LeavesApplyFailed` |
+| Approval stamp/log and apply share the Codeunit.Run worker transaction; failure removes the approval writes and persists Apply Failed/error/log afterwards | `Decision_ApproveThenApplyFails_LeavesApplyFailed` |
+| The caller enters Run without writes; the worker rejects intermediate explicit commits on supported runtimes | `Decision_Approve_ReadOnlyBeforeRun` / `Apply_IntermediateCommit_IsRejected` |
+| A retry after failure applies the whole proposal once and restores session flags | `Decision_RetryAfterApplyFailure_AppliesOnce` |
 | Illegal status transitions error | `Status_IllegalTransition_Fails` |
 | No permission set can delete a collaboration entry | `Log_Entry_CannotBeDeleted` |
 
@@ -2848,7 +2895,7 @@ M3, M4, M6 and M9 each end with the ADRs listed in §15.1.
 | 9 | **The interface and the simple handlers** | `AMC IProposalLineHandler`; the `implements` map on `AMC Proposal Line Type`; `AMC Purchase Line Builder` (50123) with gap allocation, `Validate` field ordering and dimension copying; `AMC Confirm Handler` (50111), `AMC Change Qty Handler` (50112), `AMC Change Date Handler` (50113) | Call a handler directly from a test against a real purchase line and watch `Promised Receipt Date` and `Quantity` change through standard validation. Confirm a quantity below `Quantity Received` is refused | |
 | 10 | **The structural handlers** | `AMC Split Delivery Handler` (50114), `AMC Substitute Item Handler` (50115), `AMC Cancel Remainder Handler` (50116), all three building lines through the builder from task 9 | Split 1000 into 600 + 400 and see line 15000 appear next to 10000 with the right dates, dimensions and origin stamp. Substitute ITEM-B2 and see the original cancelled. Fill the line-number gap and confirm `VCH-APL-0005` rather than a renumbering | |
 | 11 | **Order lock** | `AMC Order Lock Mgt` (50120) with the block list of §7.3, `Suppress` / `Resume`, and the confirm-and-cancel *Unlock Purchase Order* action; `AMC Purchase Events` (50107) subscribing and forwarding only | With a request open on PO-10482, try to change a quantity, add a line, delete a line and release the order — all refused with the same message. Try to post a receipt and watch standard BC refuse it because the order is still `Open`. Unlock, read the confirmation, accept, and watch the request cancel and the vendor's link die | |
-| 12 | **Decision and apply** | `AMC Proposal Decision Svc` (50103) with permission checks and logging; `AMC Apply Proposal Svc` (50104) running the twelve steps of §7.1 in one transaction, with the `[TryFunction]` wrapper writing `Apply Failed` in a new transaction; `PriceRecalculated` logging (§7.2) | Approve the PO-10482 proposal and watch the order become the four lines of §0.4, released and unlocked — and only now receivable. Make a handler fail and confirm the order is untouched, still `Open` and still locked, and the proposal says why | |
+| 12 | **Decision and apply** | `AMC Proposal Decision Svc` (50103) with permission checks and logging; `AMC Apply Proposal Svc` (50104) running steps 0–10 of §7.1 through `Codeunit.Run` with its Boolean result captured; caller enters without an open write transaction, restores session flags on both paths and writes `Apply Failed` only after rollback; `PriceRecalculated` logging (§7.2) | Approve the PO-10482 proposal and watch the order become the four lines of §0.4, released and unlocked — and only now receivable. Make a handler fail and confirm the order is untouched, still `Open` and still locked, and the proposal says why | |
 
 ## M4 — Asking the vendor
 
@@ -2941,7 +2988,7 @@ M3, M4, M6 and M9 each end with the ADRs listed in §15.1.
 | 18 | Business events for Power Automate | polling flows; HTTP calls from AL | polling costs a run per interval and adds latency; calling HTTP from AL puts retry/timeout inside the ERP transaction |
 | 19 | Two channels: BC audit log + Application Insights | one of them only | business history must be readable in BC and survive; technical diagnostics must survive a rollback and be alertable |
 | 20 | Validator is side-effect-free and separate | validation inside apply | it is called from API, UI and tests, and must be testable without writing a purchase order |
-| 21 | Apply is one transaction, failure state written after rollback | per-line commits | a partially applied purchase order is worse than a failed one |
+| 21 | Approval and apply share one Codeunit.Run worker transaction; caller has no open write transaction, restores session flags on both paths and writes failure state after rollback | per-line commits; TryFunction as a rollback boundary | a partially applied purchase order is worse than a failed one |
 | 22 | AL-Go for GitHub | hand-written workflows | it is the tooling BC teams actually use, and it already solves versioning, artifacts and deployment |
 | 23 | AppSourceCop enabled on a PTE | PTE cop only | it is the only analyzer enforcing affixes and breaking-change detection — the upgradeability discipline |
 | 24 | Vendor access is an e-mailed, single-purpose link | a vendor portal with accounts; Power Pages; an application distributed to vendors | every account-based option is paid for per vendor before any value appears, and needs the vendor's own IT to cooperate; a link arrives in the channel already used for purchase orders and works on a phone |
@@ -2966,7 +3013,7 @@ M3, M4, M6 and M9 each end with the ADRs listed in §15.1.
 | 43 | A buyer decision is all-or-nothing per proposal, and `Partially Applied` is not in the status enum | per-line accept/reject; keeping the value in the enum for a possible later answer | a proposal is one business statement whose lines are priced and planned against each other, so unpicking it agrees to something the vendor never offered — *Request Changes* is the answer, and it brings back a proposal the vendor stands behind. The enum is public and extensible, so a value that is unreachable by construction can only ever become a breaking change to remove |
 | 44 | Standard price calculation decides the price after any applied change, and a moved price is logged as `PriceRecalculated` | pinning the original unit cost across a substitution; computing a price in this extension; blocking apply above a price-delta threshold | prices, price lists, quantity breaks and discounts are a BC subsystem with their own setup and date logic, and an ERP extension that forms its own opinion about cost forks the truth. What the extension owes the buyer is visibility, not arbitration — hence a dedicated entry type for the one change nobody requested |
 | 45 | One Business Central company per vendor-facing deployment; `companyId` is a Function app setting | a company id in the link or the session; a multi-company vendor surface | pinning the company removes an entire class of cross-company probing and keeps the token lookup a single, unambiguous query. Serving a second company is then a second configuration rather than a contract change — and carrying a company in the link would require resolving a token before knowing which company to ask, which BC cannot answer in one call |
-| 46 | The buyer decision lives in this extension, not in a standard approval workflow | registering the proposal as a workflow document; making a Power Automate approval the decision | a workflow answers "who internally must sign off"; this answers "do we accept the counterparty's offer", which has one legitimate decision-maker and no hierarchy. And approve-and-apply is one transaction here, so a buyer sees the order change or sees why it could not; a workflow's asynchronous response would turn a visible refusal into an unattended background error. No approval entries, no hierarchy, no thresholds — it does not duplicate what workflows do |
+| 46 | The buyer decision lives in this extension, not in a standard approval workflow | registering the proposal as a workflow document; making a Power Automate approval the decision | a workflow answers "who internally must sign off"; this answers "do we accept the counterparty's offer", which has one legitimate decision-maker and no hierarchy. And approve-and-apply shares one Codeunit.Run worker transaction here, with failure recorded after rollback, so a buyer sees the order change or sees why it could not; a workflow's asynchronous response would turn a visible refusal into an unattended background error. No approval entries, no hierarchy, no thresholds — it does not duplicate what workflows do |
 | 47 | `AMC Collaboration Entry` is kept indefinitely, with no delete path and no Retention Policy registration | a retention window on closed documents; registering the table so an administrator could set one | rows accrue per negotiation step, so the volume never becomes the problem a technical log would; and registering the table would hand out a supported way to erase the audit trail that every other rule in this design protects. Diagnostics that do need a window live in Application Insights, which is why the two channels are separate |
 | 48 | A link lives 14 days from issue, re-sending mints a new one, and a daily job makes expiry visible | expiring lazily at validation time; tying the link's life to the response deadline; extending an existing link on re-send | a row that still says `Active` a month after the link died is a lie the buyer reads on the request page, so the state is materialised — but validation compares the date regardless, so the job is never load-bearing. Tying the two clocks together would conflate "when we want an answer" with "when the credential dies"; keeping them separate, with a guard that the link outlives the deadline, keeps both meanings |
 | 49 | One recipient per link: `AMC Portal Contact E-Mail`, falling back to `Vendor."E-Mail"`, failing loudly if neither exists | reading the order's contact or order address; sending to several addresses; falling back silently to no send | a token, a link and a recipient are one thing — several recipients would make "who answered" unanswerable and revocation coarse, and several tokens would be a per-recipient credential model acquired by accident. The custom field does not duplicate `Vendor."E-Mail"`; it exists because that address is usually accounts payable, and overwriting it would redirect every other document BC sends |
