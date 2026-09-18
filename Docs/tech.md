@@ -973,7 +973,7 @@ another extension without touching this app.
 | `AMC Split Delivery Handler` | 50114 | " |
 | `AMC Substitute Item Handler` | 50115 | " |
 | `AMC Cancel Remainder Handler` | 50116 | " |
-| `AMC Access Token Mgt` | 50117 | issue, hash, resolve, register an access, expire, revoke, supersede — the only writer to `AMC Vendor Access Token` |
+| `AMC Access Token Mgt` | 50117 | issue, hash, resolve, register an access, expire, revoke, supersede — the only writer to `AMC Vendor Access Token`; no blanket token-write elevation: lifecycle writes use internal caller permissions, while RegisterAccess uses the API page’s controlled M scope (§4.7) |
 | `AMC Vendor Notification` | 50118 | resolve the recipient, mint the link, send through the standard Email module, log the outcome |
 | `AMC Vendor Email Builder` | 50119 | **pure** — request + link → subject, HTML body, plain-text body; no sending, no record writes |
 | `AMC Order Lock Mgt` | 50120 | owns the lock (§7.3): what it blocks, the confirm-and-cancel unlock, and the suppression window during apply |
@@ -1093,7 +1093,7 @@ extension-model answer.
 | `AMC Collaboration Read` | 50100 | R on all AMC tables; R on Purchase Header/Line, Vendor, Item |
 | `AMC Collaboration Buyer` | 50101 | includes Read; RIM on Request/Request Line/Proposal/Proposal Line; RIM on Vendor Access Token; I on Collaboration Entry; X on `AMC Request Mgt`, `AMC Proposal Decision Svc`, `AMC Apply Proposal Svc`, `AMC Order Lock Mgt`, `AMC Access Token Mgt`, `AMC Vendor Notification` |
 | `AMC Collaboration Admin` | 50102 | includes Buyer; RIMD on Setup |
-| `AMC Api Integration` | 50103 | R on Request/Request Line; RI on Proposal/Proposal Line; **RM** on Vendor Access Token; I on Collaboration Entry; R on Purchase Header/Line, Vendor, Item; X on `AMC Proposal Mgt`, `AMC Proposal Validator`, `AMC Validation Result`, `AMC Idempotency Mgt`, `AMC Access Token Mgt` — **no D anywhere, no Setup, no access to the decision, apply, notification or order-version codeunits** |
+| `AMC Api Integration` | 50103 | R on Request/Request Line; RI on Proposal/Proposal Line; **Rm** on Vendor Access Token (direct read, indirect modify via `registerAccess` only); I on Collaboration Entry; R on Purchase Header/Line, Vendor, Item; X on `AMC Proposal Mgt`, `AMC Proposal Validator`, `AMC Validation Result`, `AMC Idempotency Mgt`, `AMC Access Token Mgt` — **no D anywhere, no Setup, no access to the decision, apply, notification or order-version codeunits** |
 
 `AMC Api Integration` is the set assigned to the Entra application registration
 used by the Azure Function. It is deliberately the narrowest one: the integration
@@ -1103,11 +1103,36 @@ cannot change setup, cannot issue a token and cannot read a request it has no to
 for. That property is what makes the "vendor cannot modify the PO" rule enforced by
 the platform and not merely by convention.
 
-The one write it has outside proposals is `M` on `AMC Vendor Access Token`, needed
-because registering an access stamps `Last Accessed At` and `Access Count`. The API
-page over that table exposes no writable field and its bound action is the only
-writer, so the permission grants the counter update and nothing shaped like a
-status change.
+Token modification is **indirect**: the permission set declares
+`tabledata "AMC Vendor Access Token" = Rm`. Uppercase `R` permits reads;
+lowercase `m` permits modification only through an object carrying the corresponding
+`Permissions` property. The integration identity has no direct `M`, `I` or `D`
+on this table, including through any additional assigned permission set.
+
+The existing `vendorAccessTokens` API page (50125) is the **only object in the
+integration call path** that elevates token modification:
+
+`Permissions = tabledata "AMC Vendor Access Token" = M;`
+
+It has `InsertAllowed = false`, `ModifyAllowed = false` and
+`DeleteAllowed = false`, exposes no writable fields, and rejects ordinary modify,
+insert and delete operations. Its only write entry point is the `registerAccess`
+bound action, which delegates to `AMC Access Token Mgt.RegisterAccess` (§8.2).
+Grant the integration role `X` on this API page and the required helper codeunits;
+do not add token-modification elevation to the shared `AMC Access Token Mgt`
+codeunit, the token table, other API pages or general-purpose helpers.
+
+**Neither `m` nor the page's `M` is a field-level permission.** The action and
+its helper enforce the limited update: accept the token identity only, reload and
+validate the token, increment `Access Count`, stamp `Last Accessed At` and log
+`LinkOpened`. They accept no caller-supplied record or values for token status,
+hash, vendor, request or expiry, and invoke no lifecycle procedure. Issue, revoke,
+supersede and expire remain buyer/admin or scheduled internal operations; calling
+them with the integration role outside this elevated action must fail for missing
+direct token-write permission. Read-only page properties protect the HTTP surface;
+the `Rm` grant protects direct table modification outside the controlled object.
+
+Permission semantics: [Microsoft Learn — Permissions property](https://learn.microsoft.com/en-us/dynamics365/business-central/dev-itpro/developer/properties/devenv-permissions-property).
 
 ---
 
@@ -1683,8 +1708,13 @@ an access:
 POST .../vendorAccessTokens({tokenId})/Microsoft.NAV.registerAccess
 ```
 
-which increments `Access Count`, stamps `Last Accessed At` and writes a `LinkOpened`
-entry to the timeline. It returns no data and changes no status.
+which calls `AMC Access Token Mgt.RegisterAccess` under page 50125's
+`Permissions = tabledata "AMC Vendor Access Token" = M`. The integration role
+supplies indirect `m` (§4.7); ordinary POST/PATCH/DELETE remain disabled. The action
+accepts only the bound token identity, reloads and validates the token, increments
+`Access Count`, stamps `Last Accessed At` and writes a `LinkOpened` entry to the
+timeline in one transaction. It returns no data and leaves status, hash, request,
+vendor and expiry unchanged. No lifecycle method runs under this elevated scope.
 
 Two properties of this table carry most of the security model:
 
@@ -2462,7 +2492,10 @@ comments, `LibraryPurchase` / `LibraryInventory` / `LibraryRandom` /
 | An expired, revoked or superseded token is refused | `Token_NotActive_IsRejected` |
 | A token from another request cannot write to this one | `Token_ForeignRequest_IsRejected` |
 | Closing or cancelling a request revokes its token | `Request_Close_RevokesToken` |
-| Registering an access does not change the token's status | `Token_RegisterAccess_KeepsStatus` |
+| Registering an access changes only Access Count / Last Accessed At and logs LinkOpened; status, hash, vendor, request and expiry stay unchanged | `Token_RegisterAccess_KeepsStatus` / `Token_RegisterAccess_ChangesCountersOnly` |
+| The integration role cannot directly modify token data or call lifecycle writes; controlled registerAccess succeeds with Rm | `Permission_ApiUser_CannotModifyTokenDirectly` / `Permission_ApiUser_CannotWriteTokenLifecycle` / `Permission_ApiUser_RegisterAccess_WithIndirectModify_Succeeds` |
+| Without indirect m, registerAccess fails despite the API page’s Permissions property | `Permission_RegisterAccess_WithoutIndirectModify_Fails` |
+| Ordinary POST/PATCH/DELETE on vendorAccessTokens are refused | `Api_TokenCrud_IsRejected` |
 | Sending a request with no vendor e-mail address fails loudly, before a token exists | `Request_NoRecipient_Fails` |
 | The collaboration address wins over the vendor's general one | `Notification_PortalContactOverridesVendorEmail` |
 | A vendor with a language code is written to in it; one without gets the company's | `Notification_VendorLanguage_IsUsed` |
@@ -2903,7 +2936,7 @@ M3, M4, M6 and M9 each end with the ADRs listed in §15.1.
 
 | # | Task | Delivers | See it work | Status |
 |---|---|---|---|---|
-| 13 | **Access token** | `AMC Vendor Access Token` (50106) and `AMC Access Token Status` (50107); `AMC Access Token Mgt` (50117) with `Issue`, `Assert`, `RegisterAccess`, `Revoke`, `Supersede` and `Expire`, storing only the SHA-256 hash (§9.2); pages 50109 and 50110 | Issue a token from a test and confirm the raw value appears nowhere in the database. Revoke it and watch the status change and the timeline record it. Assert a token against the wrong request and get `VCH-AUT-0004` | |
+| 13 | **Access token** | `AMC Vendor Access Token` (50106) and `AMC Access Token Status` (50107); `AMC Access Token Mgt` (50117) with `Issue`, `Assert`, `RegisterAccess`, `Revoke`, `Supersede` and `Expire`, storing only the SHA-256 hash (§9.2); no blanket token-write elevation on the shared codeunit (§4.7); pages 50109 and 50110 | Issue a token from a test and confirm the raw value appears nowhere in the database. Revoke it and watch the status change and the timeline record it. Assert a token against the wrong request and get `VCH-AUT-0004` | |
 | 14 | **The e-mail** | `AMC Vendor Email Builder` (50119), pure, returning subject, HTML and plain text; `AMC Vendor Notification` (50118) resolving the recipient and sending through the Email module; `AMC Email Scenario Ext` (50100); the language rules and the `GlobalLanguage` restore of §13.4 | Configure an e-mail account, map the scenario, and send yourself the message for VCR-000148. Check it renders in a real client, that the plain-text alternative carries the same link, and that a vendor with a language code gets that language | |
 | 15 | **Send, re-send, revoke, expire** | `Send` moving `Draft → Sent → Awaiting Vendor`, minting the token and handing over the e-mail in one transaction (§5.1); *Re-send link* and *Revoke link* actions; the `VCH-REQ-0002` and `VCH-REQ-0003` guards; `AMC Token Expiry Job` (50124) and the setup action that schedules it | Press *Send* on PO-10482 and receive the e-mail. Press *Re-send* and confirm the first link's token is `Superseded`. Set `Link Validity Days` below the vendor's response days and be refused. Run the job against a back-dated token and watch it flip to `Expired` | |
 
@@ -2913,7 +2946,7 @@ M3, M4, M6 and M9 each end with the ADRs listed in §15.1.
 
 | # | Task | Delivers | See it work | Status |
 |---|---|---|---|---|
-| 16 | **Read API** | API pages `vendorRequests` (50120), `vendorRequestLines` (50121) and `vendorAccessTokens` (50125) with the `tokenHash` filter guard and the `registerAccess` bound action (§8.2); the Entra application registration, enabled in BC and granted `AMC Api Integration` only | Acquire an S2S token, resolve a real link's hash, then read the request and its lines. Try to list `vendorAccessTokens` without a filter and be refused. Try to read a request the token does not belong to and get nothing | |
+| 16 | **Read API** | API pages `vendorRequests` (50120), `vendorRequestLines` (50121) and `vendorAccessTokens` (50125) with the `tokenHash` filter guard and the `registerAccess` bound action (§8.2); page 50125 alone elevates token M in the integration path, backed by role Rm and counter-only updates (§4.7); the Entra application registration, enabled in BC and granted `AMC Api Integration` only | Acquire an S2S token, resolve a real link's hash, then read the request and its lines. Try to list `vendorAccessTokens` without a filter and be refused. Try to read a request the token does not belong to and get nothing | |
 | 17 | **Write API** | `vendorProposals` (50122) with the nested `vendorProposalLines` part (50123) and the nine-step `OnInsertRecord` of §8.3; `collaborationComments` (50124); `AMC Idempotency Mgt` (50121); the error contract of §8.4 and the generated `docs/api/error-codes.md`; `docs/api/collaboration-v1.yaml` | Post the whole PO-10482 answer in one call and get `201`. Post it again with the same key and get `VCH-IDM-0000` with the original id. Break one line and confirm nothing at all was written. Try to PATCH the proposal and be refused | |
 
 ## M6 — The middle tier
