@@ -550,7 +550,7 @@ Modeling rules:
 | What a line costs after a change | standard price calculation, triggered by `Validate()` | Prices, price lists, quantity breaks and line discounts are a whole BC subsystem with its own setup and its own date logic. Carrying the old price forward, or computing a new one here, would make this extension an opinion about pricing (§7.2) |
 | Numbering | `No. Series` module | Standard, per-company setup, manual/automatic |
 | Release | `Release Purchase Document` codeunit | An approved proposal releases the order through the standard codeunit, so every standard release check runs — never around it |
-| Gating receipt, posting and invoicing on a vendor confirmation | `Purchase Header.Status` (`Open` / `Released`) | `Released` already means "committed, and may be acted on", and already gates posting. Making an approved proposal the thing that releases the order gets that gate for free, instead of a custom confirmation status and a custom block on the posting routines (§5.1) |
+| Gating release and purchase-order posting during vendor collaboration | `Purchase Header."AMC Active Request No."`; standard release and posting codeunits | `AMC Order Lock Mgt` checks the active-request pointer through release/posting event subscribers (§7.3). Approval applies the proposal and releases through standard BC; Open/Released remain the standard statuses |
 | Sending the link to the vendor | `Email` module (System Application) | accounts, connectors, e-mail scenarios, Sent Emails and outbox retry already exist; message content retains the bearer link and is covered by §9.7. A custom sender would add another delivery store to control |
 | Buyer notifications | Power Automate over business events | Not an ERP concern |
 
@@ -978,7 +978,7 @@ extension has been removed use the separate unknown-value handler (§6.1).
 | `AMC Apply Proposal Svc` | 50104 | atomic approve/apply worker, entered through `OnRun` with the Boolean result of `Codeunit.Run` captured: decision stamp → lock check → dispatch handlers → release the order → close the request → log (§7.1) |
 | `AMC Collab Log` | 50105 | the only writer to `AMC Collaboration Entry`, for both events and comments |
 | `AMC Telemetry` | 50106 | wrapper over `Session.LogMessage`; event ids and dimension names as labels |
-| `AMC Purchase Events` | 50107 | subscribers on Purchase Header/Line that forward to `AMC Order Lock Mgt`, plus syncing collaboration status on release. It holds no rules of its own, and it never creates a request — that is a buyer action only (§5.1) |
+| `AMC Purchase Events` | 50107 | thin subscribers on Purchase Header/Line and before standard release/purchase posting, forwarding to `AMC Order Lock Mgt`; sync collaboration status on release. It holds no rules of its own and never creates a request (§5.1, §7.3) |
 | `AMC Business Events` | 50108 | `[ExternalBusinessEvent]` publishers for Power Automate |
 | `AMC Install` | 50109 | `Subtype = Install` — setup record, default number series, upgrade tags on a fresh install |
 | `AMC Upgrade` | 50110 | `Subtype = Upgrade` — dispatch plus the tag constants |
@@ -991,7 +991,7 @@ extension has been removed use the separate unknown-value handler (§6.1).
 | `AMC Access Token Mgt` | 50117 | issue, hash, resolve, register an access, expire, revoke, supersede — the only writer to `AMC Vendor Access Token`; no blanket token-write elevation: lifecycle writes use internal caller permissions, while RegisterAccess uses the API page’s controlled M scope (§4.7) |
 | `AMC Vendor Notification` | 50118 | resolve the recipient, mint the link, send through the standard Email module, log the outcome |
 | `AMC Vendor Email Builder` | 50119 | **pure** — request + link → subject, HTML body, plain-text body; no sending, no record writes |
-| `AMC Order Lock Mgt` | 50120 | owns the lock (§7.3): what it blocks, the confirm-and-cancel unlock, and the suppression window during apply |
+| `AMC Order Lock Mgt` | 50120 | owns the edit/release/posting guards, confirm-and-cancel unlock, and the order/request-scoped mutation/release exception during apply; posting never uses that exception (§7.3) |
 | `AMC Idempotency Mgt` | 50121 | register a key, hash the payload, recognise a repeat and resolve it to the existing proposal (§8.5) |
 | `AMC Validation Result` | 50122 | the structured accumulator a validator writes into: code, request line, sequence, text; renders to one message or to a JSON array |
 | `AMC Purchase Line Builder` | 50123 | insert a purchase line next to an origin line — gap allocation, copying item, variant, location, UoM and dimensions, stamping the origin proposal |
@@ -1251,13 +1251,13 @@ Collaboration* refuses a `Released` order with `VCH-REQ-0004`, naming the standa
 *Reopen* action the buyer needs first. The order then stays `Open` for as long as
 the request is open, and an approved proposal is what releases it (§7.1).
 
-That mapping is the point rather than a detail. `Released` in standard Business
-Central already means *this document is committed and may be acted on*, and it is
-already what gates receiving, posting and invoicing. Making the vendor's
-confirmation the thing that releases the order means an unconfirmed order cannot be
-received against, posted or invoiced — refused by standard BC, with its own message,
-with no code of ours anywhere in that path. An order nobody has confirmed is not a
-document anyone should be acting on, and BC already knows it.
+The approved proposal releases the order through standard BC. While the request
+is active, this extension explicitly blocks release and purchase-order posting
+through `AMC Order Lock Mgt` (§7.3). Status `Open` is not sufficient as a posting
+block: standard posting can automatically release an open order. The guarantee
+comes from the active-request checks on both operations, including receipt-only,
+invoice-only and receive-and-invoice posting from the purchase order. An order
+without an active request follows standard BC behavior.
 
 Creating the request stamps `AMC Active Request No.` on the order, which is what
 locks it for editing until the negotiation ends (§7.3).
@@ -1532,8 +1532,9 @@ AMC Apply Proposal Svc.OnRun(DecisionContext) — atomic approve/apply worker
  1. Check Proposal.Status = Approved                    else VCH-APL-0001
  2. Get Purchase Header (SetLoadFields)                 else VCH-APL-0002
  3. AMC Order Lock Mgt.AssertLockedBy(Proposal, Header) else VCH-APL-0003
- 4. AMC Order Lock Mgt.Suppress()                       our own writes must pass
-                                                        through the lock
+ 4. AMC Order Lock Mgt.Suppress(Header, RequestNo)      allow apply mutations and
+                                                        release for this order only;
+                                                        posting stays blocked
  5. For each proposal line in Sequence No. order:
        LineHandler := Line."Line Type";
        LineHandler.Apply(Line, Header);
@@ -1570,8 +1571,9 @@ never be used as the rollback boundary for this write path.
    logs. BC page and buyer API entry points must finish any unrelated page-save or
    request writes at their own explicit boundary before invoking this service.
    Never commit an approval separately just to make Run callable.
-2. Save the previous suppression state (and any other session flags changed by
-   apply), call `ClearLastError()`, then capture the result of
+2. Save the previous suppression context, including order/request identity (and
+   any other session flags changed by apply), call `ClearLastError()`, then capture
+   the result of
    `Codeunit.Run(Codeunit::"AMC Apply Proposal Svc", DecisionContext)`.
 3. On `false`, immediately copy the error details to local variables before another
    call can overwrite the session error buffer. Restore the saved session flags
@@ -1668,14 +1670,44 @@ subscribes and forwards.
 | Modify, insert and delete on `Purchase Line` | this is the data the vendor is answering about |
 | Modify on `Purchase Header` | vendor, currency and order date change what was asked |
 | Delete of the order | there is an open negotiation attached to it |
-| `Release` | releasing is what says "this is committed", and that is the vendor's answer to give, not the buyer's to assume |
+| Manual or automatic `Release` | the order must remain locked until its proposal is applied; automatic release during posting must not bypass collaboration |
+| Purchase-order posting: Receive, Invoice, Receive and Invoice | posting changes fulfillment/accounting data while the vendor is answering; the guard applies independently of the standard order status |
 
-Nothing else needs blocking, because there is nothing left to block. A request can
-only be sent on an order in status `Open`, and the order stays `Open` until an
-approved proposal releases it (§5.1). Receiving, posting and invoicing are therefore
-refused by standard Business Central with its own message, without a subscriber of
-ours anywhere in that path — which is the reason the confirmation is mapped onto
-`Released` rather than onto a status of our own.
+**Release and posting are explicitly guarded in AL.** The request starts on an
+`Open` purchase order, but standard posting can automatically release it. Read the
+current order's active-request pointer; a non-blank value blocks these operations
+regardless of whether the standard status is `Open` or `Released`. The checks apply
+to purchase orders participating in collaboration and do not block unrelated
+purchase documents or orders with no active request.
+
+The existing `AMC Purchase Events` codeunit subscribes and forwards:
+
+| Standard publisher/event | Domain check | Behavior while the request is active |
+|---|---|---|
+| `Release Purchase Document.OnBeforeReleasePurchaseDoc` | `AMC Order Lock Mgt.AssertReleaseAllowed(PurchaseHeader)` | Error before release, including automatic release; allow only the matching order/request's internal apply context |
+| `Purch.-Post.OnBeforePostPurchaseDoc` | `AMC Order Lock Mgt.AssertPostingAllowed(PurchaseHeader)` | Error before purchase-order posting for Receive, Invoice or Receive and Invoice; the apply exception never bypasses this check |
+
+Both checks use the current persisted purchase-order header rather than trusting
+an old page buffer. Keep them inside the operation's transaction, without a
+`Commit()`, and serialize the header check with request creation/cancellation so
+concurrent sessions cannot begin collaboration between the check and release/post.
+`AMC Order Lock Mgt` owns the rule and translatable error label; the message names
+the order and active request and directs the buyer to apply the proposal or cancel
+the request. Subscribers never set `IsHandled`, skip standard checks or treat
+`PreviewMode`/`SkipCheckReleaseRestrictions` as authorization to bypass the lock.
+Preview posting runs the same preflight guard. Actual posting must not depend on
+a page action or confirmation dialog, so direct codeunit, API and job-queue calls
+are covered by the same domain check.
+
+The target version in §2.1 is still unspecified: verify event signatures and their
+placement before release/posting writes in the target Base Application symbols,
+then exercise both manual and automatic paths. Use an equivalent early standard
+event if the target version has a different signature; it must enforce the same
+rule before writes and remain inside the standard operation.
+
+Standard behavior/events: [Microsoft Learn — Automatic release on purchase posting](https://learn.microsoft.com/en-us/dynamics365/business-central/qms-setup),
+[Release Purchase Document](https://learn.microsoft.com/en-us/dynamics365/business-central/application/base-application/codeunit/microsoft.purchases.document.release-purchase-document)
+and [Purch.-Post](https://learn.microsoft.com/en-us/dynamics365/business-central/application/base-application/codeunit/microsoft.purchases.posting.purch.-post).
 
 Two things unlock the order, and there is no third:
 
@@ -1727,12 +1759,18 @@ cancelling and re-sending. That is a real operational cost, and it is the reason
 unlock action exists at all: the answer to "I need to change this now" has to be one
 click and a warning, not a support call.
 
-**During apply.** `AMC Apply Proposal Svc` writes to the order it locked, so
-`AMC Order Lock Mgt.Suppress` opens a window for the duration of the transaction and
-`AMC Proposal Decision Svc` restores the saved suppression state explicitly after
-`Codeunit.Run` on both success and failure (§7.1). Suppression is session state that
-a database rollback does not undo; restore the previous value rather than blindly
-clearing it. The same rule applies to every session flag changed during apply.
+**During apply.** After `AssertLockedBy`, `AMC Apply Proposal Svc` establishes an
+internal suppression context for the exact purchase order and active request. It
+allows only apply mutations and the standard release of that matching order;
+other locked orders remain protected. `AssertPostingAllowed` ignores suppression
+and continues to refuse posting while the active-request pointer is present.
+Closing the request clears the pointer in the same atomic worker (§7.1).
+
+`AMC Proposal Decision Svc` restores the complete previous suppression context
+explicitly after `Codeunit.Run` on both success and failure (§7.1). Suppression is
+session state that a database rollback does not undo; restore the previous values
+rather than blindly clearing them. The same rule applies to every session flag
+changed during apply.
 
 ---
 
@@ -2730,8 +2768,11 @@ comments, `LibraryPurchase` / `LibraryInventory` / `LibraryRandom` /
 | Applying an approved proposal releases the order | `Apply_Success_ReleasesOrder` |
 | Sending a request on a released order is refused | `Request_ReleasedOrder_Fails` |
 | An open request blocks edits, line inserts and deletes on its order | `Lock_OpenRequest_BlocksEdit` |
-| An open request blocks releasing the order | `Lock_OpenRequest_BlocksRelease` |
-| An unconfirmed order cannot be posted, because it is still `Open` | `Lock_OpenRequest_CannotPost` |
+| An active request blocks manual and automatic release, regardless of the standard status | `Lock_OpenRequest_BlocksRelease` / `Lock_AutomaticRelease_IsBlocked` |
+| An active request blocks Receive, Invoice and Receive and Invoice posting before writes, including automatic release during posting | `Lock_OpenRequest_CannotPost` / `Lock_OpenRequest_CannotInvoice` / `Lock_OpenRequest_CannotReceiveAndInvoice` |
+| Preview, direct codeunit, API and job-queue posting use the same active-request guard | `Lock_PostingEntryPoints_RespectActiveRequest` |
+| Posting remains blocked during apply suppression, and the release exception is limited to the matching order/request | `Lock_ApplyContext_CannotPost` / `Lock_ApplyContext_DoesNotUnlockOtherOrder` |
+| Orders without an active request can release/post normally; successful apply clears the block and failed apply keeps it | `Lock_NoActiveRequest_StandardPostingAllowed` / `Lock_AfterApply_PostingAllowed` / `Lock_AfterApplyFailure_PostingBlocked` |
 | Unlocking cancels the request, revokes the token and supersedes open proposals | `Lock_Unlock_CancelsRequest` |
 | Applying a proposal closes the request and unlocks the order | `Apply_Success_UnlocksOrder` |
 | A later handler error rolls back earlier line changes/inserts, release/unlock, request/token changes, applied flags and success audit entries | `Apply_HandlerError_RollsBack` |
@@ -2776,6 +2817,14 @@ comments, `LibraryPurchase` / `LibraryInventory` / `LibraryRandom` /
 | A retry after failure applies the whole proposal once and restores session flags | `Decision_RetryAfterApplyFailure_AppliesOnce` |
 | Illegal status transitions error | `Status_IllegalTransition_Fails` |
 | No permission set can delete a collaboration entry | `Log_Entry_CannotBeDeleted` |
+
+Release/posting lock tests invoke standard codeunit entry points with realistic
+purchase data and the Receive/Invoice flags set for each scenario. Assert the
+collaboration error occurs before standard validation/posting can change status,
+received/invoiced quantities or create posted purchase documents and ledger
+entries. Test automatic release directly as well as the posting path, because
+the posting guard may reject the call before the release event is reached.
+API and job-queue variants are verified against the target sandbox.
 
 The permission tests use `LibraryLowerPermissions` — they are the automated proof
 of the domain rule in context §5, and the first ones to run whenever the permission
@@ -3241,7 +3290,7 @@ M3, M4, M6 and M9 each end with the ADRs listed in §15.1.
 |---|---|---|---|---|
 | 9 | **The interface and the simple handlers** | `AMC IProposalLineHandler`; the `implements` map and runtime-7.0+ `UnknownValueImplementation` on `AMC Proposal Line Type`; `AMC Unknown Line Handler` (50125), with validation/apply domain errors and required execute permissions (§6.1); `AMC Purchase Line Builder` (50123) with gap allocation, `Validate` field ordering and dimension copying; `AMC Confirm Handler` (50111), `AMC Change Qty Handler` (50112), `AMC Change Date Handler` (50113) | Call a handler directly from a test against a real purchase line and watch `Promised Receipt Date` and `Quantity` change through standard validation. Confirm a quantity below `Quantity Received` is refused | |
 | 10 | **The structural handlers** | `AMC Split Delivery Handler` (50114), `AMC Substitute Item Handler` (50115), `AMC Cancel Remainder Handler` (50116), all three building lines through the builder from task 9 | Split 1000 into 600 + 400 and see line 15000 appear next to 10000 with the right dates, dimensions and origin stamp. Substitute ITEM-B2 and see the original cancelled. Fill the line-number gap and confirm `VCH-APL-0005` rather than a renumbering | |
-| 11 | **Order lock** | `AMC Order Lock Mgt` (50120) with the block list of §7.3, `Suppress` / `Resume`, and the confirm-and-cancel *Unlock Purchase Order* action; `AMC Purchase Events` (50107) subscribing and forwarding only | With a request open on PO-10482, try to change a quantity, add a line, delete a line and release the order — all refused with the same message. Try to post a receipt and watch standard BC refuse it because the order is still `Open`. Unlock, read the confirmation, accept, and watch the request cancel and the vendor's link die | |
+| 11 | **Order lock** | `AMC Order Lock Mgt` (50120) with edit/release/posting checks from §7.3, order/request-scoped apply suppression, and confirm-and-cancel *Unlock Purchase Order*; `AMC Purchase Events` (50107) forwarding before standard release and purchase posting | With a request active on PO-10482, reject edits, manual/automatic release and Receive/Invoice/Receive and Invoice posting before writes. Verify direct/API/job-queue paths, posting blocked during apply suppression, successful apply releasing/unblocking, and failure retaining the lock. Unlock and confirm cancellation revokes the link | |
 | 12 | **Decision and apply** | `AMC Proposal Decision Svc` (50103) with permission checks and logging; `AMC Apply Proposal Svc` (50104) running steps 0–10 of §7.1 through `Codeunit.Run` with its Boolean result captured; caller enters without an open write transaction, restores session flags on both paths and writes `Apply Failed` only after rollback; `PriceRecalculated` logging (§7.2) | Approve the PO-10482 proposal and watch the order become the four lines of §0.4, released and unlocked — and only now receivable. Make a handler fail and confirm the order is untouched, still `Open` and still locked, and the proposal says why | |
 
 ## M4 — Asking the vendor
@@ -3368,7 +3417,7 @@ M3, M4, M6 and M9 each end with the ADRs listed in §15.1.
 | 51 | A vendor cannot request a new link from the page; the buyer re-sends, prompted by a `VendorAccessRejected` event | a self-service "send me a new link" button, rate limited; a generic contact page with no notification | a link that renews itself on request has an expiry date and no expiry, and the buyer's control over a credential they issued would be nominal. The endpoint would also be an unauthenticated way to make e-mail arrive at a vendor. Notifying the buyer is what keeps the strictness workable — otherwise a vendor waits on someone who does not know they are waiting |
 | 52 | Possession of the link is the whole authentication, on every order regardless of value | an e-mailed one-time code on open; a step-up above a value threshold; a per-vendor second-factor switch | a code sent to the mailbox the link arrived in is not a second factor, and a real one needs a channel this design deliberately does not have. Value is the wrong axis: the surface carries no prices, no payment details and no master-data write, so nothing scales with the order's worth. The universal control — a named buyer approving every proposal before it reaches the ERP — is stronger than a threshold, and applies everywhere |
 | 53 | Nothing in the application knows its own hostname | compiling the origin into the front-end bundle; hard-coding a link host in AL; binding the page session to an origin | the page calls `/api` relative to where it is served, BC builds links from `Portal Base URL`, and the session binds to a request — so the domain stays a deployment choice that can be made late and revised. The one thing it cannot outrun is links already in vendors' mailboxes, which keep pointing at the host that minted them |
-| 54 | The vendor's confirmation is what releases the purchase order; a request can only be sent on an `Open` one | a custom confirmation status; a subscriber blocking receipt, posting and invoicing while a request is open | `Released` already means "committed and may be acted on" and already gates posting, so mapping the confirmation onto it makes an unconfirmed order un-receivable through standard Business Central, with no code of ours in that path. It also closes a hole the lock alone leaves: a receipt posted mid-negotiation changes `Quantity Received`, which can make an otherwise valid proposal impossible to apply — the same late failure the lock exists to prevent |
+| 54 | Send requires Open; active-request AL guards block manual/automatic release and purchase-order posting; apply alone may release its matching locked order | relying on Open as a posting block; global suppression that also bypasses posting | standard posting can automatically release an Open order. Existing Order Lock Mgt/Purchase Events enforce the pointer-based guards, preserving the vendor snapshot and preventing fulfillment/accounting changes during negotiation; successful apply closes the request and permits standard posting (§7.3) |
 | 55 | A vendor is told a link "no longer works", never why | distinguishing expired / revoked / unknown to the caller | the distinction helps nobody except someone probing; the real reason is in telemetry and in the timeline, where the buyer can act on it |
 
 ## 15.1 ADRs to write from this document
