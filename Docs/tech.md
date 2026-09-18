@@ -123,7 +123,7 @@ nothing until the last one. §8.3 covers the mechanics and the trade-off.
 | **Access** | `AMC Vendor Access Token`, `AMC Access Token Mgt` | minting, hashing, expiring and revoking the one link that lets one vendor answer one request | keep the link in plain text, or grant anything beyond that request |
 | **Delivery** | standard Email module, `AMC Vendor Notification` | getting the link to the vendor contact, with an outbox that retries and a Sent Emails record | be replaced by a flow or an event, which would carry the token outside BC |
 | **Intent** | `AMC Vendor Proposal`, `AMC Vendor Proposal Line` | recording what the vendor offers, immutably | change anything outside itself |
-| **Rules** | `AMC Proposal Validator` + 6 handlers behind `AMC IProposalLineHandler` | deciding whether a proposal is legal, and how each line type maps onto purchasing data | have side effects during validation |
+| **Rules** | `AMC Proposal Validator` + 6 line-type handlers and 1 unknown-value handler behind `AMC IProposalLineHandler` | deciding whether a proposal is legal, and how each line type maps onto purchasing data | have side effects during validation |
 | **Orchestration** | `AMC Request Mgt`, `AMC Proposal Mgt`, `AMC Proposal Decision Svc`, `AMC Apply Proposal Svc` | driving the state machines and the single write path into purchasing | be callable by the integration user (permission set forbids it) |
 | **Contract** | 6 API pages, `AMC Idempotency Mgt`, `AMC Proposal Validator` (error codes) | being a stable, versioned, minimal projection for the vendor API | expose standard tables or allow writes outside proposals and comments |
 | **Memory** | `AMC Collaboration Entry` | the business history a buyer or auditor reads in BC: events and comments in one timeline | be edited or deleted by anyone |
@@ -466,7 +466,7 @@ bc/vendor-collaboration-hub/src/
   Proposal/        AMCVendorProposal(.Line).Table.al | 2 enums | Mgt / Validator / DecisionSvc
                    AMCValidationResult.Codeunit.al | AMCIdempotencyMgt.Codeunit.al | 3 pages
   Apply/           AMCIProposalLineHandler.Interface.al | AMCApplyProposalSvc.Codeunit.al
-                   AMCPurchaseLineBuilder.Codeunit.al | 6 handlers
+                   AMCPurchaseLineBuilder.Codeunit.al | 6 line-type handlers + AMCUnknownLineHandler.Codeunit.al
   Access/          AMCVendorAccessToken.Table.al | status enum | AMCAccessTokenMgt.Codeunit.al
                    AMCTokenExpiryJob.Codeunit.al | 2 pages
   Notification/    AMCVendorNotification.Codeunit.al | AMCVendorEmailBuilder.Codeunit.al
@@ -574,13 +574,13 @@ share one ID space per type and must fit in the same 50 slots together.
 | TableExtension | 3 | 0 | 3 | 50100–50102 | 47 |
 | Enum | 8 | 0 | 8 | 50100–50107 | 42 |
 | EnumExtension | 1 | 0 | 1 | 50100 | 49 |
-| Codeunit | 25 | 15 | 40 | 50100–50124, 50130–50144 | 10 |
+| Codeunit | 26 | 15 | 41 | 50100–50125, 50130–50144 | 9 |
 | Page | 17 | 0 | 17 | 50100–50110 (UI), 50120–50125 (API) | 33 |
 | PageExtension | 5 | 0 | 5 | 50100–50104 | 45 |
 | PermissionSet | 4 | 0 | 4 | 50100–50103 | 46 |
 | Interface | 1 | 0 | 1 | *no ID consumed* | — |
 
-**85 objects, 40 in the busiest type.** Codeunits are the constraint, which is
+**86 objects, 41 in the busiest type.** Codeunits are the constraint, which is
 correct — that is where the behaviour lives, and it is where splitting things up
 actually buys something.
 
@@ -621,8 +621,8 @@ and for reasons that have nothing to do with counting:
   identifiers no user ever sees.
 - The buyer worklist is `AMC Vendor Proposals` opened with a status filter, not a
   second page: two pages over one table is two places to fix a column.
-- There is one interface, `AMC IProposalLineHandler`, because six implementations
-  exist. A second interface for notification transport would have one
+- There is one interface, `AMC IProposalLineHandler`, with six business handlers
+  and one defensive handler for unknown persisted ordinals (§6.1). A second interface for notification transport would have one
   implementation and one caller, which is a guess about the future dressed as
   architecture.
 
@@ -951,7 +951,8 @@ vocabularies for one process is how they fall out of step. Telemetry event ids a
 
 `AMC Proposal Line Type` **must** be extensible — it carries the interface
 implementation map (§6.1), so a future `Propose Price Change` can be added by
-another extension without touching this app.
+another extension without touching this app. Persisted values whose declaring
+extension has been removed use the separate unknown-value handler (§6.1).
 
 ## 4.5 Codeunits
 
@@ -982,9 +983,11 @@ another extension without touching this app.
 | `AMC Validation Result` | 50122 | the structured accumulator a validator writes into: code, request line, sequence, text; renders to one message or to a JSON array |
 | `AMC Purchase Line Builder` | 50123 | insert a purchase line next to an origin line — gap allocation, copying item, variant, location, UoM and dimensions, stamping the origin proposal |
 | `AMC Token Expiry Job` | 50124 | `OnRun` for a Job Queue Entry, run daily: flip `Active` tokens past `Expires At` to `Expired` and log it. Visibility only — validation compares the date on every call anyway (§9.2) |
+| `AMC Unknown Line Handler` | 50125 | implements `AMC IProposalLineHandler` for unknown persisted ordinals: Validate adds VCH-VAL-0003 to Result; Apply raises VCH-APL-0006 before writing (§6.1) |
 
-25 codeunits, `50100–50124`. The test app takes `50130–50144` (§11.1), leaving
-`50125–50129` and `50145–50149` free.
+26 codeunits, `50100–50125`. The test app takes `50130–50144` (§11.1), leaving
+`50126–50129` and `50145–50149` free. Codeunit 50125 and API page 50125 do not
+conflict: their object-type ID spaces are independent (§4.1).
 
 **`AMC Order Lock Mgt`, separate from `AMC Purchase Events`.** An event subscriber
 codeunit should contain dispatch and nothing else — logic inside a subscriber can
@@ -1092,9 +1095,9 @@ extension-model answer.
 | Permission set | ID | Contents |
 |---|---|---|
 | `AMC Collaboration Read` | 50100 | R on all AMC tables; R on Purchase Header/Line, Vendor, Item |
-| `AMC Collaboration Buyer` | 50101 | includes Read; RIM on Request/Request Line/Proposal/Proposal Line; RIM on Vendor Access Token; I on Collaboration Entry; X on `AMC Request Mgt`, `AMC Proposal Decision Svc`, `AMC Apply Proposal Svc`, `AMC Order Lock Mgt`, `AMC Access Token Mgt`, `AMC Vendor Notification` |
+| `AMC Collaboration Buyer` | 50101 | includes Read; RIM on Request/Request Line/Proposal/Proposal Line; RIM on Vendor Access Token; I on Collaboration Entry; X on `AMC Request Mgt`, `AMC Proposal Decision Svc`, `AMC Apply Proposal Svc`, `AMC Order Lock Mgt`, `AMC Access Token Mgt`, `AMC Vendor Notification`, `AMC Unknown Line Handler` |
 | `AMC Collaboration Admin` | 50102 | includes Buyer; RIMD on Setup |
-| `AMC Api Integration` | 50103 | R on Request/Request Line; RI on Proposal/Proposal Line; **Rm** on Vendor Access Token (direct read, indirect modify via `registerAccess` only); I on Collaboration Entry; R on Purchase Header/Line, Vendor, Item; X on `AMC Proposal Mgt`, `AMC Proposal Validator`, `AMC Validation Result`, `AMC Idempotency Mgt`, `AMC Access Token Mgt` — **no D anywhere, no Setup, no access to the decision, apply, notification or order-version codeunits** |
+| `AMC Api Integration` | 50103 | R on Request/Request Line; RI on Proposal/Proposal Line; **Rm** on Vendor Access Token (direct read, indirect modify via `registerAccess` only); I on Collaboration Entry; R on Purchase Header/Line, Vendor, Item; X on `AMC Proposal Mgt`, `AMC Proposal Validator`, `AMC Validation Result`, `AMC Idempotency Mgt`, `AMC Access Token Mgt`, `AMC Unknown Line Handler` — **no D anywhere, no Setup, no access to the decision, apply, notification or order-version codeunits** |
 
 `AMC Api Integration` is the set assigned to the Entra application registration
 used by the Azure Function. It is deliberately the narrowest one: the integration
@@ -1334,6 +1337,7 @@ interface "AMC IProposalLineHandler"
 enum 50103 "AMC Proposal Line Type" implements "AMC IProposalLineHandler"
 {
   Extensible = true;
+  UnknownValueImplementation = "AMC IProposalLineHandler" = "AMC Unknown Line Handler";
 
   value(0; Confirm)          { Caption = 'Confirm';           Implementation = "AMC IProposalLineHandler" = "AMC Confirm Handler"; }
   value(1; "Change Quantity"){ Caption = 'Change Quantity';   Implementation = "AMC IProposalLineHandler" = "AMC Change Qty Handler"; }
@@ -1344,7 +1348,55 @@ enum 50103 "AMC Proposal Line Type" implements "AMC IProposalLineHandler"
 }
 ```
 
-The orchestrator never branches on type:
+**Unknown persisted values (BC18+, AL runtime 7.0+).** Uninstalling an extension
+can leave its numeric `Line Type` ordinal on existing proposal lines even though
+the enum value and its business handler no longer exist. On conversion to
+`AMC IProposalLineHandler`, `UnknownValueImplementation` selects
+`AMC Unknown Line Handler` (50125), rather than allowing a technical interface
+conversion error or treating the line as `Confirm`.
+
+The handler implements both interface procedures and has no database or session
+side effects:
+
+- `Validate` adds `VCH-VAL-0003` to `Result`, including proposal/request line,
+  sequence and the numeric ordinal (`ProposalLine."Line Type".AsInteger()`). It
+  reports that the proposal line type is no longer available and that the buyer
+  must restore the supplying extension or replace the proposal through an allowed
+  domain action. It does
+  not throw, so the validator still collects errors from other lines.
+- `Apply` raises the controlled domain error `VCH-APL-0006` before making any
+  change. The Codeunit.Run boundary of §7.1 rolls back the complete worker,
+  including earlier handlers, and the caller persists `Apply Failed` with that
+  error after rollback. The handler never skips the line, changes its ordinal,
+  delegates to a business handler or marks it applied.
+
+Error labels and rendering remain in `AMC Proposal Validator` (§4.5, §8.4);
+the unknown handler calls its validation/error helpers so messages use the same
+structured result and BC-client/API presentation rules. Grant `X` on this
+handler to the buyer and integration roles that perform line validation; it needs
+no elevated table-write permissions. Keep the stored ordinal and immutable
+proposal intact for audit. Recovery is explicit: restore the extension and retry,
+or reject/replace while the status permits it. After `Apply Failed`, if replacement
+requires ending the request, cancel/unlock and send a new request (§7.3); do not add
+a new status transition or edit submitted lines just to erase the unknown ordinal.
+
+`DefaultImplementation` is a separate mechanism for **declared values without an
+explicit interface mapping**; it does not handle ordinals whose declaration has
+disappeared. This enum deliberately has no default business handler. Every enum
+extension must supply an explicit `Implementation` for its declared line types.
+The unknown handler is not a substitute for that requirement.
+
+The declaration above requires runtime 7.0 or later. The target BC version in
+§2.1 is still a placeholder and must be confirmed before implementation. If an
+older target is required, do not emit the unsupported property: guard membership
+against the currently installed enum values **before every interface conversion**,
+return the same validation/domain failure for an absent ordinal, and preserve the
+same rollback behavior. Never fall back to ordinal zero or silently ignore it.
+
+Platform contract: [Microsoft Learn — UnknownValueImplementation](https://learn.microsoft.com/en-us/dynamics365/business-central/dev-itpro/developer/properties/devenv-unknownvalueimplementation-property)
+and [DefaultImplementation](https://learn.microsoft.com/en-us/dynamics365/business-central/dev-itpro/developer/properties/devenv-defaultimplementation-property).
+
+The orchestrator never branches on business line type:
 
 ```al
 local procedure ApplyLine(var ProposalLine: Record "AMC Vendor Proposal Line";
@@ -1998,6 +2050,7 @@ the right call, and no validator or handler code changes when it does.
 | `VCH-AUT-0004` | Access token does not belong to this request or vendor | 400 |
 | `VCH-VAL-0001` | Request not found / not open | 400 |
 | `VCH-VAL-0002` | Request line not found | 400 |
+| `VCH-VAL-0003` | Persisted proposal line type is no longer available (unknown enum ordinal) | 400 |
 | `VCH-VAL-0010` | Quantity must be positive | 400 |
 | `VCH-VAL-0012` | Proposed quantity exceeds outstanding | 400 |
 | `VCH-VAL-0020` | Delivery date in the past | 400 |
@@ -2007,6 +2060,7 @@ the right call, and no validator or handler code changes when it does.
 | `VCH-IDM-0001` | Idempotency key already used with a different payload | 409 |
 | `VCH-STA-0001` | Illegal status transition | 400 |
 | `VCH-APL-0001..4` | Apply-time failures (see §7.1, §7.2) | 500 |
+| `VCH-APL-0006` | Unknown persisted line type reached apply; restore its extension or replace the proposal (§6.1) | — internal apply failure, shown in the BC client |
 
 **Errors raised in the BC client show no code.** The `VCH-REQ-*` rows above name a
 condition for this document, for telemetry and for tests — not for the buyer, who
@@ -2481,7 +2535,13 @@ are six independent rule sets — that is the whole argument for the interface i
 600 lines before the substitution rules were covered, and a test file nobody wants
 to open is where coverage quietly stops growing. `AMCApplyOrchestrationTests` keeps
 what is genuinely about the orchestrator: the lock check, releasing the order,
-rollback on handler failure, and request-line recalculation.
+rollback on handler failure, and request-line recalculation. Unknown-value coverage
+uses the existing `AMCProposalValidationTests` and `AMCApplyOrchestrationTests`:
+choose an ordinal absent from the installed enum values, persist it on a proposal
+line, re-read it and convert it through the interface. Verify Validate accumulates
+the controlled failure alongside errors on other lines, and a later unknown line
+rolls back earlier apply writes without changing the stored ordinal. No additional
+test codeunit is needed.
 
 `AMCNotificationTests` covers recipient resolution, the builder's output (does the
 body carry the link, the right line count, the vendor's language, and no token in a
@@ -2524,6 +2584,8 @@ comments, `LibraryPurchase` / `LibraryInventory` / `LibraryRandom` /
 | An approval decides the whole proposal — every line is applied | `Decision_Approve_AppliesEveryLine` |
 | Apply writes through the lock; success and failure both restore the previous suppression state, and failure keeps the order locked | `Lock_DuringApply_IsSuppressed` / `Lock_ApplyError_RestoresLock` / `Lock_ApplySuccess_RestoresSuppression` |
 | A validator collects every failure, not only the first | `Validate_ThreeBadLines_ReturnsThree` |
+| An unknown persisted line-type ordinal resolves to the unknown handler and adds a structured validation error without changing data | `Validate_UnknownLineType_ReturnsDomainError` |
+| An unknown type after an earlier successful handler rolls back all apply writes, preserves the ordinal and records Apply Failed afterwards | `Apply_UnknownLineType_RollsBackAndRecordsFailure` |
 | A split and a substitution produce lines with copied dimensions and UoM | `Builder_NewLine_CopiesDimensions` |
 | A split with no free line-number gap fails instead of renumbering | `Builder_NoGap_Fails` |
 | An expiry run flips only tokens past their date | `Expiry_Run_ExpiresOnlyOverdue` |
@@ -2576,6 +2638,13 @@ response can contain the hash, while the Function's browser DTO, session claims
 and captured diagnostics never contain it. Test keyed `registerAccess` after a
 lookup without resending the hash, and confirm its indirect-modify checks from
 §4.7 still hold. These are endpoint tests, not just direct AL procedure calls.
+
+For runtime 7.0+ extensibility verification, use a disposable sandbox extension
+that adds a line type and its handler: persist a proposal using that type, uninstall
+the extension while retaining the proposal data, then validate and apply it. Confirm
+the unknown handler is selected and the controlled failures of §6.1 appear. Restore
+the extension and verify the original ordinal resolves to its business handler
+again; a permitted retry must apply the proposal only once.
 
 Token hashing is tested on both sides against the same fixed vector — one known
 token, one expected uppercase-hex digest, asserted in `AMCAccessTokenTests` and in
@@ -2981,7 +3050,7 @@ M3, M4, M6 and M9 each end with the ADRs listed in §15.1.
 
 | # | Task | Delivers | See it work | Status |
 |---|---|---|---|---|
-| 9 | **The interface and the simple handlers** | `AMC IProposalLineHandler`; the `implements` map on `AMC Proposal Line Type`; `AMC Purchase Line Builder` (50123) with gap allocation, `Validate` field ordering and dimension copying; `AMC Confirm Handler` (50111), `AMC Change Qty Handler` (50112), `AMC Change Date Handler` (50113) | Call a handler directly from a test against a real purchase line and watch `Promised Receipt Date` and `Quantity` change through standard validation. Confirm a quantity below `Quantity Received` is refused | |
+| 9 | **The interface and the simple handlers** | `AMC IProposalLineHandler`; the `implements` map and runtime-7.0+ `UnknownValueImplementation` on `AMC Proposal Line Type`; `AMC Unknown Line Handler` (50125), with validation/apply domain errors and required execute permissions (§6.1); `AMC Purchase Line Builder` (50123) with gap allocation, `Validate` field ordering and dimension copying; `AMC Confirm Handler` (50111), `AMC Change Qty Handler` (50112), `AMC Change Date Handler` (50113) | Call a handler directly from a test against a real purchase line and watch `Promised Receipt Date` and `Quantity` change through standard validation. Confirm a quantity below `Quantity Received` is refused | |
 | 10 | **The structural handlers** | `AMC Split Delivery Handler` (50114), `AMC Substitute Item Handler` (50115), `AMC Cancel Remainder Handler` (50116), all three building lines through the builder from task 9 | Split 1000 into 600 + 400 and see line 15000 appear next to 10000 with the right dates, dimensions and origin stamp. Substitute ITEM-B2 and see the original cancelled. Fill the line-number gap and confirm `VCH-APL-0005` rather than a renumbering | |
 | 11 | **Order lock** | `AMC Order Lock Mgt` (50120) with the block list of §7.3, `Suppress` / `Resume`, and the confirm-and-cancel *Unlock Purchase Order* action; `AMC Purchase Events` (50107) subscribing and forwarding only | With a request open on PO-10482, try to change a quantity, add a line, delete a line and release the order — all refused with the same message. Try to post a receipt and watch standard BC refuse it because the order is still `Open`. Unlock, read the confirmation, accept, and watch the request cancel and the vendor's link die | |
 | 12 | **Decision and apply** | `AMC Proposal Decision Svc` (50103) with permission checks and logging; `AMC Apply Proposal Svc` (50104) running steps 0–10 of §7.1 through `Codeunit.Run` with its Boolean result captured; caller enters without an open write transaction, restores session flags on both paths and writes `Apply Failed` only after rollback; `PriceRecalculated` logging (§7.2) | Approve the PO-10482 proposal and watch the order become the four lines of §0.4, released and unlocked — and only now receivable. Make a handler fail and confirm the order is untouched, still `Open` and still locked, and the proposal says why | |
@@ -3064,7 +3133,7 @@ M3, M4, M6 and M9 each end with the ADRs listed in §15.1.
 | 5 | Vendor confirmation stored in `Promised Receipt Date` | custom `AMC Confirmed Date` | the standard field already carries that meaning and feeds planning; a custom one forks the truth |
 | 6 | Reuse `Reason Code` and `Item Substitution` | custom reason/substitute tables | the master data and its governance already exist |
 | 7 | Split delivery creates real purchase lines | custom delivery-schedule table | receipts, planning, availability and reporting only understand purchase lines |
-| 8 | Enum implements `IProposalLineHandler`, one codeunit per line type | `case` statement in the apply service | six independently testable rule sets, a genuine extension point, and the strongest modern-AL artefact in the project |
+| 8 | Enum implements `IProposalLineHandler`, one codeunit per business line type plus UnknownValueImplementation for unknown persisted ordinals (BC18+) | `case` statement in the apply service; treating a removed enum value as Confirm or skipping it | six independently testable rule sets and a genuine extension point; removed extension values produce a controlled domain failure with no partial apply (§6.1) |
 | 9 | No `IsHandled` events | classic BC override pattern | an `IsHandled` here would let a third party skip the validation that justifies the whole layer |
 | 10 | An open request locks its purchase order for editing; unlocking cancels the request | an order-version counter compared at approval time; a platform ETag; timestamp comparison | a counter detects the conflict only after the vendor has answered and the buyer has decided, when the only remedy left is to start again. The lock moves the same decision to the front, where a person is present, and removes a header field, a request field, a proposal field, an API field, an error code and the whole question of which changes count as collaboration-relevant. The cost — an order frozen while a vendor answers — is paid by one action with a warning |
 | 11 | Custom API pages | standard pages as web services; SOAP/OData-bound codeunit | a published standard page is a leaky, unversioned contract that exposes `Purchase Line` for writing; a codeunit action loses `$filter`, `$expand`, paging and ETags |
