@@ -120,8 +120,8 @@ nothing until the last one. §8.3 covers the mechanics and the trade-off.
 |---|---|---|---|
 | **Standard BC** | `Purchase Header`, `Purchase Line`, `Vendor`, `Item`, `Item Substitution`, `Reason Code`, `No. Series` | being the source of truth for the commitment, prices, dimensions, receipts, planning | be modified directly — only extended |
 | **Snapshot** | `AMC Vendor Request`, `AMC Vendor Request Line` | recording what was asked, at the moment it was asked | drift from the order silently, or be edited after sending |
-| **Access** | `AMC Vendor Access Token`, `AMC Access Token Mgt` | minting, hashing, expiring and revoking the one link that lets one vendor answer one request | keep the link in plain text, or grant anything beyond that request |
-| **Delivery** | standard Email module, `AMC Vendor Notification` | getting the link to the vendor contact, with an outbox that retries and a Sent Emails record | be replaced by a flow or an event, which would carry the token outside BC |
+| **Access** | `AMC Vendor Access Token`, `AMC Access Token Mgt` | minting, hashing, expiring and revoking the one link that lets one vendor answer one request | persist the raw token/link in AMC tables, or grant anything beyond that request |
+| **Delivery** | standard Email module, `AMC Vendor Notification` | getting the link to the vendor contact; its retained message/outbox/sent-email content contains the bearer link and needs access/retention controls (§9.7) | copy the token into an AMC log, event or flow run history |
 | **Intent** | `AMC Vendor Proposal`, `AMC Vendor Proposal Line` | recording what the vendor offers, immutably | change anything outside itself |
 | **Rules** | `AMC Proposal Validator` + 6 line-type handlers and 1 unknown-value handler behind `AMC IProposalLineHandler` | deciding whether a proposal is legal, and how each line type maps onto purchasing data | have side effects during validation |
 | **Orchestration** | `AMC Request Mgt`, `AMC Proposal Mgt`, `AMC Proposal Decision Svc`, `AMC Apply Proposal Svc` | driving the state machines and the single write path into purchasing | be callable by the integration user (permission set forbids it) |
@@ -178,13 +178,14 @@ two header fields.
 **Step 2 — the link is minted and e-mailed**
 
 `AMC Access Token Mgt.Issue(VCR-000148)` produces a 256-bit random token, stores
-only its SHA-256 hash, and returns the raw value once:
+only its SHA-256 hash in `AMC Vendor Access Token`, and returns the raw value once
+for delivery through the Email module:
 
 ```text
 AMC Vendor Access Token  {b1f0...-4c2a}
   Request No.     VCR-000148
   Vendor No.      V10000
-  Token Hash      9C4E...A17B      (SHA-256; the raw token is never stored)
+  Token Hash      9C4E...A17B      (SHA-256; no raw token in this table)
   Status          Active
   Expires At      2026-09-24 23:59
 ```
@@ -196,7 +197,9 @@ pointing at `https://vendorhub.example.com/r/0Jw7X9uF...`. Log entries `LinkIssu
 
 *Tables:* one row into `AMC Vendor Access Token` — holding the hash, never the token
 — `Vendor` read for the address and the language, two rows into
-`AMC Collaboration Entry`, and one row into the Email module's own Sent Emails.
+`AMC Collaboration Entry`; the standard Email module stores the message body
+containing the full link, with Email Outbox or Sent Email tracking according to
+delivery state (§9.7). Hash-only storage applies to the AMC tables.
 
 **Step 3 — the vendor opens the link**
 
@@ -347,7 +350,7 @@ readable on the `AMC Collab Timeline` and answerable in an audit.
 | Solution prefix | `VCH` on identifiers that belong to this solution rather than to the publisher: error codes, telemetry event ids and telemetry dimensions |
 | Data classification | Mandatory on every field. Collaboration data = `CustomerContent`, setup = `SystemMetadata` |
 | Features | `NoImplicitWith`, `TranslationFile` |
-| Secrets in BC | None. The Azure Function owns the BC client secret; BC stores only the SHA-256 hash of an access link |
+| Secret storage | The BC client secret stays in Key Vault for the Function. AMC token data stores only the access-link hash; the standard Email module retains the full bearer link in message content (§9.7) |
 
 **Why "PTE shape, AppSource rules":** the app will never hit AppSource, so a free
 ID range and manual deploy are fine. But the *rules* of AppSource — affixes, no
@@ -542,7 +545,7 @@ Modeling rules:
 | Numbering | `No. Series` module | Standard, per-company setup, manual/automatic |
 | Release | `Release Purchase Document` codeunit | An approved proposal releases the order through the standard codeunit, so every standard release check runs — never around it |
 | Gating receipt, posting and invoicing on a vendor confirmation | `Purchase Header.Status` (`Open` / `Released`) | `Released` already means "committed, and may be acted on", and already gates posting. Making an approved proposal the thing that releases the order gets that gate for free, instead of a custom confirmation status and a custom block on the posting routines (§5.1) |
-| Sending the link to the vendor | `Email` module (System Application) | accounts, connectors, e-mail scenarios, the Sent Emails log and outbox retry already exist; a custom sender would reimplement all of it, and would put the token in a second place |
+| Sending the link to the vendor | `Email` module (System Application) | accounts, connectors, e-mail scenarios, Sent Emails and outbox retry already exist; message content retains the bearer link and is covered by §9.7. A custom sender would add another delivery store to control |
 | Buyer notifications | Power Automate over business events | Not an ERP concern |
 
 This table is the direct answer to design principle 10.1.
@@ -846,7 +849,7 @@ that can be taken away again.
 | Token Id | Guid | PK; the value the Function puts in a session and BC checks on every vendor write. Not secret |
 | Request No. | Code[20] | `TableRelation = "AMC Vendor Request"` |
 | Vendor No. | Code[20] | denormalized, so a write can be scoped without reading the request |
-| **Token Hash** | Text[64] | SHA-256 of the raw token, uppercase hex. **The raw token is never stored, anywhere** |
+| **Token Hash** | Text[64] | SHA-256 of the raw token, uppercase hex. **No raw token or full access link is persisted in this table or other AMC tables**; retained Email message bodies are a separate copy (§9.7) |
 | Status | Enum `AMC Access Token Status` | Active / Expired / Revoked / Superseded |
 | Issued At | DateTime | |
 | Expires At | DateTime | `Issued At` + `Link Validity Days` |
@@ -867,9 +870,11 @@ that can be taken away again.
 
 Rules the table exists to enforce:
 
-- **Only the hash is stored.** `AMC Access Token Mgt.Issue` returns the raw token
-  to its caller exactly once, and the only caller that keeps it is the code that
-  writes it into the e-mail body.
+- **AMC tables store no raw token.** `AMC Access Token Mgt.Issue` returns the raw
+  token once to the notification code, which builds the e-mail link. The standard
+  Email module retains that link in message content for delivery/retry and sent-mail
+  viewing. This hash-only rule does not cover Email storage, provider archives or
+  mailboxes (§9.7).
 - **Opening the link is not a state change.** Accessing it stamps counters and
   writes a `LinkOpened` timeline entry, nothing else. Tokens are therefore
   multi-use: the vendor can come back, and a corporate mail scanner that pre-fetches
@@ -2180,17 +2185,23 @@ VENDOR              STATIC WEB APP        AZURE FUNCTION       BUSINESS CENTRAL
 | Page → Function | a signed page session (JWT, 30 min) | that a valid link was presented recently | in the browser tab, in `sessionStorage` |
 | Function → BC | OAuth 2.0 client credentials, Entra app registration | that the caller is this application | in Key Vault, read through a managed identity |
 
-The vendor never holds a Business Central credential, and Business Central never
-sees the raw link. The two secrets in the system — the raw access token and the BC
-client secret — are held by different parties and never meet.
+The vendor never holds a Business Central credential. Business Central mints the
+raw link and sends it through the Email module; vendor-facing API calls send only
+the hash or token id back to BC. The Function processes the raw token during session
+exchange and keeps the BC client credential on the server. The retained e-mail
+link is a separate bearer-secret copy covered by §9.7.
 
 ## 9.2 The access link
 
 **Generation.** `AMC Access Token Mgt.Issue` produces 256 bits from the platform's
 cryptographic random source and returns them base64url-encoded: a 43-character
-string with no structure, no meaning and nothing to enumerate. What is stored is
-`SHA-256(token)` as uppercase hex. The raw value exists in exactly two places — the
-return value of that one procedure, and the e-mail body it is written into.
+string with no structure, no meaning and nothing to enumerate.
+`AMC Vendor Access Token` stores `SHA-256(token)` as uppercase hex. The raw value
+passes to the notification code and becomes part of the HTML/plain-text e-mail
+link. That content is retained by the standard Email module and can also remain
+with the mail provider and in sender/recipient mailboxes or archives; browser
+navigation and session exchange handle the raw token as described in §9.4.
+There is no system-wide guarantee that only a hash is stored.
 
 > Verify how your AL runtime exposes cryptographic randomness before coding. If a
 > random-bytes API is available, use it. Otherwise `CreateGuid()` is the platform's
@@ -2294,7 +2305,9 @@ review, not a setting.
 
 **What is never done with a token:**
 
-- never stored in plain text, in any system, at any point,
+- never persisted as a raw value or full link in `AMC Vendor Access Token` or
+  other AMC application tables; standard Email message content deliberately holds
+  the full link and is subject to the access/retention rules of §9.7,
 - never written to telemetry, a collaboration entry, a business event payload or a
   Power Automate run history — which is also why the e-mail is sent from Business
   Central rather than from a flow,
@@ -2400,7 +2413,8 @@ mean a vendor waiting on someone who has no idea they are waiting.
 | The link is guessed | 256 bits of entropy, no structure to enumerate, no vendor or request identifier in the URL, and rate limiting on `/api/session` |
 | The link leaks via `Referer`, browser history or a proxy log | `Referrer-Policy: no-referrer`, HTTPS only, the token stripped from the URL right after exchange, and never present in a query string |
 | A mailbox scanner pre-fetches the link | Opening a link changes no business state beyond an access entry, and tokens are multi-use, so a pre-fetch neither consumes nor invalidates it |
-| Someone reads the BC database | Only hashes are stored, and they are not reversible into working links |
+| Someone reads AMC token/application tables | These tables contain no generated raw token or full link; the token hash does not reconstruct the raw token |
+| Someone reads retained Email content, mailboxes, archives or a BC database copy including Email storage | Message bodies contain the full bearer link and can grant access while its token is active. Hashing the AMC token row does not protect this copy. Restrict Email/body and privileged database access; expiry, revocation and supersession stop the link working even when the message remains (§9.7) |
 | The Function's credential is compromised | Key Vault and managed identity, nothing in the browser or the repository; `AMC Api Integration` bounds the blast radius to reading one request and inserting proposals |
 | A vendor answers another vendor's request | The session claims come from the token, the token is bound to one request, and AL re-validates the pairing on every write (`VCH-AUT-0004`) |
 | A submit is replayed, or retried after a timeout | The idempotency key (§8.5) |
@@ -2419,10 +2433,33 @@ mean a vendor waiting on someone who has no idea they are waiting.
 - The address a link was sent to is stored on the token, because a buyer must be
   able to see where it went. It is not exposed by any API entity the vendor reads.
 - Vendor comments marked `Visible to Vendor = false` are excluded at API page level.
-- No secret, raw token or session JWT is ever written to `Session.LogMessage`, to a
-  table, or to Application Insights. Telemetry carries `vchTokenId`, a Guid, and
-  never the token or its hash.
+- No raw token, full link, session JWT or client secret is written to AMC tables,
+  `Session.LogMessage` or Application Insights. Telemetry carries `vchTokenId`, a
+  Guid, and never the token or its hash. Standard Email message bodies are the
+  deliberate storage exception for the full bearer link, not a telemetry/audit log.
 - `allowDownloadingSource = false`, `includeSourceInSymbolFile = false`.
+
+**Retained e-mail access.** Treat Email Message content associated with Email
+Outbox and Sent Email records as bearer-secret material, including both HTML and
+plain-text bodies. Restrict standard Email data/page access and configure User
+Email View Policies for authorized senders/support. Review related-record policies:
+access to an order can also permit viewing its e-mail. These UI policies do not
+protect a privileged database export or backup. `AMC Api Integration` must not
+receive Email-content read permissions or execute access to Email viewers/body
+readers through any assigned role. See [Microsoft Learn — Email view policies](https://learn.microsoft.com/en-us/dynamics365/business-central/admin-how-setup-email#set-up-view-policies).
+
+**Retention is separate from token validity.** Record the environment's retention
+periods and cleanup ownership for queued/failed messages, sent bodies, provider
+storage, mailboxes, archives and backups. Configure supported standard Email
+cleanup/retention for the target BC version; do not assume messages are removed
+when the token expires. Keep queued content while delivery/retry is required and
+handle abandoned or obsolete messages through the Email module. Revoke/supersede
+affected tokens after an exposure. Revocation invalidates the link; it does not
+erase existing copies. Email cleanup must preserve the AMC collaboration audit
+trail, which has its own lifetime (§4.2). The extension cannot promise deletion
+from recipient mailboxes or archives.
+
+Standard storage model: [Microsoft BCApps — Email Message, Outbox and Sent Email](https://github.com/microsoft/BCApps/tree/main/src/System%20Application/App/Email).
 
 ---
 
@@ -2656,7 +2693,8 @@ comments, `LibraryPurchase` / `LibraryInventory` / `LibraryRandom` /
 | Sending to a vendor whose response days exceed link validity fails | `Request_ResponseDaysBeyondLinkValidity_Fails` |
 | Re-sending mints a fresh window and does not move the response deadline | `Token_Reissue_ResetsExpiryKeepsDeadline` |
 | The e-mail body carries the link and never the raw token in a query string | `Email_Build_ContainsLinkOnly` |
-| Issuing a link stores only a hash, never the token | `Token_Issue_StoresHashOnly` |
+| Issuing and sending a link persists its hash but no generated raw token/full link in AMC application tables | `Token_Issue_StoresHashOnly` / `Notification_Send_NoRawTokenInAmcTables` |
+| Standard queued/sent Email content retains the full link; after revocation that retained link no longer grants a session | `Email_StoredBody_ContainsLink` / `Token_Revoke_StoredEmailLink_IsRejected` |
 | Re-sending a link supersedes the previous one | `Token_Reissue_SupersedesPrevious` |
 | An expired, revoked or superseded token is refused | `Token_NotActive_IsRejected` |
 | A token from another request cannot write to this one | `Token_ForeignRequest_IsRejected` |
@@ -2714,8 +2752,20 @@ byte, and a casing or encoding mismatch would break every link with no obvious
 cause.
 
 E-mail sending is tested through `AMC Vendor Notification` with the Email module's
-test connector; deliverability itself (SPF, DKIM, DMARC) is a deployment concern
-verified once per environment, not in a test.
+test connector. Check that queued/retried and sent message bodies contain the
+expected link; explicitly exclude standard Email storage from the AMC-table
+hash-only assertion. Assert absence of the generated raw token/full URL in AMC
+token, request, proposal and collaboration data, including free-text/log fields,
+after issue/send/re-send. Check revocation rejects the link recovered from a
+retained message without requiring that message to be deleted.
+
+In the target sandbox, verify a permitted user can view the relevant Email body,
+an unauthorized user and the integration identity cannot, and configured Email
+cleanup removes eligible messages without erasing the AMC audit trail. Check
+actual combined permissions and Email View Policies; the AMC permission set alone
+does not prove Email confidentiality. Provider/mailbox/archive/backup retention is
+an operational control, not an AL unit-test guarantee. Deliverability itself
+(SPF, DKIM, DMARC) is verified once per environment, not in a test.
 
 ---
 
@@ -3122,7 +3172,7 @@ M3, M4, M6 and M9 each end with the ADRs listed in §15.1.
 
 | # | Task | Delivers | See it work | Status |
 |---|---|---|---|---|
-| 13 | **Access token** | `AMC Vendor Access Token` (50106) and `AMC Access Token Status` (50107); `AMC Access Token Mgt` (50117) with `Issue`, `Assert`, `RegisterAccess`, `Revoke`, `Supersede` and `Expire`, storing only the SHA-256 hash (§9.2); no blanket token-write elevation on the shared codeunit (§4.7); pages 50109 and 50110 | Issue a token from a test and confirm the raw value appears nowhere in the database. Revoke it and watch the status change and the timeline record it. Assert a token against the wrong request and get `VCH-AUT-0004` | |
+| 13 | **Access token** | `AMC Vendor Access Token` (50106) and `AMC Access Token Status` (50107); `AMC Access Token Mgt` (50117) with `Issue`, `Assert`, `RegisterAccess`, `Revoke`, `Supersede` and `Expire`, storing only the SHA-256 hash (§9.2); no blanket token-write elevation on the shared codeunit (§4.7); pages 50109 and 50110 | Issue and send a token from a test: confirm no generated raw value/full link appears in AMC application tables, while the standard Email body contains the expected link (§9.7). Revoke it and watch the status change and the timeline record it. Assert a token against the wrong request and get `VCH-AUT-0004` | |
 | 14 | **The e-mail** | `AMC Vendor Email Builder` (50119), pure, returning subject, HTML and plain text; `AMC Vendor Notification` (50118) resolving the recipient and sending through the Email module; `AMC Email Scenario Ext` (50100); the language rules and the `GlobalLanguage` restore of §13.4 | Configure an e-mail account, map the scenario, and send yourself the message for VCR-000148. Check it renders in a real client, that the plain-text alternative carries the same link, and that a vendor with a language code gets that language | |
 | 15 | **Send, re-send, revoke, expire** | `Send` moving `Draft → Sent → Awaiting Vendor`, minting the token and handing over the e-mail in one transaction (§5.1); *Re-send link* and *Revoke link* actions; the `VCH-REQ-0002` and `VCH-REQ-0003` guards; `AMC Token Expiry Job` (50124) and the setup action that schedules it | Press *Send* on PO-10482 and receive the e-mail. Press *Re-send* and confirm the first link's token is `Superseded`. Set `Link Validity Days` below the vendor's response days and be refused. Run the job against a back-dated token and watch it flip to `Expired` | |
 
@@ -3220,12 +3270,12 @@ M3, M4, M6 and M9 each end with the ADRs listed in §15.1.
 | 31 | `AMC Vendor Email Builder` separate from `AMC Vendor Notification` | one codeunit that builds and sends | building is pure and worth asserting against; sending is a side effect. The same seam as validator against apply |
 | 32 | One test codeunit per line handler | one apply-test object with six regions | the handlers are six independent rule sets and their tests should be too; a 600-line test file is where coverage stops growing |
 | 33 | `AMC Token Expiry Job`, scheduled by an explicit setup action | comparing dates lazily at validation time; a job queue entry created on install | a row that still says `Active` a month after the link died is a lie the buyer reads on the request page; and an extension should not put entries in an administrator's job queue unasked |
-| 34 | The access token is owned by BC and stored only as a SHA-256 hash | a JWT signed by the Function; the token kept in Azure storage | the token shares its lifetime with the request, and the request is a BC record; a self-signed token is hard to revoke, and a token held in Azure could outlive the negotiation that justified it |
+| 34 | BC owns token validity; AMC tables store its SHA-256 hash while standard Email content retains the bearer link under separate access/retention controls (§9.7) | a JWT signed by the Function; the token kept in Azure storage | the token shares its lifetime with the request, and the request is a BC record; a self-signed token is hard to revoke, and a token held in Azure could outlive the negotiation that justified it |
 | 35 | Tokens are multi-use, expiring, revocable, superseded on re-send | single-use tokens | vendors come back to the page, and corporate mail scanners pre-fetch links; a single-use token breaks both, and turns a scanner's fetch into a fake vendor visit |
 | 36 | AL re-validates the token on every vendor write | trusting the middle tier to scope the vendor | it turns "the Function scopes the vendor" from a promise into a check BC makes for itself, and it closes the one real weakness of service-to-service authentication |
 | 37 | Azure Static Web Apps with a linked Function App | the managed API included with Static Web Apps; App Service; a server-rendered app | static files plus an API is exactly the SWA shape, and linking a Function App keeps `/api` same-origin while still getting a managed identity, which the managed API cannot have |
 | 38 | The Function holds the only BC credential and carries no business rules | calling BC from the browser; re-validating in the Function as well | a static page cannot hold a secret; and validation written twice, in two languages, drifts |
-| 39 | The link is sent by the Business Central Email module | Power Automate; SendGrid or Communication Services from a Function | the standard module already provides accounts, scenarios, a Sent Emails log and outbox retry — and any other sender would carry the raw token out of BC into a flow run history or a third-party log |
+| 39 | The link is sent by the Business Central Email module | Power Automate; SendGrid or Communication Services from a Function | the standard module provides accounts, scenarios, Sent Emails and outbox retry; its retained message content contains the raw link and requires access/retention controls (§9.7). Another sender would add delivery stores and possible flow/log copies to control |
 | 40 | The unsubmitted answer stays in the browser | a draft store in Azure; a `Draft` proposal in BC | an unsubmitted answer is owned by neither system; keeping it local avoids a datastore, a retention policy and a cleanup job for something with no business meaning |
 | 41 | A vendor request is created only by an explicit buyer action | creating one automatically when a collaboration-enabled vendor's order is released, or behind a setup flag | releasing an order is not the statement "ask this vendor"; buyers release orders they will send another way, and re-release routinely after edits. An automatic trigger would mint a credential and e-mail a third party as a side effect of a standard internal action, and a setup flag would only make that behaviour harder to predict |
 | 42 | One non-terminal request per purchase order, enforced under a header lock | several concurrent requests per order; silently closing the previous one on a second *Send* | one active question is what lets a link resolve unambiguously and outstanding quantities be computed against a single snapshot; and a silent replacement would discard a submitted proposal that a person still owes an answer to, so the second *Send* refuses and the buyer chooses *Re-send link* or *Cancel* |
