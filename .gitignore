@@ -22,3 +22,4 @@ cache_*
 .build/
 .claude/
 launch.json
+bcquality*
