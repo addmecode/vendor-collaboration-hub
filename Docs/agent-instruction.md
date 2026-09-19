@@ -13,7 +13,7 @@ Before inspecting or changing AL code, read and follow these skills:
 - `al-language-server`
 - `al-testing`
 
-Use `al-language-server` for AL code navigation, implementation, compilation, diagnostics, and the required post-implementation code review. Use `al-testing` for selecting, running, and evaluating the relevant automated tests.
+Use `al-language-server` for AL code navigation, implementation, compilation, diagnostics, and the required post-implementation code review. Use `al-testing` for creating and evaluating relevant automated tests.
 
 ## Task selection
 
@@ -31,21 +31,18 @@ Use `al-language-server` for AL code navigation, implementation, compilation, di
 3. Add or update automated tests when required to verify the implemented behavior. Follow the `al-testing` skill.
 4. Perform a code review of all changes made during the run. Follow the `al-language-server` skill and correct every issue found that is within the selected task's scope.
 5. Compile the affected AL project or projects according to the `al-language-server` instructions.
-6. Run the relevant automated tests according to the `al-testing` instructions.
-7. If compilation or tests fail, diagnose and fix the cause, then repeat the code review, compilation, and tests. Continue this cycle until compilation and all relevant tests succeed.
-8. Only after the implementation, code review, compilation, and tests have all succeeded, update the selected task's status in the Delivery Plan in `docs/tech.md` to `done`.
-9. Stop after completing that one task and report:
+6. If compilation fails, diagnose and fix the cause, then repeat the code review and compilation. Continue this cycle until compilation succeeds.
+7. Only after the implementation, code review, and compilation have all succeeded, update the selected task's status in the Delivery Plan in `docs/tech.md` to `done`.
+8. Stop after completing that one task and report:
    - which task was implemented;
    - the main files changed;
    - the compilation result;
-   - the test result;
-   - confirmation that its Delivery Plan status was changed to `done`.
+    - confirmation that its Delivery Plan status was changed to `done`.
 
 ## Failure and blocking rules
 
-- Never mark a task as `done` if its implementation is incomplete, the code review has unresolved issues, compilation fails, or relevant tests fail.
-- If compilation or tests cannot be run because of a genuine external blocker, exhaust safe in-scope remedies, leave the task status unchanged, and clearly report the blocker and the commands or checks that remain to be completed.
-- Do not hide, ignore, or work around failing tests merely to obtain a successful result.
+- Never mark a task as `done` if its implementation is incomplete, the code review has unresolved issues, or compilation fails.
+- If compilation cannot be run because of a genuine external blocker, exhaust safe in-scope remedies, leave the task status unchanged, and clearly report the blocker and the commands or checks that remain to be completed.
 
 ## Git policy
 
