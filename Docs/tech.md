@@ -548,7 +548,7 @@ Modeling rules:
 | Change reason | `Reason Code` (standard table) | Exists, has a setup page, already used across BC |
 | Alternative item validation | `Item Substitution` (standard table) | A vendor may only propose an item registered as a substitute — reuses master-data governance instead of inventing it |
 | What a line costs after a change | standard price calculation, triggered by `Validate()` | Prices, price lists, quantity breaks and line discounts are a whole BC subsystem with its own setup and its own date logic. Carrying the old price forward, or computing a new one here, would make this extension an opinion about pricing (§7.2) |
-| Numbering | `No. Series` module | Standard, per-company setup, manual/automatic |
+| Numbering | `No. Series` module | Standard, per-company setup, manual/automatic. An administrator selects existing series through Assisted Setup; the extension never provisions series or series lines |
 | Release | `Release Purchase Document` codeunit | An approved proposal releases the order through the standard codeunit, so every standard release check runs — never around it |
 | Gating release and purchase-order posting during vendor collaboration | `Purchase Header."AMC Active Request No."`; standard release and posting codeunits | `AMC Order Lock Mgt` checks the active-request pointer through release/posting event subscribers (§7.3). Approval applies the proposal and releases through standard BC; Open/Released remain the standard statuses |
 | Sending the link to the vendor | `Email` module (System Application) | accounts, connectors, e-mail scenarios, Sent Emails and outbox retry already exist; message content retains the bearer link and is covered by §9.7. A custom sender would add another delivery store to control |
@@ -584,7 +584,7 @@ share one ID space per type and must fit in the same 50 slots together.
 | Enum | 8 | 0 | 8 | 50100–50107 | 42 |
 | EnumExtension | 1 | 0 | 1 | 50100 | 49 |
 | Codeunit | 26 | 15 | 41 | 50100–50125, 50130–50144 | 9 |
-| Page | 17 | 0 | 17 | 50100–50110 (UI), 50120–50125 (API) | 33 |
+| Page | 18 | 0 | 18 | 50100–50111 (UI), 50120–50125 (API) | 32 |
 | PageExtension | 5 | 0 | 5 | 50100–50104 | 45 |
 | PermissionSet | 4 | 0 | 4 | 50100–50103 | 46 |
 | Interface | 1 | 0 | 1 | *no ID consumed* | — |
@@ -619,8 +619,10 @@ and for reasons that have nothing to do with counting:
 
 - `GetSetup` is a procedure on `AMC Collaboration Setup`, because that is where
   standard BC puts it and a wrapper would only forward.
-- Upgrade tags are constants in `AMC Upgrade`, next to the procedures guarded by
-  them; separating a tag from its migration is how they drift.
+- When a data migration is introduced, its upgrade tag belongs next to the
+  guarded procedure in an `AMC Upgrade` codeunit; separating a tag from its
+  migration is how they drift. There is no upgrade codeunit before the first
+  migration exists.
 - Error labels live in `AMC Proposal Validator`, next to the code that raises them.
   A central catalogue would be a second place to update and a second place to
   forget — `docs/api/error-codes.md` is generated from these labels (§8.4), which is
@@ -656,6 +658,29 @@ and for reasons that have nothing to do with counting:
 | Link Validity Days | Integer | how long an access link stays usable; default 14. Must not be shorter than `Default Response Days` — a link that dies before the answer is due is a guaranteed support call, so the field validates it (§9.2) |
 | Attach Order PDF | Boolean | attach the standard purchase order report to the vendor e-mail |
 | Telemetry Verbosity | Enum `Verbosity` | standard enum |
+
+### Assisted Setup and number-series selection
+
+`AMC Assisted Setup` (page 50101) is the primary first-run experience. It is an
+editable `NavigatePage`, registered through the `Guided Experience`
+`OnRegisterAssistedSetup` event by `AMC Install` (codeunit 50109). The guide is
+marked as the extension's primary setup and appears in the *Getting started*
+group.
+
+The guide asks the administrator to select existing values for `Request Nos.` and
+`Proposal Nos.`. Both fields are mandatory and use the setup table's `No. Series`
+table relation. The extension does **not** create `No. Series` records or `No. Series
+Line` records, and it does not prescribe prefixes, starting numbers, or whether a
+series is manual.
+
+Opening the guide reads the singleton setup record when it already exists and copies
+its number-series values into page variables. The page has no source table and does
+not create a temporary or persistent setup record while it is open. Closing or
+cancelling the guide writes nothing. Selecting **Finish** verifies both number-series
+fields, creates or updates the persistent singleton record, and calls `Guided
+Experience.CompleteAssistedSetup`. The `AMC Collaboration Setup` card is therefore
+for maintaining an existing setup; the guide is the entry point for its initial
+creation.
 
 ### `AMC Vendor Request` (50101)
 
@@ -980,8 +1005,8 @@ extension has been removed use the separate unknown-value handler (§6.1).
 | `AMC Telemetry` | 50106 | wrapper over `Session.LogMessage`; event ids and dimension names as labels |
 | `AMC Purchase Events` | 50107 | thin subscribers on Purchase Header/Line and before standard release/purchase posting, forwarding to `AMC Order Lock Mgt`; sync collaboration status on release. It holds no rules of its own and never creates a request (§5.1, §7.3) |
 | `AMC Business Events` | 50108 | `[ExternalBusinessEvent]` publishers for Power Automate |
-| `AMC Install` | 50109 | `Subtype = Install` — setup record, default number series, upgrade tags on a fresh install |
-| `AMC Upgrade` | 50110 | `Subtype = Upgrade` — dispatch plus the tag constants |
+| `AMC Install` | 50109 | `Subtype = Install` — registers the primary `AMC Assisted Setup` item in Guided Experience. It does not create the setup record, number series, number-series lines, or upgrade tags |
+| `AMC Upgrade` | 50110 | Reserved for the first release that needs a data migration; no upgrade codeunit exists in the current app |
 | `AMC Confirm Handler` | 50111 | implements `AMC IProposalLineHandler` |
 | `AMC Change Qty Handler` | 50112 | " |
 | `AMC Change Date Handler` | 50113 | " |
@@ -1064,16 +1089,17 @@ reachable only through the orchestrator.
 | Page | ID | Type |
 |---|---|---|
 | `AMC Collaboration Setup` | 50100 | Card |
-| `AMC Vendor Requests` | 50101 | List |
-| `AMC Vendor Request` | 50102 | Document |
-| `AMC Vendor Request Subform` | 50103 | ListPart |
-| `AMC Vendor Proposals` | 50104 | List — also serves the buyer worklist, opened with a status filter from the cue |
-| `AMC Vendor Proposal` | 50105 | Document |
-| `AMC Vendor Proposal Subform` | 50106 | ListPart |
-| `AMC Collab Timeline` | 50107 | ListPart — events and comments together, on both documents |
-| `AMC Collab Activities` | 50108 | CardPart with cues |
-| `AMC Vendor Access Links` | 50109 | List — every link, filterable by status and vendor. The page an administrator opens to revoke everything for one vendor after a mailbox incident |
-| `AMC Vendor Access Links Part` | 50110 | ListPart on the request document — which link was sent, to whom, when it was opened, when it expires; actions *Re-send link* and *Revoke link* |
+| `AMC Assisted Setup` | 50101 | Editable NavigatePage with page-variable state — initial selection of existing request and proposal number series (§4.2) |
+| `AMC Vendor Requests` | 50102 | List |
+| `AMC Vendor Request` | 50103 | Document |
+| `AMC Vendor Request Subform` | 50104 | ListPart |
+| `AMC Vendor Proposals` | 50105 | List — also serves the buyer worklist, opened with a status filter from the cue |
+| `AMC Vendor Proposal` | 50106 | Document |
+| `AMC Vendor Proposal Subform` | 50107 | ListPart |
+| `AMC Collab Timeline` | 50108 | ListPart — events and comments together, on both documents |
+| `AMC Collab Activities` | 50109 | CardPart with cues |
+| `AMC Vendor Access Links` | 50110 | List — every link, filterable by status and vendor. The page an administrator opens to revoke everything for one vendor after a mailbox incident |
+| `AMC Vendor Access Links Part` | 50111 | ListPart on the request document — which link was sent, to whom, when it was opened, when it expires; actions *Re-send link* and *Revoke link* |
 
 The two access-link pages are `Editable = false`, `InsertAllowed = false`,
 `DeleteAllowed = false`, and neither shows `Token Hash` — there is nothing a human can do with it, and putting it
@@ -1082,7 +1108,7 @@ the ordinary BC shape (the same table needs a standalone view and an embedded on
 what they must not become is two different column sets.
 
 API pages take `50120–50125` (§8.2) — a deliberate gap after the UI pages, so the two
-groups stay visibly separate — and pages use 17 of 50 IDs in total.
+groups stay visibly separate — and pages use 18 of 50 IDs in total.
 
 There is no separate "proposals to review" page. The cue on the role center opens
 `AMC Vendor Proposals` filtered to `Submitted`/`In Review`, which is the same
@@ -1109,7 +1135,7 @@ extension-model answer.
 |---|---|---|
 | `AMC Collaboration Read` | 50100 | R on all AMC tables; R on Purchase Header/Line, Vendor, Item |
 | `AMC Collaboration Buyer` | 50101 | includes Read; RIM on Request/Request Line/Proposal/Proposal Line; RIM on Vendor Access Token; I on Collaboration Entry; X on `AMC Request Mgt`, `AMC Proposal Decision Svc`, `AMC Apply Proposal Svc`, `AMC Order Lock Mgt`, `AMC Access Token Mgt`, `AMC Vendor Notification`, `AMC Unknown Line Handler` |
-| `AMC Collaboration Admin` | 50102 | includes Buyer; RIMD on Setup |
+| `AMC Collaboration Admin` | 50102 | includes Buyer; RIMD on Setup; R on `No. Series`; execute access to `AMC Assisted Setup` and the standard `No. Series` lookup page |
 | `AMC Api Integration` | 50103 | R on Request/Request Line; RI on Proposal/Proposal Line; **Rm** on Vendor Access Token (direct read, indirect modify via `registerAccess` only); I on Collaboration Entry; R on Purchase Header/Line, Vendor, Item; X on `AMC Proposal Mgt`, `AMC Proposal Validator`, `AMC Validation Result`, `AMC Idempotency Mgt`, `AMC Access Token Mgt`, `AMC Unknown Line Handler` — **no D anywhere, no Setup, no access to the decision, apply, notification or order-version codeunits** |
 
 `AMC Api Integration` is assigned to the Entra application used by the Function,
@@ -2963,11 +2989,13 @@ vendor-collaboration-hub/
 
 ## 12.4 Upgrade strategy
 
-`AMC Upgrade` (`Subtype = Upgrade`) contains dispatch only; each data change is a
-named local procedure guarded by an upgrade tag declared in `AMC Upgrade`, and
-`AMC Install` sets all current tags on a fresh install so a new company never runs
-historical migrations. Backfills use `DataTransfer`. Every `Get`/`Find*` is guarded
-with `if`. No external calls, no `Message`, no `Error` on optional data.
+There is no `AMC Upgrade` codeunit in the current app because it has no data
+migration. When a schema or data change needs one, create a dispatch-only
+`Subtype = Upgrade` codeunit. Each migration is a named local procedure guarded by
+its own upgrade tag; backfills use `DataTransfer`; every `Get`/`Find*` is guarded
+with `if`; and upgrade code makes no external calls, `Message`, or `Error` on
+optional data. A fresh-install path must set the relevant tags only if a future
+migration requires it.
 
 ---
 
@@ -3260,7 +3288,7 @@ M3, M4, M6 and M9 each end with the ADRs listed in §15.1.
 | # | Task | Delivers | See it work | Status |
 |---|---|---|---|---|
 | 1 | **Repo and pipeline** | AL-Go PTE template; `bc/vendor-collaboration-hub` and `bc/test` projects with the `app.json` of §2.1 (`idRanges` 50100–50129 and 50130–50149); CodeCop / UICop / PerTenantExtensionCop / AppSourceCop with `mandatoryAffixes: ["AMC"]` and the ruleset that promotes missing `DataClassification` and captions to errors; warnings fail the build; the workflows of §12.1 | A push turns CI green, and both extensions appear in *Extension Management* in the sandbox at 1.0.0.0 | DONE |
-| 2 | **Setup, install, permissions** | `AMC Collaboration Setup` (50100) with every field of §4.2 and `GetSetup` on the table; setup Card page (50100); `AMC Install` (50109) creating the record, default number series and current upgrade tags; `AMC Upgrade` (50110) as dispatch-only skeleton; the four permission sets (50100–50103) covering what exists so far | Install into a clean company, open *Vendor Collaboration Setup*, and find it already populated with number series and defaults — nothing to type before the feature can be switched on | |
+| 2 | **Setup, Assisted Setup, permissions** | `AMC Collaboration Setup` (50100) with every field of §4.2 and `GetSetup` on the table; setup Card page (50100); editable `AMC Assisted Setup` NavigatePage (50101), registered by `AMC Install` (50109), which holds number-series selections in page variables and creates the singleton record only on **Finish**; the four permission sets (50100–50103), including the administrator's number-series lookup access | Install into a clean company, run *Set Up Vendor Collaboration*, select two existing number series, and finish. Confirm that cancelling creates neither a persistent setup record nor a number series, and that the setup card then shows the selected series and defaults | |
 
 ## M1 — The question
 
