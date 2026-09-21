@@ -21,6 +21,7 @@ codeunit 50130 "AMC Setup Tests"
         // When
         TempCollaborationSetup.GetSetup();
 
+
         // Then
         Assert.IsFalse(TempCollaborationSetup.Enabled, 'Vendor collaboration must be disabled by default.');
         Assert.AreEqual(7, TempCollaborationSetup."Default Response Days", 'The default response period must be seven days.');
@@ -43,6 +44,9 @@ codeunit 50130 "AMC Setup Tests"
 
         // When
         asserterror TempCollaborationSetup.Validate(Enabled, true);
+
+        // Then
+        this.AssertFieldMustHaveValueError(TempCollaborationSetup.FieldCaption("Request Nos."));
     end;
 
     [Test]
@@ -56,6 +60,9 @@ codeunit 50130 "AMC Setup Tests"
 
         // When
         asserterror TempCollaborationSetup.Validate(Enabled, true);
+
+        // Then
+        this.AssertFieldMustHaveValueError(TempCollaborationSetup.FieldCaption("Proposal Nos."));
     end;
 
     [Test]
@@ -69,6 +76,9 @@ codeunit 50130 "AMC Setup Tests"
 
         // When
         asserterror TempCollaborationSetup.Validate(Enabled, true);
+
+        // Then
+        this.AssertFieldMustHaveValueError(TempCollaborationSetup.FieldCaption("Portal Base URL"));
     end;
 
     [Test]
@@ -82,12 +92,16 @@ codeunit 50130 "AMC Setup Tests"
 
         // When
         asserterror TempCollaborationSetup.Validate(Enabled, true);
+
+        // Then
+        this.AssertFieldMustHaveValueError(TempCollaborationSetup.FieldCaption("Portal Support E-Mail"));
     end;
 
     [Test]
     procedure GivenInvalidPortalBaseUrl_WhenEnabling_ThenValidationFails()
     var
         TempCollaborationSetup: Record "AMC Collaboration Setup" temporary;
+        InvalidUriErr: Label 'The URI is not valid.';
     begin
         // Given
         this.PrepareCompleteSetup(TempCollaborationSetup);
@@ -95,12 +109,16 @@ codeunit 50130 "AMC Setup Tests"
 
         // When
         asserterror TempCollaborationSetup.Validate(Enabled, true);
+
+        // Then
+        Assert.ExpectedError(InvalidUriErr);
     end;
 
     [Test]
     procedure GivenInvalidPortalSupportEmail_WhenEnabling_ThenValidationFails()
     var
         TempCollaborationSetup: Record "AMC Collaboration Setup" temporary;
+        InvalidEmailAddressErr: Label 'The email address "%1" is not valid.', Comment = '%1 = invalid e-mail address';
     begin
         // Given
         this.PrepareCompleteSetup(TempCollaborationSetup);
@@ -108,6 +126,9 @@ codeunit 50130 "AMC Setup Tests"
 
         // When
         asserterror TempCollaborationSetup.Validate(Enabled, true);
+
+        // Then
+        Assert.ExpectedError(StrSubstNo(InvalidEmailAddressErr, TempCollaborationSetup."Portal Support E-Mail"));
     end;
 
     [Test]
@@ -203,6 +224,13 @@ codeunit 50130 "AMC Setup Tests"
         FieldMustBeGreaterThanZeroErr: Label '%1 must be greater than zero.', Comment = '%1 = field caption';
     begin
         Assert.ExpectedError(StrSubstNo(FieldMustBeGreaterThanZeroErr, FieldCaption));
+    end;
+
+    local procedure AssertFieldMustHaveValueError(FieldCaption: Text)
+    var
+        FieldMustHaveValueErr: Label '%1 must have a value', Comment = '%1 = field caption';
+    begin
+        Assert.ExpectedError(StrSubstNo(FieldMustHaveValueErr, FieldCaption));
     end;
 
     local procedure AssertFieldMustBeGreaterThanOrEqualToError(FieldCaption: Text; OtherFieldCaption: Text)

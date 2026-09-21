@@ -190,11 +190,18 @@ page 50101 "AMC Assisted Setup"
     var
         CollaborationSetup: Record "AMC Collaboration Setup";
         TempCollaborationSetup: Record "AMC Collaboration Setup" temporary;
-        AssistedSetupNotAvailableErr: Label 'Vendor Collaboration is already enabled. Use the Vendor Collaboration Setup page to change the configuration.';
+        CollaborationSetupPage: Page "AMC Collaboration Setup";
+        AssistedSetupNotAvailableError: ErrorInfo;
+        AssistedSetupNotAvailableErr: Label 'Vendor Collaboration is already enabled. Use the %1 page to change the configuration.', Comment = '%1 = page caption';
+        OpenCollaborationSetupLbl: Label 'Open %1', Comment = '%1 = page caption';
     begin
         if CollaborationSetup.Get() then begin
-            if CollaborationSetup.Enabled then
-                Error(AssistedSetupNotAvailableErr);
+            if CollaborationSetup.Enabled then begin
+                AssistedSetupNotAvailableError.Message := StrSubstNo(AssistedSetupNotAvailableErr, CollaborationSetupPage.Caption());
+                AssistedSetupNotAvailableError.PageNo := Page::"AMC Collaboration Setup";
+                AssistedSetupNotAvailableError.AddNavigationAction(StrSubstNo(OpenCollaborationSetupLbl, CollaborationSetupPage.Caption()));
+                Error(AssistedSetupNotAvailableError);
+            end;
 
             this.LoadSetup(CollaborationSetup)
         end else begin
