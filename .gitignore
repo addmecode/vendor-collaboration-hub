@@ -23,3 +23,5 @@ cache_*
 .claude/
 launch.json
 bcquality*
+.coverage/
+TODO.md
