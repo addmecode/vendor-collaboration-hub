@@ -8,6 +8,7 @@ permissionset 50101 "AMC Collab Buyer"
     IncludedPermissionSets = "AMC Collab Read";
 
     Permissions =
+    tabledata "AMC Collaboration Entry" = i,
     tabledata "AMC Vendor Request" = RIM,
     tabledata "AMC Vendor Request Line" = RIM;
 }

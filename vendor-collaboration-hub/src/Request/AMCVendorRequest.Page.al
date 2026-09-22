@@ -96,6 +96,12 @@ page 50103 "AMC Vendor Request"
                 SubPageLink = "Request No." = field("No.");
                 UpdatePropagation = Both;
             }
+            part(CollabTimeline; "AMC Collab Timeline")
+            {
+                ApplicationArea = All;
+                Caption = 'Timeline';
+                SubPageLink = "Source Type" = const(Request), "Source No." = field("No.");
+            }
             group(Statistics)
             {
                 Caption = 'Statistics';
