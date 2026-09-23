@@ -24,6 +24,7 @@ permissions:
 
 For every implementation task:
 
+0. Restrict all exploration agents and tools explicitly to the current repository. Do not request or attempt access to other projects, workspaces, or unrelated directories unless the user explicitly requests it.
 1. Read the applicable project instructions, `Docs/tech.md`, the current Git diff, and relevant AL skills.
 2. Launch `explore` first to identify the affected objects, dependencies, requirements, and existing tests.
 3. Use the exploration result to launch `al-test-designer`.
@@ -31,7 +32,7 @@ For every implementation task:
 5. Delegate implementation to one `al-implementer` only.
 6. Validate the App and Test projects with AL diagnostics and compilation.
 7. For a configured SaaS test project, publish the App and Test packages to the configured Sandbox and run tests through AL MCP.
-8. Launch `al-reviewer` against the final diff.
+8. Launch `al-reviewer` with the exact final files in scope and acceptance criteria. For a task-level review, instruct it not to run broad working-tree scans; use a broad review only when explicitly requested.
 9. Report the changes, test results, assumptions, and residual risks.
 
 Do not run multiple writing agents concurrently. Run a broad `al-code-review` only when the user explicitly requests a full pre-merge review. Run at most three independent read-only subagents concurrently.
