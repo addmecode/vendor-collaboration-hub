@@ -125,4 +125,17 @@ table 50101 "AMC Vendor Request"
         VendorRequestLine.SetRange("Request No.", "No.");
         VendorRequestLine.DeleteAll(true);
     end;
+
+    trigger OnModify()
+    var
+        RequestSnapshotCannotBeChangedErr: Label 'Vendor request snapshot fields cannot be changed.';
+    begin
+        //todo: is this check needed?
+        if (this."Vendor No." <> xRec."Vendor No.") or
+           (this."Purchase Order No." <> xRec."Purchase Order No.") or
+           (this."Purchaser Code" <> xRec."Purchaser Code") or
+           (this."Assigned User ID" <> xRec."Assigned User ID") or
+           (this."Currency Code" <> xRec."Currency Code") then
+            Error(RequestSnapshotCannotBeChangedErr);
+    end;
 }

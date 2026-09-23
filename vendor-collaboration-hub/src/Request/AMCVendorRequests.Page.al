@@ -5,6 +5,10 @@ page 50102 "AMC Vendor Requests"
     ApplicationArea = All;
     Caption = 'Vendor Requests';
     CardPageId = "AMC Vendor Request";
+    DeleteAllowed = false;
+    Editable = false;
+    InsertAllowed = false;
+    ModifyAllowed = false;
     PageType = List;
     SourceTable = "AMC Vendor Request";
     UsageCategory = Lists;

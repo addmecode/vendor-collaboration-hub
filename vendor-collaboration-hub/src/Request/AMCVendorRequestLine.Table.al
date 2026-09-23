@@ -89,4 +89,20 @@ table 50102 "AMC Vendor Request Line"
         {
         }
     }
+
+    trigger OnModify()
+    var
+        RequestLineSnapshotCannotBeChangedErr: Label 'Vendor request line snapshot fields cannot be changed.';
+    begin
+        //todo: is this check needed?
+        if (this."Purchase Line No." <> xRec."Purchase Line No.") or
+           (this."Item No." <> xRec."Item No.") or
+           (this."Variant Code" <> xRec."Variant Code") or
+           (this.Description <> xRec.Description) or
+           (this."Location Code" <> xRec."Location Code") or
+           (this."Unit of Measure Code" <> xRec."Unit of Measure Code") or
+           (this."Requested Quantity" <> xRec."Requested Quantity") or
+           (this."Requested Delivery Date" <> xRec."Requested Delivery Date") then
+            Error(RequestLineSnapshotCannotBeChangedErr);
+    end;
 }

@@ -4,6 +4,10 @@ page 50103 "AMC Vendor Request"
 {
     ApplicationArea = All;
     Caption = 'Vendor Request';
+    DeleteAllowed = false;
+    Editable = false;
+    InsertAllowed = false;
+    ModifyAllowed = false;
     PageType = Document;
     SourceTable = "AMC Vendor Request";
 

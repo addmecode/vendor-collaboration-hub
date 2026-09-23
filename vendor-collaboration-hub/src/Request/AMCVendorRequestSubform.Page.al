@@ -6,6 +6,10 @@ page 50104 "AMC Vendor Request Subform"
     AutoSplitKey = true;
     Caption = 'Vendor Request Lines';
     DelayedInsert = true;
+    DeleteAllowed = false;
+    Editable = false;
+    InsertAllowed = false;
+    ModifyAllowed = false;
     PageType = ListPart;
     SourceTable = "AMC Vendor Request Line";
 

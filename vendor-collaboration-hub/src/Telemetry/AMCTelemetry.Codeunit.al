@@ -8,6 +8,18 @@ codeunit 50106 "AMC Telemetry"
         Session.LogMessage(EventId, Message, MessageVerbosity, DataClassification::SystemMetadata, TelemetryScope::ExtensionPublisher, CustomDimensions);
     end;
 
+    procedure LogRequestCreated(RequestNo: Code[20]; VendorNo: Code[20]; OrderNo: Code[20]; LineCount: Integer)
+    var
+        CustomDimensions: Dictionary of [Text, Text];
+        RequestCreatedMsg: Label 'Vendor request created.';
+    begin
+        CustomDimensions.Add(this.VCHRequestNoLbl, RequestNo);
+        CustomDimensions.Add(this.VCHVendorNoLbl, VendorNo);
+        CustomDimensions.Add(this.VCHOrderNoLbl, OrderNo);
+        CustomDimensions.Add(this.VCHLineCountLbl, Format(LineCount));
+        this.LogMessage(this.VCH0101Lbl, RequestCreatedMsg, Verbosity::Normal, CustomDimensions);
+    end;
+
     var
         VCH0101Lbl: Label 'VCH0101', Locked = true;
         VCH0102Lbl: Label 'VCH0102', Locked = true;
