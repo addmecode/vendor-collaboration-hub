@@ -92,17 +92,19 @@ table 50102 "AMC Vendor Request Line"
 
     trigger OnModify()
     var
+        PersistedVendorRequestLine: Record "AMC Vendor Request Line";
         RequestLineSnapshotCannotBeChangedErr: Label 'Vendor request line snapshot fields cannot be changed.';
     begin
         //todo: is this check needed?
-        if (this."Purchase Line No." <> xRec."Purchase Line No.") or
-           (this."Item No." <> xRec."Item No.") or
-           (this."Variant Code" <> xRec."Variant Code") or
-           (this.Description <> xRec.Description) or
-           (this."Location Code" <> xRec."Location Code") or
-           (this."Unit of Measure Code" <> xRec."Unit of Measure Code") or
-           (this."Requested Quantity" <> xRec."Requested Quantity") or
-           (this."Requested Delivery Date" <> xRec."Requested Delivery Date") then
+        if PersistedVendorRequestLine.Get(this."Request No.", this."Line No.") and
+           ((this."Purchase Line No." <> PersistedVendorRequestLine."Purchase Line No.") or
+            (this."Item No." <> PersistedVendorRequestLine."Item No.") or
+            (this."Variant Code" <> PersistedVendorRequestLine."Variant Code") or
+            (this.Description <> PersistedVendorRequestLine.Description) or
+            (this."Location Code" <> PersistedVendorRequestLine."Location Code") or
+            (this."Unit of Measure Code" <> PersistedVendorRequestLine."Unit of Measure Code") or
+            (this."Requested Quantity" <> PersistedVendorRequestLine."Requested Quantity") or
+            (this."Requested Delivery Date" <> PersistedVendorRequestLine."Requested Delivery Date")) then
             Error(RequestLineSnapshotCannotBeChangedErr);
     end;
 }

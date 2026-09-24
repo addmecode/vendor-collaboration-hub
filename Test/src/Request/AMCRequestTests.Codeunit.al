@@ -241,23 +241,21 @@ codeunit 50131 "AMC Request Tests"
     end;
 
     [Test]
-    procedure GivenRequestWithLine_WhenRequestIsDeleted_ThenLineIsDeleted()
+    procedure GivenVendorRequest_WhenPhysicalDeletionIsAttempted_ThenDeletionIsRejected()
     var
         VendorRequest: Record "AMC Vendor Request";
-        VendorRequestLine: Record "AMC Vendor Request Line";
         RequestNo: Code[20];
+        VendorRequestCannotBeDeletedErr: Label 'Vendor requests cannot be deleted. Cancel the request instead.';
     begin
         // Given
         RequestNo := this.CreateRequestNo();
         this.InsertVendorRequest(VendorRequest, RequestNo);
-        this.InsertVendorRequest(VendorRequestLine, RequestNo);
 
         // When
-        VendorRequest.Delete(true);
+        asserterror VendorRequest.Delete(true);
 
         // Then
-        VendorRequestLine.SetRange("Request No.", RequestNo);
-        this.Assert.IsTrue(VendorRequestLine.IsEmpty(), 'Deleting a vendor request must delete its lines.');
+        this.Assert.ExpectedError(VendorRequestCannotBeDeletedErr);
     end;
 
     local procedure CreateRequestNo(): Code[20]

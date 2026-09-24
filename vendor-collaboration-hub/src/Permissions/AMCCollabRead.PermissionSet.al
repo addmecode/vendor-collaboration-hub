@@ -13,6 +13,7 @@ permissionset 50100 "AMC Collab Read"
     tabledata "AMC Collaboration Setup" = R,
     tabledata "AMC Collaboration Entry" = R,
     tabledata "AMC Vendor Proposal" = R,
+    tabledata "AMC Vendor Proposal Line" = R,
     tabledata "AMC Vendor Request" = R,
     tabledata "AMC Vendor Request Line" = R,
     tabledata Item = R,
@@ -21,6 +22,9 @@ permissionset 50100 "AMC Collab Read"
     tabledata Vendor = R,
     page "AMC Collaboration Setup" = X,
     page "AMC Collab Timeline" = X,
+    page "AMC Vendor Proposal" = X,
+    page "AMC Vendor Proposal Subform" = X,
+    page "AMC Vendor Proposals" = X,
     page "AMC Vendor Request" = X,
     page "AMC Vendor Request Subform" = X,
     page "AMC Vendor Requests" = X;

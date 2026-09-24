@@ -120,22 +120,23 @@ table 50101 "AMC Vendor Request"
 
     trigger OnDelete()
     var
-        VendorRequestLine: Record "AMC Vendor Request Line";
+        VendorRequestCannotBeDeletedErr: Label 'Vendor requests cannot be deleted. Cancel the request instead.';
     begin
-        VendorRequestLine.SetRange("Request No.", "No.");
-        VendorRequestLine.DeleteAll(true);
+        Error(VendorRequestCannotBeDeletedErr);
     end;
 
     trigger OnModify()
     var
+        PersistedVendorRequest: Record "AMC Vendor Request";
         RequestSnapshotCannotBeChangedErr: Label 'Vendor request snapshot fields cannot be changed.';
     begin
         //todo: is this check needed?
-        if (this."Vendor No." <> xRec."Vendor No.") or
-           (this."Purchase Order No." <> xRec."Purchase Order No.") or
-           (this."Purchaser Code" <> xRec."Purchaser Code") or
-           (this."Assigned User ID" <> xRec."Assigned User ID") or
-           (this."Currency Code" <> xRec."Currency Code") then
+        if PersistedVendorRequest.Get(this."No.") and
+           ((this."Vendor No." <> PersistedVendorRequest."Vendor No.") or
+            (this."Purchase Order No." <> PersistedVendorRequest."Purchase Order No.") or
+            (this."Purchaser Code" <> PersistedVendorRequest."Purchaser Code") or
+            (this."Assigned User ID" <> PersistedVendorRequest."Assigned User ID") or
+            (this."Currency Code" <> PersistedVendorRequest."Currency Code")) then
             Error(RequestSnapshotCannotBeChangedErr);
     end;
 }

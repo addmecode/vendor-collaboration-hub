@@ -9,7 +9,10 @@ permissionset 50101 "AMC Collab Buyer"
 
     Permissions =
     tabledata "AMC Collaboration Entry" = i,
+    tabledata "AMC Vendor Proposal" = RIM,
+    tabledata "AMC Vendor Proposal Line" = RIM,
     tabledata "AMC Vendor Request" = RIM,
     tabledata "AMC Vendor Request Line" = RIM,
+    codeunit "AMC Proposal Mgt" = X,
     codeunit "AMC Request Mgt" = X;
 }
