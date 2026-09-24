@@ -17,7 +17,7 @@ Use `al-language-server` for AL code navigation, implementation, compilation, di
 
 ## Task selection
 
-1. Read `docs/tech.md` in full, including the **Delivery Plan** section.
+1. Read the **Delivery Plan** section in `docs/tech.md` and the technical-design sections referenced by the selected task. Do not read unrelated sections in full.
 2. If the user explicitly identifies a task to implement, select that task.
 3. Otherwise, scan the Delivery Plan from top to bottom and select the first task whose status is not `done`.
 4. Treat a task with status `done` as already implemented. Do not implement it again.
