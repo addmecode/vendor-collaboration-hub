@@ -2,6 +2,7 @@ namespace Addmecode.VendorCollaborationHub.Tests;
 
 using Addmecode.VendorCollaborationHub;
 using Microsoft.Foundation.NoSeries;
+using Microsoft.Finance.Currency;
 using Microsoft.Purchases.Document;
 using Microsoft.Purchases.Vendor;
 using System.TestLibraries.Utilities;
@@ -109,6 +110,7 @@ codeunit 50131 "AMC Request Tests"
         this.Assert.AreEqual(PurchaseHeader."No.", VendorRequest."Purchase Order No.", 'The created request must refer to the source purchase order.');
         this.Assert.AreEqual(PurchaseHeader."AMC Collaboration Status"::Draft, PurchaseHeader."AMC Collaboration Status", 'The purchase order collaboration status must be Draft.');
         this.Assert.IsFalse(this.VendorRequestPageWasOpened, 'The created vendor request page must not open when the buyer chooses No.');
+        PurchaseOrder.Close();
     end;
 
     [Test]
@@ -346,6 +348,7 @@ codeunit 50131 "AMC Request Tests"
     local procedure CreatePurchaseOrder(var PurchaseHeader: Record "Purchase Header"; VendorNo: Code[20]; Status: Enum "Purchase Document Status")
     begin
         //todo: there is no function in standard tests libraries for this?
+        this.EnsureCurrency('USD');
         PurchaseHeader.Init();
         PurchaseHeader."Document Type" := PurchaseHeader."Document Type"::Order;
         PurchaseHeader."No." := this.CreateRequestNo();
@@ -355,6 +358,21 @@ codeunit 50131 "AMC Request Tests"
         PurchaseHeader."Currency Code" := 'USD';
         PurchaseHeader.Status := Status;
         PurchaseHeader.Insert(false);
+    end;
+
+    local procedure EnsureCurrency(CurrencyCode: Code[10])
+    var
+        Currency: Record Currency;
+    begin
+        if Currency.Get(CurrencyCode) then
+            exit;
+
+        Currency.Init();
+        Currency.Code := CurrencyCode;
+        Currency.Description := CurrencyCode;
+        Currency."Amount Rounding Precision" := 0.01;
+        Currency."Unit-Amount Rounding Precision" := 0.00001;
+        Currency.Insert(false);
     end;
 
     local procedure CreatePurchaseLine(PurchaseHeader: Record "Purchase Header"; LineNo: Integer; ItemNo: Code[20]; VariantCode: Code[10]; Description: Text[100]; LocationCode: Code[10]; UnitOfMeasureCode: Code[10]; Quantity: Decimal; RequestedReceiptDate: Date)

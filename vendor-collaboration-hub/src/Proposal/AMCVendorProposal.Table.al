@@ -129,4 +129,15 @@ table 50103 "AMC Vendor Proposal"
         VendorProposalLine.SetRange("Proposal No.", Rec."No.");
         VendorProposalLine.DeleteAll(true);
     end;
+
+    trigger OnInsert()
+    var
+        ExistingVendorProposal: Record "AMC Vendor Proposal";
+        DuplicateIdempotencyKeyErr: Label 'A proposal with idempotency key %1 already exists for vendor %2.', Comment = '%1 = idempotency key, %2 = vendor number';
+    begin
+        ExistingVendorProposal.SetRange("Vendor No.", Rec."Vendor No.");
+        ExistingVendorProposal.SetRange("Idempotency Key", Rec."Idempotency Key");
+        if not ExistingVendorProposal.IsEmpty() then
+            Error(DuplicateIdempotencyKeyErr, Rec."Idempotency Key", Rec."Vendor No.");
+    end;
 }

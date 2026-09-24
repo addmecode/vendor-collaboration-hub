@@ -182,7 +182,7 @@ codeunit 50133 "AMC Proposal Tests"
         VendorProposal."Purchase Order No." := PurchaseOrderNo;
         VendorProposal."Idempotency Key" := IdempotencyKey;
         VendorProposal.Status := Status;
-        VendorProposal.Insert(false);
+        VendorProposal.Insert(true);
     end;
 
     local procedure InsertProposalLine(ProposalNo: Code[20]; LineNo: Integer; RequestLineNo: Integer; LineType: Enum "AMC Proposal Line Type"; SequenceNo: Integer; ProposedItemNo: Code[20]; ProposedVariantCode: Code[10]; ProposedQuantity: Decimal; ProposedDeliveryDate: Date; ReasonCode: Code[10])

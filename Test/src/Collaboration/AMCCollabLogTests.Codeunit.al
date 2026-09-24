@@ -22,6 +22,7 @@ codeunit 50132 "AMC Collab Log Tests"
 
         // Then
         this.Assert.IsFalse(CollabTimeline.Editable(), 'The collaboration timeline must not be editable.');
+        CollabTimeline.Close();
     end;
 
     [Test]
