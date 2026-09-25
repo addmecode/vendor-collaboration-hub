@@ -234,6 +234,76 @@ codeunit 50133 "AMC Proposal Tests"
         this.Assert.IsTrue(StrPos(ValidationResult.AsJson(), 'VCH-VAL-0040') > 0, 'JSON validation output must include the reason error.');
     end;
 
+  [Test]
+  procedure GivenDraftProposal_WhenSetStatusThroughApprovalWorkflow_ThenProposalIsApplied()
+  var
+    VendorProposal: Record "AMC Vendor Proposal";
+    ProposalMgt: Codeunit "AMC Proposal Mgt";
+    ProposalNo: Code[20];
+    RequestNo: Code[20];
+  begin
+    // Given
+    RequestNo := this.CreateRequest('STATUS-VENDOR', 'STATUS-ORDER');
+    ProposalNo := this.CreateDraft(RequestNo);
+    VendorProposal.Get(ProposalNo);
+
+    // When
+    ProposalMgt.SetStatus(VendorProposal, VendorProposal.Status::Submitted);
+    ProposalMgt.SetStatus(VendorProposal, VendorProposal.Status::"In Review");
+    ProposalMgt.SetStatus(VendorProposal, VendorProposal.Status::Approved);
+    ProposalMgt.SetStatus(VendorProposal, VendorProposal.Status::Applied);
+
+    // Then
+    VendorProposal.Get(ProposalNo);
+    this.Assert.AreEqual(VendorProposal.Status::Applied, VendorProposal.Status, 'The approved proposal must be applied.');
+  end;
+
+  [Test]
+  procedure GivenSubmittedProposal_WhenSetStatusToSuperseded_ThenProposalIsSuperseded()
+  var
+    VendorProposal: Record "AMC Vendor Proposal";
+    ProposalMgt: Codeunit "AMC Proposal Mgt";
+    ProposalNo: Code[20];
+    RequestNo: Code[20];
+  begin
+    // Given
+    RequestNo := this.CreateRequest('SUPERSEDE-VENDOR', 'SUPERSEDE-ORDER');
+    ProposalNo := this.CreateDraft(RequestNo);
+    VendorProposal.Get(ProposalNo);
+    ProposalMgt.SetStatus(VendorProposal, VendorProposal.Status::Submitted);
+
+    // When
+    ProposalMgt.SetStatus(VendorProposal, VendorProposal.Status::Superseded);
+
+    // Then
+    VendorProposal.Get(ProposalNo);
+    this.Assert.AreEqual(VendorProposal.Status::Superseded, VendorProposal.Status, 'The submitted proposal must be superseded.');
+  end;
+
+  [Test]
+  procedure GivenDraftProposal_WhenSetStatusToApplied_ThenTransitionIsRejectedAndStatusIsUnchanged()
+  var
+    VendorProposal: Record "AMC Vendor Proposal";
+    ProposalMgt: Codeunit "AMC Proposal Mgt";
+    ProposalNo: Code[20];
+    RequestNo: Code[20];
+    InvalidStatusTransitionErr: Label 'Vendor proposal status cannot change from %1 to %2.', Comment = '%1 = current proposal status, %2 = requested proposal status';
+  begin
+    // Given
+    RequestNo := this.CreateRequest('INVALID-VENDOR', 'INVALID-ORDER');
+    ProposalNo := this.CreateDraft(RequestNo);
+    VendorProposal.Get(ProposalNo);
+    Commit();
+
+    // When
+    asserterror ProposalMgt.SetStatus(VendorProposal, VendorProposal.Status::Applied);
+
+    // Then
+    this.Assert.ExpectedError(StrSubstNo(InvalidStatusTransitionErr, VendorProposal.Status::Draft, VendorProposal.Status::Applied));
+    VendorProposal.Get(ProposalNo);
+    this.Assert.AreEqual(VendorProposal.Status::Draft, VendorProposal.Status, 'An illegal transition must not change the proposal status.');
+  end;
+
     local procedure ConfigureProposalNoSeries()
     var
         CollaborationSetup: Record "AMC Collaboration Setup";

@@ -260,6 +260,72 @@ codeunit 50131 "AMC Request Tests"
         this.Assert.ExpectedError(VendorRequestCannotBeDeletedErr);
     end;
 
+  [Test]
+  procedure GivenDraftRequest_WhenSetStatusThroughReviewWorkflow_ThenRequestIsClosed()
+  var
+    VendorRequest: Record "AMC Vendor Request";
+    RequestMgt: Codeunit "AMC Request Mgt";
+    RequestNo: Code[20];
+  begin
+    // Given
+    RequestNo := this.CreateRequestNo();
+    this.InsertVendorRequest(VendorRequest, RequestNo);
+
+    // When
+    RequestMgt.SetStatus(VendorRequest, VendorRequest.Status::Sent);
+    RequestMgt.SetStatus(VendorRequest, VendorRequest.Status::"Awaiting Vendor");
+    RequestMgt.SetStatus(VendorRequest, VendorRequest.Status::"Vendor Responded");
+    RequestMgt.SetStatus(VendorRequest, VendorRequest.Status::"In Review");
+    RequestMgt.SetStatus(VendorRequest, VendorRequest.Status::Closed);
+
+    // Then
+    VendorRequest.Get(RequestNo);
+    this.Assert.AreEqual(VendorRequest.Status::Closed, VendorRequest.Status, 'The request must be closed after the review workflow.');
+  end;
+
+  [Test]
+  procedure GivenAwaitingVendorRequest_WhenSetStatusToCancelled_ThenRequestIsCancelled()
+  var
+    VendorRequest: Record "AMC Vendor Request";
+    RequestMgt: Codeunit "AMC Request Mgt";
+    RequestNo: Code[20];
+  begin
+    // Given
+    RequestNo := this.CreateRequestNo();
+    this.InsertVendorRequest(VendorRequest, RequestNo);
+    RequestMgt.SetStatus(VendorRequest, VendorRequest.Status::Sent);
+    RequestMgt.SetStatus(VendorRequest, VendorRequest.Status::"Awaiting Vendor");
+
+    // When
+    RequestMgt.SetStatus(VendorRequest, VendorRequest.Status::Cancelled);
+
+    // Then
+    VendorRequest.Get(RequestNo);
+    this.Assert.AreEqual(VendorRequest.Status::Cancelled, VendorRequest.Status, 'The awaiting vendor request must be cancelled.');
+  end;
+
+  [Test]
+  procedure GivenDraftRequest_WhenSetStatusToInReview_ThenTransitionIsRejectedAndStatusIsUnchanged()
+  var
+    VendorRequest: Record "AMC Vendor Request";
+    RequestMgt: Codeunit "AMC Request Mgt";
+    RequestNo: Code[20];
+    InvalidStatusTransitionErr: Label 'Vendor request status cannot change from %1 to %2.', Comment = '%1 = current request status, %2 = requested request status';
+  begin
+    // Given
+    RequestNo := this.CreateRequestNo();
+    this.InsertVendorRequest(VendorRequest, RequestNo);
+    Commit();
+
+    // When
+    asserterror RequestMgt.SetStatus(VendorRequest, VendorRequest.Status::"In Review");
+
+    // Then
+    this.Assert.ExpectedError(StrSubstNo(InvalidStatusTransitionErr, VendorRequest.Status::Draft, VendorRequest.Status::"In Review"));
+    VendorRequest.Get(RequestNo);
+    this.Assert.AreEqual(VendorRequest.Status::Draft, VendorRequest.Status, 'An illegal transition must not change the request status.');
+  end;
+
     local procedure CreateRequestNo(): Code[20]
     begin
         exit(CopyStr(DelChr(Format(CreateGuid()), '=', '{}-'), 1, 20));
