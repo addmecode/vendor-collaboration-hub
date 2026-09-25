@@ -34,10 +34,12 @@ Use `al-language-server` for AL code navigation, implementation, compilation, di
 6. If compilation fails, diagnose and fix the cause, then repeat the code review and compilation. Continue this cycle until compilation succeeds.
 7. Only after the implementation, code review, and compilation have all succeeded, update the selected task's status in the Delivery Plan in `docs/tech.md` to `done`.
 8. Stop after completing that one task and report:
-   - which task was implemented;
-   - the main files changed;
-   - the compilation result;
-    - confirmation that its Delivery Plan status was changed to `done`.
+    - which task was implemented;
+    - the main files changed;
+    - the compilation result;
+    - confirmation that its Delivery Plan status was changed to `done`;
+    - a concise, user-facing summary of the uncommitted changes and their business impact;
+    - a manual test checklist for a Business Central user, with prerequisites, steps, and expected results. State explicitly when an end-to-end scenario cannot yet be exercised because a dependent Delivery Plan task is not complete, and give the available automated-test alternative.
 
 ## Failure and blocking rules
 
