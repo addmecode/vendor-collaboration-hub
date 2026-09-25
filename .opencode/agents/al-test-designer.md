@@ -2,7 +2,7 @@
 description: Designs focused AL test scenarios from the explored implementation and requirements.
 mode: subagent
 model: openai/gpt-5.6-terra#medium
-steps: 10
+steps: 15
 permissions:
   - action: edit
     resource: "*"

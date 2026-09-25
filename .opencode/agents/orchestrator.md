@@ -2,7 +2,7 @@
 description: Plans AL tasks, delegates isolated work, and validates the final result.
 mode: primary
 model: openai/gpt-5.6-terra#high
-steps: 40
+steps: 60
 permissions:
   - action: subagent
     resource: "*"
