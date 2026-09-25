@@ -109,9 +109,12 @@ table 50100 "AMC Collaboration Setup"
     end;
 
     trigger OnModify()
+    var
+        PersistedCollaborationSetup: Record "AMC Collaboration Setup";
     begin
-        if this.Enabled and not xRec.Enabled then
-            this.ValidateSetupForActivation();
+        if PersistedCollaborationSetup.Get(Rec."Primary Key") then
+            if Rec.Enabled and not PersistedCollaborationSetup.Enabled then
+                this.ValidateSetupForActivation();
     end;
 
     procedure GetSetup()

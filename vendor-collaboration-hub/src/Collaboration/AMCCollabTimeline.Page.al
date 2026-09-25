@@ -10,7 +10,7 @@ page 50107 "AMC Collab Timeline"
     ModifyAllowed = false;
     PageType = ListPart;
     SourceTable = "AMC Collaboration Entry";
-    SourceTableView = sorting("Source Type", "Source No.", "Date Time") order(ascending);
+    SourceTableView = sorting("Source Type", "Source No.", "Date Time") order(descending);
 
     layout
     {

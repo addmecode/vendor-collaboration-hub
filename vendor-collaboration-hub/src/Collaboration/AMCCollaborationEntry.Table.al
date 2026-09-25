@@ -46,7 +46,7 @@ table 50105 "AMC Collaboration Entry"
         field(8; "User ID"; Code[50])
         {
             Caption = 'User ID';
-            DataClassification = CustomerContent;
+            DataClassification = EndUserIdentifiableInformation;
         }
         field(9; "Visible to Vendor"; Boolean)
         {

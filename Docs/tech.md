@@ -1095,8 +1095,8 @@ reachable only through the orchestrator.
 | `AMC Vendor Request Subform` | 50104 | ListPart |
 | `AMC Vendor Proposals` | 50105 | List — also serves the buyer worklist, opened with a status filter from the cue |
 | `AMC Vendor Proposal` | 50106 | Document |
-| `AMC Vendor Proposal Subform` | 50107 | ListPart |
-| `AMC Collab Timeline` | 50108 | ListPart — events and comments together, on both documents |
+| `AMC Vendor Proposal Subform` | 50108 | ListPart |
+| `AMC Collab Timeline` | 50107 | ListPart — events and comments together, on both documents |
 | `AMC Collab Activities` | 50109 | CardPart with cues |
 | `AMC Vendor Access Links` | 50110 | List — every link, filterable by status and vendor. The page an administrator opens to revoke everything for one vendor after a mailbox incident |
 | `AMC Vendor Access Links Part` | 50111 | ListPart on the request document — which link was sent, to whom, when it was opened, when it expires; actions *Re-send link* and *Revoke link* |
@@ -3312,9 +3312,9 @@ M3, M4, M6 and M9 each end with the ADRs listed in §15.1.
 
 | # | Task | Delivers | See it work | Status |
 |---|---|---|---|---|
-| 6 | **Proposal aggregate** | `AMC Vendor Proposal` (50103) and `AMC Vendor Proposal Line` (50104) with all fields and keys, including the unique `Vendor No. + Idempotency Key`; enums `AMC Proposal Status` (50102) and `AMC Proposal Line Type` (50103, extensible); List / Document / Subform pages (50104–50106); `AMC Proposal Mgt` (50101) creating a draft against a request | Capture the PO-10482 answer by hand as a `Draft`: two split lines and one substitution, against the request from task 5 | |
-| 7 | **Validation** | `AMC Validation Result` (50122) with `AddError`, `HasErrors`, `AsErrorText` and `AsJson`; `AMC Proposal Validator` (50102) with every rule of §0.4 and the `VCH-xxx-nnnn` labels; a *Validate* action on the proposal page | Break each rule in turn on a draft and press *Validate*: quantity above outstanding, a past date, an unregistered substitute, too many splits, a missing reason code. Then break three at once and see three failures, not one | |
-| 8 | **Status discipline** | `SetStatus` on `AMC Request Mgt` and `AMC Proposal Mgt` with explicit allowed-transition tables; `Editable = false` on every status control; the transitions of §5.1 and §5.2 | Try to move a proposal from `Draft` straight to `Applied` and be refused. Confirm no page lets a status be typed | |
+| 6 | **Proposal aggregate** | `AMC Vendor Proposal` (50103) and `AMC Vendor Proposal Line` (50104) with all fields and keys, including the unique `Vendor No. + Idempotency Key`; enums `AMC Proposal Status` (50102) and `AMC Proposal Line Type` (50103, extensible); List / Document / Subform pages (50105, 50106 and 50108; 50104 and 50107 are occupied); `AMC Proposal Mgt` (50101) creating a draft against a request | Capture the PO-10482 answer by hand as a `Draft`: two split lines and one substitution, against the request from task 5 | DONE |
+| 7 | **Validation** | `AMC Validation Result` (50122) with `AddError`, `HasErrors`, `AsErrorText` and `AsJson`; `AMC Proposal Validator` (50102) with every rule of §0.4 and the `VCH-xxx-nnnn` labels; a *Validate* action on the proposal page | Break each rule in turn on a draft and press *Validate*: quantity above outstanding, a past date, an unregistered substitute, too many splits, a missing reason code. Then break three at once and see three failures, not one | DONE |
+| 8 | **Status discipline** | `SetStatus` on `AMC Request Mgt` and `AMC Proposal Mgt` with explicit allowed-transition tables; `Editable = false` on every status control; the transitions of §5.1 and §5.2 | Try to move a proposal from `Draft` straight to `Applied` and be refused. Confirm no page lets a status be typed | DONE |
 
 ## M3 — Applying it
 

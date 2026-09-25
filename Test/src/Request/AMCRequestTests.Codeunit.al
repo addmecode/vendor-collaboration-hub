@@ -2,6 +2,7 @@ namespace Addmecode.VendorCollaborationHub.Tests;
 
 using Addmecode.VendorCollaborationHub;
 using Microsoft.Foundation.NoSeries;
+using Microsoft.Finance.Currency;
 using Microsoft.Purchases.Document;
 using Microsoft.Purchases.Vendor;
 using System.TestLibraries.Utilities;
@@ -109,6 +110,7 @@ codeunit 50131 "AMC Request Tests"
         this.Assert.AreEqual(PurchaseHeader."No.", VendorRequest."Purchase Order No.", 'The created request must refer to the source purchase order.');
         this.Assert.AreEqual(PurchaseHeader."AMC Collaboration Status"::Draft, PurchaseHeader."AMC Collaboration Status", 'The purchase order collaboration status must be Draft.');
         this.Assert.IsFalse(this.VendorRequestPageWasOpened, 'The created vendor request page must not open when the buyer chooses No.');
+        PurchaseOrder.Close();
     end;
 
     [Test]
@@ -241,24 +243,88 @@ codeunit 50131 "AMC Request Tests"
     end;
 
     [Test]
-    procedure GivenRequestWithLine_WhenRequestIsDeleted_ThenLineIsDeleted()
+    procedure GivenVendorRequest_WhenPhysicalDeletionIsAttempted_ThenDeletionIsRejected()
     var
         VendorRequest: Record "AMC Vendor Request";
-        VendorRequestLine: Record "AMC Vendor Request Line";
         RequestNo: Code[20];
+        VendorRequestCannotBeDeletedErr: Label 'Vendor requests cannot be deleted. Cancel the request instead.';
     begin
         // Given
         RequestNo := this.CreateRequestNo();
         this.InsertVendorRequest(VendorRequest, RequestNo);
-        this.InsertVendorRequest(VendorRequestLine, RequestNo);
 
         // When
-        VendorRequest.Delete(true);
+        asserterror VendorRequest.Delete(true);
 
         // Then
-        VendorRequestLine.SetRange("Request No.", RequestNo);
-        this.Assert.IsTrue(VendorRequestLine.IsEmpty(), 'Deleting a vendor request must delete its lines.');
+        this.Assert.ExpectedError(VendorRequestCannotBeDeletedErr);
     end;
+
+  [Test]
+  procedure GivenDraftRequest_WhenSetStatusThroughReviewWorkflow_ThenRequestIsClosed()
+  var
+    VendorRequest: Record "AMC Vendor Request";
+    RequestMgt: Codeunit "AMC Request Mgt";
+    RequestNo: Code[20];
+  begin
+    // Given
+    RequestNo := this.CreateRequestNo();
+    this.InsertVendorRequest(VendorRequest, RequestNo);
+
+    // When
+    RequestMgt.SetStatus(VendorRequest, VendorRequest.Status::Sent);
+    RequestMgt.SetStatus(VendorRequest, VendorRequest.Status::"Awaiting Vendor");
+    RequestMgt.SetStatus(VendorRequest, VendorRequest.Status::"Vendor Responded");
+    RequestMgt.SetStatus(VendorRequest, VendorRequest.Status::"In Review");
+    RequestMgt.SetStatus(VendorRequest, VendorRequest.Status::Closed);
+
+    // Then
+    VendorRequest.Get(RequestNo);
+    this.Assert.AreEqual(VendorRequest.Status::Closed, VendorRequest.Status, 'The request must be closed after the review workflow.');
+  end;
+
+  [Test]
+  procedure GivenAwaitingVendorRequest_WhenSetStatusToCancelled_ThenRequestIsCancelled()
+  var
+    VendorRequest: Record "AMC Vendor Request";
+    RequestMgt: Codeunit "AMC Request Mgt";
+    RequestNo: Code[20];
+  begin
+    // Given
+    RequestNo := this.CreateRequestNo();
+    this.InsertVendorRequest(VendorRequest, RequestNo);
+    RequestMgt.SetStatus(VendorRequest, VendorRequest.Status::Sent);
+    RequestMgt.SetStatus(VendorRequest, VendorRequest.Status::"Awaiting Vendor");
+
+    // When
+    RequestMgt.SetStatus(VendorRequest, VendorRequest.Status::Cancelled);
+
+    // Then
+    VendorRequest.Get(RequestNo);
+    this.Assert.AreEqual(VendorRequest.Status::Cancelled, VendorRequest.Status, 'The awaiting vendor request must be cancelled.');
+  end;
+
+  [Test]
+  procedure GivenDraftRequest_WhenSetStatusToInReview_ThenTransitionIsRejectedAndStatusIsUnchanged()
+  var
+    VendorRequest: Record "AMC Vendor Request";
+    RequestMgt: Codeunit "AMC Request Mgt";
+    RequestNo: Code[20];
+    InvalidStatusTransitionErr: Label 'Vendor request status cannot change from %1 to %2.', Comment = '%1 = current request status, %2 = requested request status';
+  begin
+    // Given
+    RequestNo := this.CreateRequestNo();
+    this.InsertVendorRequest(VendorRequest, RequestNo);
+    Commit();
+
+    // When
+    asserterror RequestMgt.SetStatus(VendorRequest, VendorRequest.Status::"In Review");
+
+    // Then
+    this.Assert.ExpectedError(StrSubstNo(InvalidStatusTransitionErr, VendorRequest.Status::Draft, VendorRequest.Status::"In Review"));
+    VendorRequest.Get(RequestNo);
+    this.Assert.AreEqual(VendorRequest.Status::Draft, VendorRequest.Status, 'An illegal transition must not change the request status.');
+  end;
 
     local procedure CreateRequestNo(): Code[20]
     begin
@@ -348,6 +414,7 @@ codeunit 50131 "AMC Request Tests"
     local procedure CreatePurchaseOrder(var PurchaseHeader: Record "Purchase Header"; VendorNo: Code[20]; Status: Enum "Purchase Document Status")
     begin
         //todo: there is no function in standard tests libraries for this?
+        this.EnsureCurrency('USD');
         PurchaseHeader.Init();
         PurchaseHeader."Document Type" := PurchaseHeader."Document Type"::Order;
         PurchaseHeader."No." := this.CreateRequestNo();
@@ -357,6 +424,21 @@ codeunit 50131 "AMC Request Tests"
         PurchaseHeader."Currency Code" := 'USD';
         PurchaseHeader.Status := Status;
         PurchaseHeader.Insert(false);
+    end;
+
+    local procedure EnsureCurrency(CurrencyCode: Code[10])
+    var
+        Currency: Record Currency;
+    begin
+        if Currency.Get(CurrencyCode) then
+            exit;
+
+        Currency.Init();
+        Currency.Code := CurrencyCode;
+        Currency.Description := CurrencyCode;
+        Currency."Amount Rounding Precision" := 0.01;
+        Currency."Unit-Amount Rounding Precision" := 0.00001;
+        Currency.Insert(false);
     end;
 
     local procedure CreatePurchaseLine(PurchaseHeader: Record "Purchase Header"; LineNo: Integer; ItemNo: Code[20]; VariantCode: Code[10]; Description: Text[100]; LocationCode: Code[10]; UnitOfMeasureCode: Code[10]; Quantity: Decimal; RequestedReceiptDate: Date)

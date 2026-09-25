@@ -5,7 +5,7 @@ codeunit 50106 "AMC Telemetry"
     procedure LogMessage(EventId: Text; Message: Text; MessageVerbosity: Verbosity; var CustomDimensions: Dictionary of [Text, Text])
     begin
         CustomDimensions.Set(this.VCHEventIdLbl, EventId);
-        Session.LogMessage(EventId, Message, MessageVerbosity, DataClassification::SystemMetadata, TelemetryScope::ExtensionPublisher, CustomDimensions);
+        Session.LogMessage(EventId, Message, MessageVerbosity, DataClassification::CustomerContent, TelemetryScope::ExtensionPublisher, CustomDimensions);
     end;
 
     procedure LogRequestCreated(RequestNo: Code[20]; VendorNo: Code[20]; OrderNo: Code[20]; LineCount: Integer)

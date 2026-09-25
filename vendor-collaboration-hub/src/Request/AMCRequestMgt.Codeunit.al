@@ -51,6 +51,33 @@ codeunit 50100 "AMC Request Mgt"
         exit(RequestNo);
     end;
 
+  procedure SetStatus(var VendorRequest: Record "AMC Vendor Request"; NewStatus: Enum "AMC Request Status")
+  var
+    VCHReq0005Err: Label 'Vendor request status cannot change from %1 to %2.', Comment = '%1 = current request status, %2 = requested request status';
+  begin
+    if not this.IsStatusTransitionAllowed(VendorRequest.Status, NewStatus) then
+      Error(VCHReq0005Err, VendorRequest.Status, NewStatus);
+
+    VendorRequest.Status := NewStatus;
+    VendorRequest.Modify(true);
+  end;
+
+  local procedure IsStatusTransitionAllowed(CurrentStatus: Enum "AMC Request Status"; NewStatus: Enum "AMC Request Status"): Boolean
+  begin
+    case CurrentStatus of
+      CurrentStatus::Draft:
+        exit(NewStatus in [NewStatus::Sent, NewStatus::Cancelled]);
+      CurrentStatus::Sent:
+        exit(NewStatus in [NewStatus::"Awaiting Vendor", NewStatus::Cancelled]);
+      CurrentStatus::"Awaiting Vendor":
+        exit(NewStatus in [NewStatus::"Vendor Responded", NewStatus::Cancelled]);
+      CurrentStatus::"Vendor Responded":
+        exit(NewStatus in [NewStatus::"In Review", NewStatus::Closed, NewStatus::Cancelled]);
+      CurrentStatus::"In Review":
+        exit(NewStatus = NewStatus::Closed);
+    end;
+  end;
+
     local procedure VerifyPurchaseOrderCanCreateRequest(PurchaseHeader: Record "Purchase Header")
     var
         VCHReq0004Err: Label 'Purchase order %1 must be open. Use the Reopen action before creating a vendor request.', Comment = '%1 = purchase order number';
