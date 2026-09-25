@@ -143,4 +143,31 @@ page 50106 "AMC Vendor Proposal"
             }
         }
     }
+
+    actions
+    {
+        area(Processing)
+        {
+            action(ValidateProposal)
+            {
+                ApplicationArea = All;
+                Caption = 'Validate';
+                Image = Check;
+                ToolTip = 'Validates the proposal without changing it.';
+
+                trigger OnAction()
+                var
+                    ProposalValidator: Codeunit "AMC Proposal Validator";
+                    ValidationResult: Codeunit "AMC Validation Result";
+                    ProposalIsValidMsg: Label 'The vendor proposal is valid.';
+                begin
+                    ProposalValidator.Validate(Rec, ValidationResult);
+                    if ValidationResult.HasErrors() then
+                        Error(ValidationResult.AsDisplayText());
+
+                    Message(ProposalIsValidMsg);
+                end;
+            }
+        }
+    }
 }

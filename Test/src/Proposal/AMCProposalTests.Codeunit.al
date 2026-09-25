@@ -108,6 +108,132 @@ codeunit 50133 "AMC Proposal Tests"
         this.Assert.AreEqual(2, VendorRequest."Open Proposal Count", 'Only Submitted and In Review proposals must count as open.');
     end;
 
+    [Test]
+    procedure GivenQuantityAboveOutstanding_WhenProposalIsValidated_ThenQuantityErrorIsReturned()
+    var
+        ValidationResult: Codeunit "AMC Validation Result";
+        ProposalValidator: Codeunit "AMC Proposal Validator";
+        ProposalNo: Code[20];
+    begin
+        // Given
+        this.ConfigureValidationSetup(false, 3, false);
+        ProposalNo := this.CreateValidationProposal(10);
+        this.InsertProposalLine(ProposalNo, 10000, 10000, "AMC Proposal Line Type"::Confirm, 1, '', '', 11, WorkDate(), '');
+
+        // When
+        ProposalValidator.Validate(this.GetProposal(ProposalNo), ValidationResult);
+
+        // Then
+        this.Assert.AreEqual(1, ValidationResult.GetErrorCount(), 'A quantity above the outstanding quantity must be rejected.');
+        this.Assert.IsTrue(StrPos(ValidationResult.AsErrorText(), 'VCH-VAL-0012') > 0, 'The quantity error code must be returned.');
+    end;
+
+    [Test]
+    procedure GivenPastDeliveryDate_WhenProposalIsValidated_ThenDateErrorIsReturned()
+    var
+        ValidationResult: Codeunit "AMC Validation Result";
+        ProposalValidator: Codeunit "AMC Proposal Validator";
+        ProposalNo: Code[20];
+    begin
+        // Given
+        this.ConfigureValidationSetup(false, 3, false);
+        ProposalNo := this.CreateValidationProposal(10);
+        this.InsertProposalLine(ProposalNo, 10000, 10000, "AMC Proposal Line Type"::Confirm, 1, '', '', 10, WorkDate() - 1, '');
+
+        // When
+        ProposalValidator.Validate(this.GetProposal(ProposalNo), ValidationResult);
+
+        // Then
+        this.Assert.AreEqual(1, ValidationResult.GetErrorCount(), 'A past delivery date must be rejected.');
+        this.Assert.IsTrue(StrPos(ValidationResult.AsErrorText(), 'VCH-VAL-0020') > 0, 'The past-date error code must be returned.');
+    end;
+
+    [Test]
+    procedure GivenUnregisteredSubstitute_WhenProposalIsValidated_ThenSubstitutionErrorIsReturned()
+    var
+        ValidationResult: Codeunit "AMC Validation Result";
+        ProposalValidator: Codeunit "AMC Proposal Validator";
+        ProposalNo: Code[20];
+    begin
+        // Given
+        this.ConfigureValidationSetup(true, 3, false);
+        ProposalNo := this.CreateValidationProposal(10);
+        this.InsertProposalLine(ProposalNo, 10000, 10000, "AMC Proposal Line Type"::"Substitute Item", 1, 'SUBSTITUTE', '', 10, WorkDate(), '');
+
+        // When
+        ProposalValidator.Validate(this.GetProposal(ProposalNo), ValidationResult);
+
+        // Then
+        this.Assert.AreEqual(1, ValidationResult.GetErrorCount(), 'An unregistered substitute must be rejected.');
+        this.Assert.IsTrue(StrPos(ValidationResult.AsErrorText(), 'VCH-VAL-0030') > 0, 'The substitution error code must be returned.');
+    end;
+
+    [Test]
+    procedure GivenTooManySplits_WhenProposalIsValidated_ThenSplitCountErrorIsReturned()
+    var
+        ValidationResult: Codeunit "AMC Validation Result";
+        ProposalValidator: Codeunit "AMC Proposal Validator";
+        ProposalNo: Code[20];
+    begin
+        // Given
+        this.ConfigureValidationSetup(false, 1, false);
+        ProposalNo := this.CreateValidationProposal(10);
+        this.InsertProposalLine(ProposalNo, 10000, 10000, "AMC Proposal Line Type"::"Split Delivery", 1, '', '', 5, WorkDate(), '');
+        this.InsertProposalLine(ProposalNo, 20000, 10000, "AMC Proposal Line Type"::"Split Delivery", 2, '', '', 5, WorkDate(), '');
+
+        // When
+        ProposalValidator.Validate(this.GetProposal(ProposalNo), ValidationResult);
+
+        // Then
+        this.Assert.AreEqual(1, ValidationResult.GetErrorCount(), 'Too many splits must be rejected.');
+        this.Assert.IsTrue(StrPos(ValidationResult.AsErrorText(), 'VCH-VAL-0031') > 0, 'The split-count error code must be returned.');
+    end;
+
+    [Test]
+    procedure GivenMissingReasonCode_WhenProposalIsValidated_ThenReasonErrorIsReturned()
+    var
+        ValidationResult: Codeunit "AMC Validation Result";
+        ProposalValidator: Codeunit "AMC Proposal Validator";
+        ProposalNo: Code[20];
+    begin
+        // Given
+        this.ConfigureValidationSetup(false, 3, true);
+        ProposalNo := this.CreateValidationProposal(10);
+        this.InsertProposalLine(ProposalNo, 10000, 10000, "AMC Proposal Line Type"::"Change Date", 1, '', '', 10, WorkDate(), '');
+
+        // When
+        ProposalValidator.Validate(this.GetProposal(ProposalNo), ValidationResult);
+
+        // Then
+        this.Assert.AreEqual(1, ValidationResult.GetErrorCount(), 'A missing required reason code must be rejected.');
+        this.Assert.IsTrue(StrPos(ValidationResult.AsErrorText(), 'VCH-VAL-0040') > 0, 'The reason-code error must be returned.');
+    end;
+
+    [Test]
+    procedure GivenThreeInvalidValues_WhenProposalIsValidated_ThenAllErrorsAreReturned()
+    var
+        ValidationResult: Codeunit "AMC Validation Result";
+        ProposalValidator: Codeunit "AMC Proposal Validator";
+        ProposalNo: Code[20];
+    begin
+        // Given
+        this.ConfigureValidationSetup(false, 3, true);
+        ProposalNo := this.CreateValidationProposal(10);
+        this.InsertProposalLine(ProposalNo, 10000, 10000, "AMC Proposal Line Type"::"Change Date", 1, '', '', 11, WorkDate() - 1, '');
+
+        // When
+        ProposalValidator.Validate(this.GetProposal(ProposalNo), ValidationResult);
+
+        // Then
+        this.Assert.AreEqual(3, ValidationResult.GetErrorCount(), 'Validation must collect every independent failure.');
+        this.Assert.IsTrue(StrPos(ValidationResult.AsErrorText(), 'VCH-VAL-0012') > 0, 'Text validation output must include the quantity error.');
+        this.Assert.IsTrue(StrPos(ValidationResult.AsErrorText(), 'VCH-VAL-0020') > 0, 'Text validation output must include the date error.');
+        this.Assert.IsTrue(StrPos(ValidationResult.AsErrorText(), 'VCH-VAL-0040') > 0, 'Text validation output must include the reason error.');
+        this.Assert.IsTrue(StrPos(ValidationResult.AsJson(), 'VCH-VAL-0012') > 0, 'JSON validation output must include the quantity error.');
+        this.Assert.IsTrue(StrPos(ValidationResult.AsJson(), 'VCH-VAL-0020') > 0, 'JSON validation output must include the date error.');
+        this.Assert.IsTrue(StrPos(ValidationResult.AsJson(), 'VCH-VAL-0040') > 0, 'JSON validation output must include the reason error.');
+    end;
+
     local procedure ConfigureProposalNoSeries()
     var
         CollaborationSetup: Record "AMC Collaboration Setup";
@@ -118,6 +244,43 @@ codeunit 50133 "AMC Proposal Tests"
         CollaborationSetup.GetSetup();
         CollaborationSetup."Proposal Nos." := ProposalNoSeriesCode;
         CollaborationSetup.Modify(true);
+    end;
+
+    local procedure ConfigureValidationSetup(AllowItemSubstitution: Boolean; MaxSplitsPerLine: Integer; RequireReasonCode: Boolean)
+    var
+        CollaborationSetup: Record "AMC Collaboration Setup";
+    begin
+        CollaborationSetup.GetSetup();
+        CollaborationSetup."Allow Item Substitution" := AllowItemSubstitution;
+        CollaborationSetup."Max Splits per Line" := MaxSplitsPerLine;
+        CollaborationSetup."Require Reason Code" := RequireReasonCode;
+        CollaborationSetup.Modify(false);
+    end;
+
+    local procedure CreateValidationProposal(OutstandingQuantity: Decimal): Code[20]
+    var
+        VendorProposal: Record "AMC Vendor Proposal";
+        VendorRequestLine: Record "AMC Vendor Request Line";
+        ProposalNo: Code[20];
+        RequestNo: Code[20];
+    begin
+        RequestNo := this.CreateRequest('VALIDATION-VENDOR', 'VALIDATION-ORDER');
+        ProposalNo := this.CreateIdentifier();
+        this.InsertProposal(VendorProposal, ProposalNo, RequestNo, 'VALIDATION-VENDOR', 'VALIDATION-ORDER', this.CreateIdentifier(), VendorProposal.Status::Draft);
+
+        VendorRequestLine.Init();
+        VendorRequestLine."Request No." := RequestNo;
+        VendorRequestLine."Line No." := 10000;
+        VendorRequestLine."Item No." := 'REQUESTED';
+        VendorRequestLine."Outstanding Quantity" := OutstandingQuantity;
+        VendorRequestLine.Insert(false);
+
+        exit(ProposalNo);
+    end;
+
+    local procedure GetProposal(ProposalNo: Code[20]) VendorProposal: Record "AMC Vendor Proposal"
+    begin
+        VendorProposal.Get(ProposalNo);
     end;
 
     local procedure CreateNoSeries(NoSeriesCode: Code[20])

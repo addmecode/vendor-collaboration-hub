@@ -11,5 +11,7 @@ permissionset 50103 "AMC API Integration"
     tabledata "AMC Vendor Proposal Line" = RI,
     tabledata "AMC Vendor Request" = R,
     tabledata "AMC Vendor Request Line" = R,
-    codeunit "AMC Proposal Mgt" = X;
+    codeunit "AMC Proposal Mgt" = X,
+    codeunit "AMC Proposal Validator" = X,
+    codeunit "AMC Validation Result" = X;
 }
