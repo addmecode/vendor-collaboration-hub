@@ -38,7 +38,7 @@ Use `al-language-server` for AL code navigation, implementation, compilation, di
     - the main files changed;
     - the compilation result;
     - confirmation that its Delivery Plan status was changed to `done`;
-    - a concise, user-facing summary of the uncommitted changes and their business impact;
+    - a user-facing summary of the uncommitted changes and their business impact;
     - a manual test checklist for a Business Central user, with prerequisites, steps, and expected results. State explicitly when an end-to-end scenario cannot yet be exercised because a dependent Delivery Plan task is not complete, and give the available automated-test alternative.
 
 ## Failure and blocking rules
