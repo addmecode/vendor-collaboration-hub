@@ -9,7 +9,7 @@ permissions:
   - action: subagent
     resource: "*"
     effect: deny
-steps: 10
+steps: 15
 ---
 
 # Focused exploration

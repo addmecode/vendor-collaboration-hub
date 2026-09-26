@@ -29,15 +29,15 @@ Use `al-language-server` for AL code navigation, implementation, compilation, di
 1. Inspect the existing implementation, relevant tests, project configuration, and the selected task's acceptance criteria before editing files.
 2. Implement all requirements of the selected task while keeping changes limited to that task and any strictly necessary supporting changes.
 3. Add or update automated tests when required to verify the implemented behavior. Follow the `al-testing` skill.
-4. Perform a code review of all changes made during the run. Follow the `al-language-server` skill and correct every issue found that is within the selected task's scope.
-5. Compile the affected AL project or projects according to the `al-language-server` instructions.
-6. If compilation fails, diagnose and fix the cause, then repeat the code review and compilation. Continue this cycle until compilation succeeds.
-7. Only after the implementation, code review, and compilation have all succeeded, update the selected task's status in the Delivery Plan in `docs/tech.md` to `done`.
-8. Stop after completing that one task and report:
-   - which task was implemented;
-   - the main files changed;
-   - the compilation result;
-    - confirmation that its Delivery Plan status was changed to `done`.
+4. Follow `.opencode/agents/orchestrator.md` for implementation delegation, code-review, compilation, publishing, test execution, and retry workflow.
+5. Only after the implementation, code review, and compilation have all succeeded, update the selected task's status in the Delivery Plan in `docs/tech.md` to `done`.
+6. Stop after completing that one task and report:
+    - which task was implemented;
+    - the main files changed;
+    - the compilation result;
+    - confirmation that its Delivery Plan status was changed to `done`;
+    - a user-facing summary of the uncommitted changes and their business impact;
+    - a manual test checklist for a Business Central user, with prerequisites, steps, and expected results. State explicitly when an end-to-end scenario cannot yet be exercised because a dependent Delivery Plan task is not complete, and give the available automated-test alternative.
 
 ## Failure and blocking rules
 

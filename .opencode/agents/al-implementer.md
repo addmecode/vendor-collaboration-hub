@@ -2,7 +2,7 @@
 description: Implements one isolated, explicitly assigned AL change and its tests.
 mode: subagent
 model: openai/gpt-5.6-terra#high
-steps: 30
+steps: 45
 permissions:
   - action: subagent
     resource: "*"

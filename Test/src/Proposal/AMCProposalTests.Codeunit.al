@@ -2,6 +2,7 @@ namespace Addmecode.VendorCollaborationHub.Tests;
 
 using Addmecode.VendorCollaborationHub;
 using Microsoft.Foundation.NoSeries;
+using Microsoft.Purchases.Document;
 using System.TestLibraries.Utilities;
 
 codeunit 50133 "AMC Proposal Tests"
@@ -234,6 +235,60 @@ codeunit 50133 "AMC Proposal Tests"
         this.Assert.IsTrue(StrPos(ValidationResult.AsJson(), 'VCH-VAL-0040') > 0, 'JSON validation output must include the reason error.');
     end;
 
+    [Test]
+    procedure GivenUnknownPersistedLineType_WhenHandlerValidatesAndApplies_ThenUnknownErrorsAreReturnedWithoutChangingPurchaseLine()
+    var
+        LineHandler: Interface "AMC IProposalLineHandler";
+        PurchaseHeader: Record "Purchase Header";
+        PurchaseLine: Record "Purchase Line";
+        ValidationResult: Codeunit "AMC Validation Result";
+        VendorProposal: Record "AMC Vendor Proposal";
+        VendorProposalLine: Record "AMC Vendor Proposal Line";
+        VendorRequestLine: Record "AMC Vendor Request Line";
+        ApplySucceeded: Boolean;
+        ErrorText: Text;
+        PurchaseOrderNo: Code[20];
+        ProposalNo: Code[20];
+    begin
+        // Given
+        ProposalNo := this.CreateValidationProposal(10);
+        VendorProposal.Get(ProposalNo);
+        VendorRequestLine.Get(VendorProposal."Request No.", 10000);
+        PurchaseOrderNo := this.CreateIdentifier();
+        PurchaseHeader.Init();
+        PurchaseHeader."Document Type" := PurchaseHeader."Document Type"::Order;
+        PurchaseHeader."No." := PurchaseOrderNo;
+        PurchaseHeader.Insert(false);
+        PurchaseLine.Init();
+        PurchaseLine."Document Type" := PurchaseHeader."Document Type";
+        PurchaseLine."Document No." := PurchaseHeader."No.";
+        PurchaseLine."Line No." := 10000;
+        PurchaseLine.Quantity := 10;
+        PurchaseLine.Insert(false);
+        VendorProposalLine.Init();
+        VendorProposalLine."Proposal No." := ProposalNo;
+        VendorProposalLine."Line No." := 10000;
+        VendorProposalLine."Request Line No." := VendorRequestLine."Line No.";
+        VendorProposalLine."Line Type" := Enum::"AMC Proposal Line Type".FromInteger(99);
+        VendorProposalLine."Sequence No." := 1;
+        VendorProposalLine.Insert(false);
+        VendorProposalLine.Get(ProposalNo, VendorProposalLine."Line No.");
+        LineHandler := VendorProposalLine."Line Type";
+
+        // When
+        LineHandler.Validate(VendorProposalLine, VendorRequestLine, ValidationResult);
+
+        // Then
+        this.Assert.AreEqual(1, ValidationResult.GetErrorCount(), 'An unknown persisted line type must add one validation error.');
+        this.Assert.IsTrue(StrPos(ValidationResult.AsErrorText(), 'VCH-VAL-0003') > 0, 'An unknown persisted line type must use the unknown validation code.');
+        ApplySucceeded := this.TryApplyUnknownLine(VendorProposalLine, PurchaseHeader);
+        ErrorText := GetLastErrorText();
+        this.Assert.IsFalse(ApplySucceeded, 'An unknown persisted line type must not apply.');
+        this.Assert.IsTrue(StrPos(ErrorText, 'VCH-APL-0006') > 0, 'An unknown persisted line type must use the unknown apply code.');
+        PurchaseLine.Get(PurchaseHeader."Document Type", PurchaseHeader."No.", PurchaseLine."Line No.");
+        this.Assert.AreEqual(10, PurchaseLine.Quantity, 'An unknown line type must not change purchase data.');
+    end;
+
   [Test]
   procedure GivenDraftProposal_WhenSetStatusThroughApprovalWorkflow_ThenProposalIsApplied()
   var
@@ -351,6 +406,15 @@ codeunit 50133 "AMC Proposal Tests"
     local procedure GetProposal(ProposalNo: Code[20]) VendorProposal: Record "AMC Vendor Proposal"
     begin
         VendorProposal.Get(ProposalNo);
+    end;
+
+    [TryFunction]
+    local procedure TryApplyUnknownLine(var VendorProposalLine: Record "AMC Vendor Proposal Line"; var PurchaseHeader: Record "Purchase Header")
+    var
+        LineHandler: Interface "AMC IProposalLineHandler";
+    begin
+        LineHandler := VendorProposalLine."Line Type";
+        LineHandler.Apply(VendorProposalLine, PurchaseHeader);
     end;
 
     local procedure CreateNoSeries(NoSeriesCode: Code[20])

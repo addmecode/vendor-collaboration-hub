@@ -39,6 +39,18 @@ pageextension 50100 "AMC Purchase Order" extends "Purchase Order"
                     this.CreateVendorRequest();
                 end;
             }
+            action(AMCUnlockPurchaseOrder)
+            {
+                ApplicationArea = All;
+                Caption = 'Unlock Purchase Order';
+                Enabled = Rec."AMC Active Request No." <> '';
+                ToolTip = 'Cancels the active vendor request and unlocks this purchase order.';
+
+                trigger OnAction()
+                begin
+                    this.UnlockPurchaseOrder();
+                end;
+            }
         }
     }
 
@@ -56,5 +68,17 @@ pageextension 50100 "AMC Purchase Order" extends "Purchase Order"
 
         VendorRequest.Get(RequestNo);
         Page.Run(Page::"AMC Vendor Request", VendorRequest);
+    end;
+
+    local procedure UnlockPurchaseOrder()
+    var
+        RequestMgt: Codeunit "AMC Request Mgt";
+        UnlockPurchaseOrderQst: Label 'Unlocking purchase order %1 cancels vendor request %2. Do you want to continue?', Comment = '%1 = purchase order number, %2 = vendor request number';
+    begin
+        if not Confirm(UnlockPurchaseOrderQst, false, Rec."No.", Rec."AMC Active Request No.") then
+            exit;
+
+        RequestMgt.Cancel(Rec);
+        CurrPage.Update(false);
     end;
 }

@@ -2,7 +2,7 @@
 description: Reviews assigned AL changes for correctness and regressions without editing files.
 mode: subagent
 model: openai/gpt-5.6-terra#medium
-steps: 12
+steps: 18
 permissions:
   - action: edit
     resource: "*"

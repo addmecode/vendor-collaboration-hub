@@ -46,12 +46,12 @@ codeunit 50101 "AMC Proposal Mgt"
         exit(NewStatus in [NewStatus::Submitted, NewStatus::Withdrawn]);
       CurrentStatus::Submitted:
         exit(NewStatus in [NewStatus::"In Review", NewStatus::Withdrawn, NewStatus::Expired, NewStatus::Superseded]);
-      CurrentStatus::"In Review":
-        exit(NewStatus in [NewStatus::Approved, NewStatus::Rejected, NewStatus::"Changes Requested", NewStatus::Superseded]);
+       CurrentStatus::"In Review":
+        exit(NewStatus in [NewStatus::Approved, NewStatus::Rejected, NewStatus::"Changes Requested", NewStatus::"Apply Failed", NewStatus::Superseded]);
       CurrentStatus::Approved:
         exit(NewStatus in [NewStatus::Applied, NewStatus::"Apply Failed", NewStatus::Superseded]);
       CurrentStatus::"Apply Failed":
-        exit(NewStatus in [NewStatus::Applied, NewStatus::Superseded]);
+        exit(NewStatus in [NewStatus::Approved, NewStatus::Applied, NewStatus::Superseded]);
       CurrentStatus::"Changes Requested":
         exit(NewStatus = NewStatus::Superseded);
     end;
