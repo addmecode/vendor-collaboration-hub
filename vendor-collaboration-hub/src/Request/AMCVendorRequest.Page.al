@@ -106,6 +106,12 @@ page 50103 "AMC Vendor Request"
                 Caption = 'Timeline';
                 SubPageLink = "Source Type" = const(Request), "Source No." = field("No.");
             }
+            part(VendorAccessLinks; "AMC Vendor Access Links Part")
+            {
+                ApplicationArea = All;
+                Caption = 'Vendor Access Links';
+                SubPageLink = "Request No." = field("No.");
+            }
             group(Statistics)
             {
                 Caption = 'Statistics';
