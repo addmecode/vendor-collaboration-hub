@@ -91,6 +91,17 @@ codeunit 50100 "AMC Request Mgt"
         CollabLog.LogEvent("AMC Source Type"::Request, RequestNo, 0, "AMC Collab Entry Type"::OrderUnlocked, "AMC Actor Type"::Buyer, '', UserId(), false, RequestCancelledDescriptionLbl, CreateGuid());
     end;
 
+    procedure CloseAfterApply(var VendorRequest: Record "AMC Vendor Request"; var PurchaseHeader: Record "Purchase Header")
+    begin
+        this.SetStatus(VendorRequest, VendorRequest.Status::Closed);
+        VendorRequest."Closed Date Time" := CurrentDateTime();
+        VendorRequest.Modify(true);
+
+        PurchaseHeader."AMC Active Request No." := '';
+        PurchaseHeader."AMC Collaboration Status" := VendorRequest.Status;
+        PurchaseHeader.Modify(true);
+    end;
+
     [TryFunction]
     local procedure TryClearPurchaseOrderRequest(var PurchaseHeader: Record "Purchase Header"; RequestStatus: Enum "AMC Request Status")
     begin

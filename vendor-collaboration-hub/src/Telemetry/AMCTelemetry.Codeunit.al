@@ -20,6 +20,39 @@ codeunit 50106 "AMC Telemetry"
         this.LogMessage(this.VCH0101Lbl, RequestCreatedMsg, Verbosity::Normal, CustomDimensions);
     end;
 
+    procedure LogProposalApplied(ProposalNo: Code[20]; RequestNo: Code[20]; OrderNo: Code[20]; LineCount: Integer; Duration: Duration)
+    var
+        CustomDimensions: Dictionary of [Text, Text];
+        ProposalAppliedMsg: Label 'Vendor proposal applied.';
+    begin
+        CustomDimensions.Add(this.VCHProposalNoLbl, ProposalNo);
+        CustomDimensions.Add(this.VCHRequestNoLbl, RequestNo);
+        CustomDimensions.Add(this.VCHOrderNoLbl, OrderNo);
+        CustomDimensions.Add(this.VCHLineCountLbl, Format(LineCount));
+        CustomDimensions.Add(this.VCHDurationMsLbl, this.FormatDurationInMilliseconds(Duration));
+        CustomDimensions.Add(this.VCHResultLbl, 'applied');
+        this.LogMessage(this.VCH0220Lbl, ProposalAppliedMsg, Verbosity::Normal, CustomDimensions);
+    end;
+
+    procedure LogProposalApplyFailed(ProposalNo: Code[20]; RequestNo: Code[20]; OrderNo: Code[20]; ErrorCode: Code[20]; Duration: Duration)
+    var
+        CustomDimensions: Dictionary of [Text, Text];
+        ProposalApplyFailedMsg: Label 'Vendor proposal apply failed.';
+    begin
+        CustomDimensions.Add(this.VCHProposalNoLbl, ProposalNo);
+        CustomDimensions.Add(this.VCHRequestNoLbl, RequestNo);
+        CustomDimensions.Add(this.VCHOrderNoLbl, OrderNo);
+        CustomDimensions.Add(this.VCHErrorCodeLbl, ErrorCode);
+        CustomDimensions.Add(this.VCHDurationMsLbl, this.FormatDurationInMilliseconds(Duration));
+        CustomDimensions.Add(this.VCHResultLbl, 'failed');
+        this.LogMessage(this.VCH0221Lbl, ProposalApplyFailedMsg, Verbosity::Error, CustomDimensions);
+    end;
+
+    local procedure FormatDurationInMilliseconds(Duration: Duration): Text
+    begin
+        exit(Format(Duration / 1, 0, 9));
+    end;
+
     var
         VCH0101Lbl: Label 'VCH0101', Locked = true;
         VCH0102Lbl: Label 'VCH0102', Locked = true;

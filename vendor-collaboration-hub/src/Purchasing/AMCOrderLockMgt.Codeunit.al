@@ -36,12 +36,29 @@ codeunit 50120 "AMC Order Lock Mgt"
         this.VerifyPurchaseOrderIsNotLocked(PurchaseHeader, false);
     end;
 
+    procedure AssertLockedBy(VendorProposal: Record "AMC Vendor Proposal"; var PurchaseHeader: Record "Purchase Header")
+    var
+        PurchaseOrderNotLockedByRequestErr: Label 'VCH-APL-0003: Purchase order %1 is not locked by vendor request %2.', Comment = '%1 = purchase order number, %2 = vendor request number';
+    begin
+        if not PurchaseHeader.Get(PurchaseHeader."Document Type"::Order, VendorProposal."Purchase Order No.") then
+            Error(PurchaseOrderNotLockedByRequestErr, VendorProposal."Purchase Order No.", VendorProposal."Request No.");
+
+        if PurchaseHeader."AMC Active Request No." <> VendorProposal."Request No." then
+            Error(PurchaseOrderNotLockedByRequestErr, PurchaseHeader."No.", VendorProposal."Request No.");
+    end;
+
     procedure SetSuppressionContext(PurchaseOrderNo: Code[20]; RequestNo: Code[20]; var PreviousPurchaseOrderNo: Code[20]; var PreviousRequestNo: Code[20])
     begin
         PreviousPurchaseOrderNo := this.SuppressedPurchaseOrderNo;
         PreviousRequestNo := this.SuppressedRequestNo;
         this.SuppressedPurchaseOrderNo := PurchaseOrderNo;
         this.SuppressedRequestNo := RequestNo;
+    end;
+
+    procedure GetSuppressionContext(var PurchaseOrderNo: Code[20]; var RequestNo: Code[20])
+    begin
+        PurchaseOrderNo := this.SuppressedPurchaseOrderNo;
+        RequestNo := this.SuppressedRequestNo;
     end;
 
     procedure RestoreSuppressionContext(PreviousPurchaseOrderNo: Code[20]; PreviousRequestNo: Code[20])

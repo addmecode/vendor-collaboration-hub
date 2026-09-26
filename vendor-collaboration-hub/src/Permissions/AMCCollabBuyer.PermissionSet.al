@@ -16,6 +16,7 @@ permissionset 50101 "AMC Collab Buyer"
   tabledata "AMC Vendor Request" = RIM,
   tabledata "AMC Vendor Request Line" = RIM,
   tabledata "Purchase Line" = RM,
+  codeunit "AMC Collab Log" = X,
   codeunit "AMC Cancel Remainder Handler" = X,
   codeunit "AMC Change Date Handler" = X,
   codeunit "AMC Change Qty Handler" = X,
@@ -24,8 +25,12 @@ permissionset 50101 "AMC Collab Buyer"
   codeunit "AMC Substitute Item Handler" = X,
   codeunit "AMC Unknown Line Handler" = X,
   codeunit "AMC Proposal Mgt" = X,
+  codeunit "AMC Proposal Decision Svc" = X,
+  codeunit "AMC Apply Proposal Svc" = X,
   codeunit "AMC Proposal Validator" = X,
   codeunit "AMC Order Lock Mgt" = X,
   codeunit "AMC Request Mgt" = X,
+  codeunit "Release Purchase Document" = X,
+  codeunit "AMC Telemetry" = X,
   codeunit "AMC Validation Result" = X;
 }

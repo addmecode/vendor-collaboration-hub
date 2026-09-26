@@ -90,5 +90,8 @@ table 50104 "AMC Vendor Proposal Line"
         key(ProposalRequestLineSequence; "Proposal No.", "Request Line No.", "Sequence No.")
         {
         }
+        key(ProposalSequence; "Proposal No.", "Sequence No.", "Line No.")
+        {
+        }
     }
 }
