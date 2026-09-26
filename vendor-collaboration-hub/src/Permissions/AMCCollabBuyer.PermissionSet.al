@@ -25,6 +25,7 @@ permissionset 50101 "AMC Collab Buyer"
   codeunit "AMC Unknown Line Handler" = X,
   codeunit "AMC Proposal Mgt" = X,
   codeunit "AMC Proposal Validator" = X,
+  codeunit "AMC Order Lock Mgt" = X,
   codeunit "AMC Request Mgt" = X,
   codeunit "AMC Validation Result" = X;
 }

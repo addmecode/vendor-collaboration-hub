@@ -199,7 +199,7 @@ codeunit 50131 "AMC Request Tests"
     end;
 
     [Test]
-    procedure GivenCreatedRequest_WhenSourcePurchaseLineChanges_ThenRequestLineSnapshotRemainsUnchanged()
+    procedure GivenCreatedRequest_WhenSourcePurchaseLineChanges_ThenSourceWriteIsBlocked()
     var
         PurchaseHeader: Record "Purchase Header";
         PurchaseLine: Record "Purchase Line";
@@ -207,6 +207,7 @@ codeunit 50131 "AMC Request Tests"
         RequestMgt: Codeunit "AMC Request Mgt";
         RequestNo: Code[20];
         VendorNo: Code[20];
+        PurchaseOrderLockedErr: Label 'Purchase order %1 is locked by active vendor request %2.', Comment = '%1 = purchase order number, %2 = vendor request number';
     begin
         // Given
         this.ConfigureEnabledSetup();
@@ -218,9 +219,10 @@ codeunit 50131 "AMC Request Tests"
         PurchaseLine.Description := 'Changed description';
 
         // When
-        PurchaseLine.Modify(true);
+        asserterror PurchaseLine.Modify(true);
 
         // Then
+        this.Assert.ExpectedError(StrSubstNo(PurchaseOrderLockedErr, PurchaseHeader."No.", RequestNo));
         VendorRequestLine.Get(RequestNo, 10000);
         this.Assert.AreEqual('Original description', VendorRequestLine.Description, 'The request line must retain the original purchase line description.');
     end;

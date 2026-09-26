@@ -51,6 +51,54 @@ codeunit 50100 "AMC Request Mgt"
         exit(RequestNo);
     end;
 
+    procedure Cancel(var PurchaseHeader: Record "Purchase Header")
+    var
+        VendorRequest: Record "AMC Vendor Request";
+        CollabLog: Codeunit "AMC Collab Log";
+        OrderLockMgt: Codeunit "AMC Order Lock Mgt";
+        PreviousPurchaseOrderNo: Code[20];
+        PreviousRequestNo: Code[20];
+        RequestNo: Code[20];
+        PurchaseOrderNo: Code[20];
+        LastErrorText: Text;
+        NoActiveRequestErr: Label 'Purchase order %1 does not have an active vendor request.', Comment = '%1 = purchase order number';
+        PurchaseOrderOnlyErr: Label 'Only purchase orders can be unlocked.';
+        RequestCancelledDescriptionLbl: Label 'Vendor request cancelled and purchase order unlocked.';
+    begin
+        if PurchaseHeader."Document Type" <> PurchaseHeader."Document Type"::Order then
+            Error(PurchaseOrderOnlyErr);
+
+        PurchaseOrderNo := PurchaseHeader."No.";
+        PurchaseHeader.LockTable();
+        PurchaseHeader.Get(PurchaseHeader."Document Type"::Order, PurchaseOrderNo);
+        RequestNo := PurchaseHeader."AMC Active Request No.";
+        if RequestNo = '' then
+            Error(NoActiveRequestErr, PurchaseOrderNo);
+        if not VendorRequest.Get(RequestNo) then
+            Error(NoActiveRequestErr, PurchaseOrderNo);
+        this.VerifyPurchaseOrderCanBeCancelled(PurchaseHeader, VendorRequest);
+
+        this.SetStatus(VendorRequest, VendorRequest.Status::Cancelled);
+
+        OrderLockMgt.SetSuppressionContext(PurchaseOrderNo, RequestNo, PreviousPurchaseOrderNo, PreviousRequestNo);
+        if not this.TryClearPurchaseOrderRequest(PurchaseHeader, VendorRequest.Status) then begin
+            LastErrorText := GetLastErrorText();
+            OrderLockMgt.RestoreSuppressionContext(PreviousPurchaseOrderNo, PreviousRequestNo);
+            Error(LastErrorText);
+        end;
+        OrderLockMgt.RestoreSuppressionContext(PreviousPurchaseOrderNo, PreviousRequestNo);
+
+        CollabLog.LogEvent("AMC Source Type"::Request, RequestNo, 0, "AMC Collab Entry Type"::OrderUnlocked, "AMC Actor Type"::Buyer, '', UserId(), false, RequestCancelledDescriptionLbl, CreateGuid());
+    end;
+
+    [TryFunction]
+    local procedure TryClearPurchaseOrderRequest(var PurchaseHeader: Record "Purchase Header"; RequestStatus: Enum "AMC Request Status")
+    begin
+        PurchaseHeader."AMC Active Request No." := '';
+        PurchaseHeader."AMC Collaboration Status" := RequestStatus;
+        PurchaseHeader.Modify(true);
+    end;
+
   procedure SetStatus(var VendorRequest: Record "AMC Vendor Request"; NewStatus: Enum "AMC Request Status")
   var
     VCHReq0005Err: Label 'Vendor request status cannot change from %1 to %2.', Comment = '%1 = current request status, %2 = requested request status';
@@ -74,9 +122,24 @@ codeunit 50100 "AMC Request Mgt"
       CurrentStatus::"Vendor Responded":
         exit(NewStatus in [NewStatus::"In Review", NewStatus::Closed, NewStatus::Cancelled]);
       CurrentStatus::"In Review":
-        exit(NewStatus = NewStatus::Closed);
+        exit(NewStatus in [NewStatus::Closed, NewStatus::Cancelled]);
     end;
   end;
+
+    local procedure VerifyPurchaseOrderCanBeCancelled(PurchaseHeader: Record "Purchase Header"; VendorRequest: Record "AMC Vendor Request")
+    var
+        NoActiveRequestErr: Label 'Purchase order %1 does not have an active vendor request.', Comment = '%1 = purchase order number';
+        TerminalRequestErr: Label 'Vendor request %1 is already terminal and cannot be cancelled.', Comment = '%1 = vendor request number';
+    begin
+        if PurchaseHeader."AMC Active Request No." = '' then
+            Error(NoActiveRequestErr, PurchaseHeader."No.");
+
+        if VendorRequest."Purchase Order No." <> PurchaseHeader."No." then
+            Error(NoActiveRequestErr, PurchaseHeader."No.");
+
+        if VendorRequest.Status in [VendorRequest.Status::Closed, VendorRequest.Status::Cancelled] then
+            Error(TerminalRequestErr, VendorRequest."No.");
+    end;
 
     local procedure VerifyPurchaseOrderCanCreateRequest(PurchaseHeader: Record "Purchase Header")
     var
