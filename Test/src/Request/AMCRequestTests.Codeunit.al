@@ -5,6 +5,7 @@ using Microsoft.Foundation.NoSeries;
 using Microsoft.Finance.Currency;
 using Microsoft.Purchases.Document;
 using Microsoft.Purchases.Vendor;
+using System.Globalization;
 using System.TestLibraries.Utilities;
 
 codeunit 50131 "AMC Request Tests"
@@ -245,6 +246,45 @@ codeunit 50131 "AMC Request Tests"
     end;
 
     [Test]
+    procedure GivenVendorLanguageOrNoLanguage_WhenCreatingRequest_ThenVendorOrCompanyLanguageIsSnapshotted()
+    var
+        Language: Codeunit Language;
+        PurchaseHeader: Record "Purchase Header";
+        RequestMgt: Codeunit "AMC Request Mgt";
+        VendorRequest: Record "AMC Vendor Request";
+        CompanyLanguageCode: Code[10];
+        RequestNo: Code[20];
+        VendorLanguageCode: Code[10];
+        VendorNo: Code[20];
+    begin
+        // Given
+        this.ConfigureEnabledSetup();
+        CompanyLanguageCode := Language.GetLanguageCode(Language.GetDefaultApplicationLanguageId());
+        VendorLanguageCode := this.GetAlternateLanguageCode(CompanyLanguageCode);
+        this.Assert.AreNotEqual('', VendorLanguageCode, 'The test requires an installed language distinct from the company language.');
+        VendorNo := this.CreateVendorWithLanguage(true, VendorLanguageCode);
+        this.CreatePurchaseOrder(PurchaseHeader, VendorNo, PurchaseHeader.Status::Open);
+
+        // When
+        RequestNo := RequestMgt.CreateFromOrder(PurchaseHeader);
+
+        // Then
+        VendorRequest.Get(RequestNo);
+        this.Assert.AreEqual(VendorLanguageCode, VendorRequest."Language Code", 'The request must snapshot the vendor language code instead of the company language.');
+
+        // Given
+        VendorNo := this.CreateVendorWithLanguage(true, '');
+        this.CreatePurchaseOrder(PurchaseHeader, VendorNo, PurchaseHeader.Status::Open);
+
+        // When
+        RequestNo := RequestMgt.CreateFromOrder(PurchaseHeader);
+
+        // Then
+        VendorRequest.Get(RequestNo);
+        this.Assert.AreEqual(CompanyLanguageCode, VendorRequest."Language Code", 'The request must use the company language when the vendor language is blank.');
+    end;
+
+    [Test]
     procedure GivenVendorRequest_WhenPhysicalDeletionIsAttempted_ThenDeletionIsRejected()
     var
         VendorRequest: Record "AMC Vendor Request";
@@ -411,6 +451,30 @@ codeunit 50131 "AMC Request Tests"
         Vendor."AMC Collaboration Enabled" := CollaborationEnabled;
         Vendor.Insert(false);
         exit(VendorNo);
+    end;
+
+    local procedure CreateVendorWithLanguage(CollaborationEnabled: Boolean; LanguageCode: Code[10]): Code[20]
+    var
+        Vendor: Record Vendor;
+        VendorNo: Code[20];
+    begin
+        VendorNo := this.CreateRequestNo();
+        Vendor.Init();
+        Vendor."No." := VendorNo;
+        Vendor.Name := VendorNo;
+        Vendor."Language Code" := LanguageCode;
+        Vendor."AMC Collaboration Enabled" := CollaborationEnabled;
+        Vendor.Insert(false);
+        exit(VendorNo);
+    end;
+
+    local procedure GetAlternateLanguageCode(CompanyLanguageCode: Code[10]): Code[10]
+    var
+        LanguageRecord: Record Language;
+    begin
+        LanguageRecord.SetFilter(Code, '<>%1', CompanyLanguageCode);
+        if LanguageRecord.FindFirst() then
+            exit(LanguageRecord.Code);
     end;
 
     local procedure CreatePurchaseOrder(var PurchaseHeader: Record "Purchase Header"; VendorNo: Code[20]; Status: Enum "Purchase Document Status")

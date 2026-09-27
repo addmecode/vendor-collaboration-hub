@@ -1,13 +1,16 @@
 namespace Addmecode.VendorCollaborationHub;
 
+using Microsoft.CRM.Team;
 using Microsoft.Purchases.Document;
+using System.Email;
 
 permissionset 50101 "AMC Collab Buyer"
 {
   Assignable = true;
   Caption = 'Vendor Collaboration Buyer';
 
-  IncludedPermissionSets = "AMC Collab Read";
+  IncludedPermissionSets = "AMC Collab Read",
+                           "Email - Edit";
 
   Permissions =
     tabledata "AMC Collaboration Entry" = i,
@@ -17,6 +20,7 @@ permissionset 50101 "AMC Collab Buyer"
     tabledata "AMC Vendor Request Line" = RIM,
     tabledata "AMC Vendor Access Token" = RIM,
     tabledata "Purchase Line" = RM,
+    tabledata "Salesperson/Purchaser" = R,
     codeunit "AMC Collab Log" = X,
     codeunit "AMC Cancel Remainder Handler" = X,
     codeunit "AMC Change Date Handler" = X,
@@ -32,9 +36,12 @@ permissionset 50101 "AMC Collab Buyer"
     codeunit "AMC Order Lock Mgt" = X,
     codeunit "AMC Request Mgt" = X,
     codeunit "AMC Access Token Mgt" = X,
+    codeunit "AMC Vendor Email Builder" = X,
+    codeunit "AMC Vendor Notification" = X,
     codeunit "Release Purchase Document" = X,
     codeunit "AMC Telemetry" = X,
     codeunit "AMC Validation Result" = X,
+    report Order = X,
     page "AMC Vendor Access Links" = X,
     page "AMC Vendor Access Links Part" = X;
 }

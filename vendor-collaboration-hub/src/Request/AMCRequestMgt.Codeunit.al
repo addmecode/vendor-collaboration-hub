@@ -3,6 +3,7 @@ namespace Addmecode.VendorCollaborationHub;
 using Microsoft.Foundation.NoSeries;
 using Microsoft.Purchases.Document;
 using Microsoft.Purchases.Vendor;
+using System.Globalization;
 
 codeunit 50100 "AMC Request Mgt"
 {
@@ -37,7 +38,7 @@ codeunit 50100 "AMC Request Mgt"
         this.VerifyNoActiveRequest(PurchaseHeader."No.");
 
         RequestNo := NoSeries.GetNextNo(CollaborationSetup."Request Nos.");
-        this.CreateVendorRequest(VendorRequest, RequestNo, PurchaseHeader);
+        this.CreateVendorRequest(VendorRequest, RequestNo, PurchaseHeader, Vendor, CollaborationSetup);
         LineCount := this.CreateVendorRequestLines(VendorRequestLine, RequestNo, PurchaseHeader, PurchaseLine);
 
         //todo: move to a separate function?
@@ -187,7 +188,7 @@ codeunit 50100 "AMC Request Mgt"
             Error(VCHReq0001Err, PurchaseOrderNo, VendorRequest."No.");
     end;
 
-    local procedure CreateVendorRequest(var VendorRequest: Record "AMC Vendor Request"; RequestNo: Code[20]; PurchaseHeader: Record "Purchase Header")
+    local procedure CreateVendorRequest(var VendorRequest: Record "AMC Vendor Request"; RequestNo: Code[20]; PurchaseHeader: Record "Purchase Header"; Vendor: Record Vendor; CollaborationSetup: Record "AMC Collaboration Setup")
     begin
         VendorRequest.Init();
         VendorRequest."No." := RequestNo;
@@ -196,8 +197,28 @@ codeunit 50100 "AMC Request Mgt"
         VendorRequest."Purchaser Code" := PurchaseHeader."Purchaser Code";
         VendorRequest."Assigned User ID" := PurchaseHeader."Assigned User ID";
         VendorRequest."Currency Code" := PurchaseHeader."Currency Code";
+        VendorRequest."Language Code" := this.GetRequestLanguageCode(Vendor);
+        VendorRequest."Response Deadline" := WorkDate() + this.GetResponseDays(Vendor, CollaborationSetup);
         VendorRequest.Status := VendorRequest.Status::Draft;
         VendorRequest.Insert(true);
+    end;
+
+    local procedure GetRequestLanguageCode(Vendor: Record Vendor): Code[10]
+    var
+        Language: Codeunit Language;
+    begin
+        if Vendor."Language Code" <> '' then
+            exit(Vendor."Language Code");
+
+        exit(Language.GetLanguageCode(Language.GetDefaultApplicationLanguageId()));
+    end;
+
+    local procedure GetResponseDays(Vendor: Record Vendor; CollaborationSetup: Record "AMC Collaboration Setup"): Integer
+    begin
+        if Vendor."AMC Response Days" <> 0 then
+            exit(Vendor."AMC Response Days");
+
+        exit(CollaborationSetup."Default Response Days");
     end;
 
     local procedure CreateVendorRequestLines(var VendorRequestLine: Record "AMC Vendor Request Line"; RequestNo: Code[20]; PurchaseHeader: Record "Purchase Header"; var PurchaseLine: Record "Purchase Line") LineCount: Integer
