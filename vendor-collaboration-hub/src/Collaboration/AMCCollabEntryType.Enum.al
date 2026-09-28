@@ -25,4 +25,5 @@ enum 50104 "AMC Collab Entry Type"
     value(18; ProposalApplyFailed) { Caption = 'Proposal Apply Failed'; }
     value(19; OrderUnlocked) { Caption = 'Order Unlocked'; }
     value(20; ProposalSuperseded) { Caption = 'Proposal Superseded'; }
+    value(21; LinkExpired) { Caption = 'Link Expired'; }
 }

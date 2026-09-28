@@ -3,6 +3,7 @@ namespace Addmecode.VendorCollaborationHub;
 using Microsoft.Foundation.NoSeries;
 using Microsoft.Purchases.Document;
 using Microsoft.Purchases.Vendor;
+using System.Globalization;
 
 codeunit 50100 "AMC Request Mgt"
 {
@@ -37,7 +38,7 @@ codeunit 50100 "AMC Request Mgt"
         this.VerifyNoActiveRequest(PurchaseHeader."No.");
 
         RequestNo := NoSeries.GetNextNo(CollaborationSetup."Request Nos.");
-        this.CreateVendorRequest(VendorRequest, RequestNo, PurchaseHeader);
+        this.CreateVendorRequest(VendorRequest, RequestNo, PurchaseHeader, Vendor, CollaborationSetup);
         LineCount := this.CreateVendorRequestLines(VendorRequestLine, RequestNo, PurchaseHeader, PurchaseLine);
 
         //todo: move to a separate function?
@@ -55,6 +56,7 @@ codeunit 50100 "AMC Request Mgt"
     var
         VendorRequest: Record "AMC Vendor Request";
         CollabLog: Codeunit "AMC Collab Log";
+        AccessTokenMgt: Codeunit "AMC Access Token Mgt";
         OrderLockMgt: Codeunit "AMC Order Lock Mgt";
         PreviousPurchaseOrderNo: Code[20];
         PreviousRequestNo: Code[20];
@@ -64,6 +66,7 @@ codeunit 50100 "AMC Request Mgt"
         NoActiveRequestErr: Label 'Purchase order %1 does not have an active vendor request.', Comment = '%1 = purchase order number';
         PurchaseOrderOnlyErr: Label 'Only purchase orders can be unlocked.';
         RequestCancelledDescriptionLbl: Label 'Vendor request cancelled and purchase order unlocked.';
+        LinkRevokedOnCancellationDescriptionLbl: Label 'Vendor request was cancelled.';
     begin
         if PurchaseHeader."Document Type" <> PurchaseHeader."Document Type"::Order then
             Error(PurchaseOrderOnlyErr);
@@ -79,6 +82,7 @@ codeunit 50100 "AMC Request Mgt"
         this.VerifyPurchaseOrderCanBeCancelled(PurchaseHeader, VendorRequest);
 
         this.SetStatus(VendorRequest, VendorRequest.Status::Cancelled);
+        AccessTokenMgt.RevokeRequestTokens(RequestNo, LinkRevokedOnCancellationDescriptionLbl);
 
         OrderLockMgt.SetSuppressionContext(PurchaseOrderNo, RequestNo, PreviousPurchaseOrderNo, PreviousRequestNo);
         if not this.TryClearPurchaseOrderRequest(PurchaseHeader, VendorRequest.Status) then begin
@@ -92,13 +96,69 @@ codeunit 50100 "AMC Request Mgt"
     end;
 
     procedure CloseAfterApply(var VendorRequest: Record "AMC Vendor Request"; var PurchaseHeader: Record "Purchase Header")
+    var
+        AccessTokenMgt: Codeunit "AMC Access Token Mgt";
+        LinkRevokedOnCloseDescriptionLbl: Label 'Vendor request was closed.';
     begin
         this.SetStatus(VendorRequest, VendorRequest.Status::Closed);
+        AccessTokenMgt.RevokeRequestTokens(VendorRequest."No.", LinkRevokedOnCloseDescriptionLbl);
         VendorRequest."Closed Date Time" := CurrentDateTime();
         VendorRequest.Modify(true);
 
         PurchaseHeader."AMC Active Request No." := '';
         PurchaseHeader."AMC Collaboration Status" := VendorRequest.Status;
+        PurchaseHeader.Modify(true);
+    end;
+
+    procedure Send(var VendorRequest: Record "AMC Vendor Request")
+    var
+        AccessTokenMgt: Codeunit "AMC Access Token Mgt";
+        CollabLog: Codeunit "AMC Collab Log";
+        OrderLockMgt: Codeunit "AMC Order Lock Mgt";
+        PurchaseHeader: Record "Purchase Header";
+        VendorNotification: Codeunit "AMC Vendor Notification";
+        PreviousPurchaseOrderNo: Code[20];
+        PreviousRequestNo: Code[20];
+        RequestNo: Code[20];
+        LastErrorText: Text;
+        InvalidSendStatusErr: Label 'Vendor request %1 must be Draft, Sent, or Awaiting Vendor before a link can be sent.', Comment = '%1 = vendor request number';
+        RequestSentDescriptionLbl: Label 'Vendor request sent to vendor.';
+    begin
+        RequestNo := VendorRequest."No.";
+        VendorRequest.LockTable();
+        VendorRequest.Get(RequestNo);
+        case VendorRequest.Status of
+            VendorRequest.Status::Draft:
+                begin
+                    this.SetStatus(VendorRequest, VendorRequest.Status::Sent);
+                    CollabLog.LogEvent("AMC Source Type"::Request, VendorRequest."No.", 0, "AMC Collab Entry Type"::RequestSent, "AMC Actor Type"::Buyer, '', UserId(), false, RequestSentDescriptionLbl, CreateGuid());
+                end;
+            VendorRequest.Status::Sent,
+            VendorRequest.Status::"Awaiting Vendor":
+                AccessTokenMgt.Supersede(VendorRequest."No.");
+            else
+                Error(InvalidSendStatusErr, VendorRequest."No.");
+        end;
+
+        VendorNotification.Send(VendorRequest."No.");
+        if VendorRequest.Status = VendorRequest.Status::Sent then
+            this.SetStatus(VendorRequest, VendorRequest.Status::"Awaiting Vendor");
+        VendorRequest."Sent Date Time" := CurrentDateTime();
+        VendorRequest.Modify(true);
+        PurchaseHeader.Get(PurchaseHeader."Document Type"::Order, VendorRequest."Purchase Order No.");
+        OrderLockMgt.SetSuppressionContext(PurchaseHeader."No.", VendorRequest."No.", PreviousPurchaseOrderNo, PreviousRequestNo);
+        if not this.TryUpdatePurchaseOrderCollaborationStatus(PurchaseHeader, VendorRequest.Status) then begin
+            LastErrorText := GetLastErrorText();
+            OrderLockMgt.RestoreSuppressionContext(PreviousPurchaseOrderNo, PreviousRequestNo);
+            Error(LastErrorText);
+        end;
+        OrderLockMgt.RestoreSuppressionContext(PreviousPurchaseOrderNo, PreviousRequestNo);
+    end;
+
+    [TryFunction]
+    local procedure TryUpdatePurchaseOrderCollaborationStatus(var PurchaseHeader: Record "Purchase Header"; RequestStatus: Enum "AMC Request Status")
+    begin
+        PurchaseHeader."AMC Collaboration Status" := RequestStatus;
         PurchaseHeader.Modify(true);
     end;
 
@@ -187,7 +247,7 @@ codeunit 50100 "AMC Request Mgt"
             Error(VCHReq0001Err, PurchaseOrderNo, VendorRequest."No.");
     end;
 
-    local procedure CreateVendorRequest(var VendorRequest: Record "AMC Vendor Request"; RequestNo: Code[20]; PurchaseHeader: Record "Purchase Header")
+    local procedure CreateVendorRequest(var VendorRequest: Record "AMC Vendor Request"; RequestNo: Code[20]; PurchaseHeader: Record "Purchase Header"; Vendor: Record Vendor; CollaborationSetup: Record "AMC Collaboration Setup")
     begin
         VendorRequest.Init();
         VendorRequest."No." := RequestNo;
@@ -196,8 +256,28 @@ codeunit 50100 "AMC Request Mgt"
         VendorRequest."Purchaser Code" := PurchaseHeader."Purchaser Code";
         VendorRequest."Assigned User ID" := PurchaseHeader."Assigned User ID";
         VendorRequest."Currency Code" := PurchaseHeader."Currency Code";
+        VendorRequest."Language Code" := this.GetRequestLanguageCode(Vendor);
+        VendorRequest."Response Deadline" := WorkDate() + this.GetResponseDays(Vendor, CollaborationSetup);
         VendorRequest.Status := VendorRequest.Status::Draft;
         VendorRequest.Insert(true);
+    end;
+
+    local procedure GetRequestLanguageCode(Vendor: Record Vendor): Code[10]
+    var
+        Language: Codeunit Language;
+    begin
+        if Vendor."Language Code" <> '' then
+            exit(Vendor."Language Code");
+
+        exit(Language.GetLanguageCode(Language.GetDefaultApplicationLanguageId()));
+    end;
+
+    local procedure GetResponseDays(Vendor: Record Vendor; CollaborationSetup: Record "AMC Collaboration Setup"): Integer
+    begin
+        if Vendor."AMC Response Days" <> 0 then
+            exit(Vendor."AMC Response Days");
+
+        exit(CollaborationSetup."Default Response Days");
     end;
 
     local procedure CreateVendorRequestLines(var VendorRequestLine: Record "AMC Vendor Request Line"; RequestNo: Code[20]; PurchaseHeader: Record "Purchase Header"; var PurchaseLine: Record "Purchase Line") LineCount: Integer

@@ -5,6 +5,7 @@ using Microsoft.Foundation.NoSeries;
 using Microsoft.Finance.Currency;
 using Microsoft.Purchases.Document;
 using Microsoft.Purchases.Vendor;
+using System.Globalization;
 using System.TestLibraries.Utilities;
 
 codeunit 50131 "AMC Request Tests"
@@ -217,12 +218,13 @@ codeunit 50131 "AMC Request Tests"
         RequestNo := RequestMgt.CreateFromOrder(PurchaseHeader);
         PurchaseLine.Get(PurchaseHeader."Document Type", PurchaseHeader."No.", 10000);
         PurchaseLine.Description := 'Changed description';
+        Commit();
 
         // When
         asserterror PurchaseLine.Modify(true);
 
         // Then
-        this.Assert.ExpectedError(StrSubstNo(PurchaseOrderLockedErr, PurchaseHeader."No.", RequestNo));
+        this.AssertExpectedError(StrSubstNo(PurchaseOrderLockedErr, PurchaseHeader."No.", RequestNo));
         VendorRequestLine.Get(RequestNo, 10000);
         this.Assert.AreEqual('Original description', VendorRequestLine.Description, 'The request line must retain the original purchase line description.');
     end;
@@ -242,6 +244,45 @@ codeunit 50131 "AMC Request Tests"
         // Then
         this.Assert.AreEqual(TempVendorRequest.Status::Draft, TempVendorRequest.Status, 'A new vendor request must start as Draft.');
         this.Assert.AreEqual(TempVendorRequestLine.Status::Open, TempVendorRequestLine.Status, 'A new vendor request line must start as Open.');
+    end;
+
+    [Test]
+    procedure GivenVendorLanguageOrNoLanguage_WhenCreatingRequest_ThenVendorOrCompanyLanguageIsSnapshotted()
+    var
+        Language: Codeunit Language;
+        PurchaseHeader: Record "Purchase Header";
+        RequestMgt: Codeunit "AMC Request Mgt";
+        VendorRequest: Record "AMC Vendor Request";
+        CompanyLanguageCode: Code[10];
+        RequestNo: Code[20];
+        VendorLanguageCode: Code[10];
+        VendorNo: Code[20];
+    begin
+        // Given
+        this.ConfigureEnabledSetup();
+        CompanyLanguageCode := Language.GetLanguageCode(Language.GetDefaultApplicationLanguageId());
+        VendorLanguageCode := this.GetAlternateLanguageCode(CompanyLanguageCode);
+        this.Assert.AreNotEqual('', VendorLanguageCode, 'The test requires an installed language distinct from the company language.');
+        VendorNo := this.CreateVendorWithLanguage(true, VendorLanguageCode);
+        this.CreatePurchaseOrder(PurchaseHeader, VendorNo, PurchaseHeader.Status::Open);
+
+        // When
+        RequestNo := RequestMgt.CreateFromOrder(PurchaseHeader);
+
+        // Then
+        VendorRequest.Get(RequestNo);
+        this.Assert.AreEqual(VendorLanguageCode, VendorRequest."Language Code", 'The request must snapshot the vendor language code instead of the company language.');
+
+        // Given
+        VendorNo := this.CreateVendorWithLanguage(true, '');
+        this.CreatePurchaseOrder(PurchaseHeader, VendorNo, PurchaseHeader.Status::Open);
+
+        // When
+        RequestNo := RequestMgt.CreateFromOrder(PurchaseHeader);
+
+        // Then
+        VendorRequest.Get(RequestNo);
+        this.Assert.AreEqual(CompanyLanguageCode, VendorRequest."Language Code", 'The request must use the company language when the vendor language is blank.');
     end;
 
     [Test]
@@ -307,7 +348,7 @@ codeunit 50131 "AMC Request Tests"
   end;
 
   [Test]
-  procedure GivenDraftRequest_WhenSetStatusToInReview_ThenTransitionIsRejectedAndStatusIsUnchanged()
+   procedure GivenDraftRequest_WhenSetStatusToInReview_ThenTransitionIsRejectedAndStatusIsUnchanged()
   var
     VendorRequest: Record "AMC Vendor Request";
     RequestMgt: Codeunit "AMC Request Mgt";
@@ -323,14 +364,254 @@ codeunit 50131 "AMC Request Tests"
     asserterror RequestMgt.SetStatus(VendorRequest, VendorRequest.Status::"In Review");
 
     // Then
-    this.Assert.ExpectedError(StrSubstNo(InvalidStatusTransitionErr, VendorRequest.Status::Draft, VendorRequest.Status::"In Review"));
+    this.AssertExpectedError(StrSubstNo(InvalidStatusTransitionErr, VendorRequest.Status::Draft, VendorRequest.Status::"In Review"));
     VendorRequest.Get(RequestNo);
     this.Assert.AreEqual(VendorRequest.Status::Draft, VendorRequest.Status, 'An illegal transition must not change the request status.');
-  end;
+   end;
+
+    [Test]
+    procedure GivenDraftRequest_WhenSend_ThenRequestAwaitsVendorWithStampedActiveToken()
+    var
+        CollaborationEntry: Record "AMC Collaboration Entry";
+        PurchaseHeader: Record "Purchase Header";
+        VendorAccessToken: Record "AMC Vendor Access Token";
+        VendorRequest: Record "AMC Vendor Request";
+        RequestMgt: Codeunit "AMC Request Mgt";
+        RequestNo: Code[20];
+        VendorNo: Code[20];
+    begin
+        // Given
+        this.ConfigureEnabledSetup();
+        VendorNo := this.CreateVendor(true);
+        this.CreatePurchaseOrder(PurchaseHeader, VendorNo, PurchaseHeader.Status::Open);
+        RequestNo := RequestMgt.CreateFromOrder(PurchaseHeader);
+        VendorRequest.Get(RequestNo);
+        // When
+        this.SendRequestWithEmailHandOff(VendorRequest, true);
+
+        // Then
+        VendorRequest.Get(RequestNo);
+        this.Assert.AreEqual(VendorRequest.Status::"Awaiting Vendor", VendorRequest.Status, 'Sending must move the request to Awaiting Vendor.');
+        this.Assert.AreNotEqual(0DT, VendorRequest."Sent Date Time", 'Sending must stamp the request sent time.');
+        PurchaseHeader.Get(PurchaseHeader."Document Type"::Order, PurchaseHeader."No.");
+        this.Assert.AreEqual(PurchaseHeader."AMC Collaboration Status"::"Awaiting Vendor", PurchaseHeader."AMC Collaboration Status", 'Sending must update the purchase order collaboration status.');
+        VendorAccessToken.SetRange("Request No.", RequestNo);
+        this.Assert.AreEqual(1, VendorAccessToken.Count(), 'Sending must issue one access token.');
+        VendorAccessToken.FindFirst();
+        this.Assert.AreEqual(VendorAccessToken.Status::Active, VendorAccessToken.Status, 'The sent access token must be active.');
+        this.Assert.AreEqual('vendor@contoso.com', VendorAccessToken."Sent To E-Mail", 'The sent access token must retain the recipient.');
+        this.Assert.AreNotEqual(0DT, VendorAccessToken."Sent At", 'The sent access token must retain the send time.');
+        CollaborationEntry.SetRange("Source Type", "AMC Source Type"::Request);
+        CollaborationEntry.SetRange("Source No.", RequestNo);
+        CollaborationEntry.SetRange("Entry Type", "AMC Collab Entry Type"::LinkSent);
+        this.Assert.IsFalse(CollaborationEntry.IsEmpty(), 'Sending must add a LinkSent timeline entry.');
+    end;
+
+    [Test]
+    procedure GivenDraftRequest_WhenEmailHandOffFails_ThenRequestAndTokenAreRolledBack()
+    var
+        PurchaseHeader: Record "Purchase Header";
+        VendorAccessToken: Record "AMC Vendor Access Token";
+        VendorRequest: Record "AMC Vendor Request";
+        EmailSendHandler: Codeunit "AMC Email Send Test Handler";
+        RequestMgt: Codeunit "AMC Request Mgt";
+        RequestNo: Code[20];
+        VendorNo: Code[20];
+        EmailNotSentErr: Label 'The vendor access link email was not sent.';
+    begin
+        // Given
+        this.ConfigureEnabledSetup();
+        VendorNo := this.CreateVendor(true);
+        this.CreatePurchaseOrder(PurchaseHeader, VendorNo, PurchaseHeader.Status::Open);
+        RequestNo := RequestMgt.CreateFromOrder(PurchaseHeader);
+        VendorRequest.Get(RequestNo);
+        Commit();
+        this.BindEmailSendHandler(EmailSendHandler, false);
+
+        // When
+        asserterror RequestMgt.Send(VendorRequest);
+        this.UnbindEmailSendHandler(EmailSendHandler);
+
+        // Then
+        this.AssertExpectedError(EmailNotSentErr);
+        VendorRequest.Get(RequestNo);
+        this.Assert.AreEqual(VendorRequest.Status::Draft, VendorRequest.Status, 'A failed email hand-off must retain Draft status.');
+        VendorAccessToken.SetRange("Request No.", RequestNo);
+        this.Assert.IsTrue(VendorAccessToken.IsEmpty(), 'A failed email hand-off must not retain an issued token.');
+    end;
+
+    [Test]
+    procedure GivenSentRequestWithActiveToken_WhenRetryingSend_ThenOldTokenIsSupersededAndRequestAwaitsVendor()
+    var
+        OldVendorAccessToken: Record "AMC Vendor Access Token";
+        PurchaseHeader: Record "Purchase Header";
+        VendorAccessToken: Record "AMC Vendor Access Token";
+        VendorRequest: Record "AMC Vendor Request";
+        RequestMgt: Codeunit "AMC Request Mgt";
+        RequestNo: Code[20];
+        VendorNo: Code[20];
+    begin
+        // Given
+        this.ConfigureEnabledSetup();
+        VendorNo := this.CreateVendor(true);
+        this.CreatePurchaseOrder(PurchaseHeader, VendorNo, PurchaseHeader.Status::Open);
+        RequestNo := RequestMgt.CreateFromOrder(PurchaseHeader);
+        VendorRequest.Get(RequestNo);
+        RequestMgt.SetStatus(VendorRequest, VendorRequest.Status::Sent);
+        VendorAccessToken.SetRange("Token Hash", this.HashAndIssueToken(RequestNo));
+        VendorAccessToken.FindFirst();
+        OldVendorAccessToken.Get(VendorAccessToken."Token Id");
+
+        // When
+        VendorRequest.Get(RequestNo);
+        this.SendRequestWithEmailHandOff(VendorRequest, true);
+
+        // Then
+        VendorRequest.Get(RequestNo);
+        this.Assert.AreEqual(VendorRequest.Status::"Awaiting Vendor", VendorRequest.Status, 'Retrying a sent request must move it to Awaiting Vendor.');
+        OldVendorAccessToken.Get(OldVendorAccessToken."Token Id");
+        this.Assert.AreEqual(OldVendorAccessToken.Status::Superseded, OldVendorAccessToken.Status, 'Retrying must supersede the prior active token.');
+        VendorAccessToken.Reset();
+        VendorAccessToken.SetRange("Request No.", RequestNo);
+        VendorAccessToken.SetRange(Status, VendorAccessToken.Status::Active);
+        this.Assert.AreEqual(1, VendorAccessToken.Count(), 'Retrying must issue one new active token.');
+        VendorAccessToken.FindFirst();
+        this.Assert.AreNotEqual(OldVendorAccessToken."Token Id", VendorAccessToken."Token Id", 'Retrying must issue a token different from the superseded token.');
+    end;
+
+    [Test]
+    procedure GivenVendorWithoutEmail_WhenSend_ThenDraftRequestHasNoToken()
+    var
+        PurchaseHeader: Record "Purchase Header";
+        Vendor: Record Vendor;
+        VendorAccessToken: Record "AMC Vendor Access Token";
+        VendorRequest: Record "AMC Vendor Request";
+        RequestMgt: Codeunit "AMC Request Mgt";
+        RequestNo: Code[20];
+        VendorNo: Code[20];
+        VCHReq0003Err: Label 'VCH-REQ-0003: Vendor %1 does not have a portal contact email address or email address.', Comment = '%1 = vendor number';
+    begin
+        // Given
+        this.ConfigureEnabledSetup();
+        VendorNo := this.CreateVendor(true);
+        Vendor.Get(VendorNo);
+        Vendor."E-Mail" := '';
+        Vendor.Modify(true);
+        this.CreatePurchaseOrder(PurchaseHeader, VendorNo, PurchaseHeader.Status::Open);
+        RequestNo := RequestMgt.CreateFromOrder(PurchaseHeader);
+        VendorRequest.Get(RequestNo);
+        Commit();
+
+        // When
+        asserterror RequestMgt.Send(VendorRequest);
+
+        // Then
+        this.AssertExpectedError(StrSubstNo(VCHReq0003Err, VendorNo));
+        VendorRequest.Get(RequestNo);
+        this.Assert.AreEqual(VendorRequest.Status::Draft, VendorRequest.Status, 'A request without a recipient must remain Draft.');
+        VendorAccessToken.SetRange("Request No.", RequestNo);
+        this.Assert.IsTrue(VendorAccessToken.IsEmpty(), 'A request without a recipient must not issue a token.');
+    end;
+
+    [Test]
+    procedure GivenAwaitingVendorRequest_WhenResend_ThenOldTokenIsSupersededAndOtherRequestIsUnchanged()
+    var
+        OtherPurchaseHeader: Record "Purchase Header";
+        OtherVendorAccessToken: Record "AMC Vendor Access Token";
+        PurchaseHeader: Record "Purchase Header";
+        OldVendorAccessToken: Record "AMC Vendor Access Token";
+        VendorAccessToken: Record "AMC Vendor Access Token";
+        VendorRequest: Record "AMC Vendor Request";
+        RequestMgt: Codeunit "AMC Request Mgt";
+        OtherRequestNo: Code[20];
+        RequestNo: Code[20];
+        VendorNo: Code[20];
+    begin
+        // Given
+        this.ConfigureEnabledSetup();
+        VendorNo := this.CreateVendor(true);
+        this.CreatePurchaseOrder(PurchaseHeader, VendorNo, PurchaseHeader.Status::Open);
+        RequestNo := RequestMgt.CreateFromOrder(PurchaseHeader);
+        VendorRequest.Get(RequestNo);
+        this.SendRequestWithEmailHandOff(VendorRequest, true);
+        VendorAccessToken.SetRange("Request No.", RequestNo);
+        VendorAccessToken.FindFirst();
+        OldVendorAccessToken.Get(VendorAccessToken."Token Id");
+
+        this.CreatePurchaseOrder(OtherPurchaseHeader, VendorNo, OtherPurchaseHeader.Status::Open);
+        OtherRequestNo := RequestMgt.CreateFromOrder(OtherPurchaseHeader);
+        OtherVendorAccessToken.SetRange("Token Hash", this.HashAndIssueToken(OtherRequestNo));
+        OtherVendorAccessToken.FindFirst();
+
+        // When
+        VendorRequest.Get(RequestNo);
+        this.SendRequestWithEmailHandOff(VendorRequest, true);
+
+        // Then
+        OldVendorAccessToken.Get(OldVendorAccessToken."Token Id");
+        this.Assert.AreEqual(OldVendorAccessToken.Status::Superseded, OldVendorAccessToken.Status, 'Re-sending must supersede the old request token.');
+        VendorAccessToken.Reset();
+        VendorAccessToken.SetRange("Request No.", RequestNo);
+        VendorAccessToken.SetRange(Status, VendorAccessToken.Status::Active);
+        this.Assert.AreEqual(1, VendorAccessToken.Count(), 'Re-sending must issue one new active token.');
+        OtherVendorAccessToken.Get(OtherVendorAccessToken."Token Id");
+        this.Assert.AreEqual(OtherVendorAccessToken.Status::Active, OtherVendorAccessToken.Status, 'Re-sending must not change tokens for other requests.');
+    end;
+
+    [Test]
+    procedure GivenVendorResponseDaysExceedLinkValidity_WhenSend_ThenVCHReq0002LeavesDraftWithoutToken()
+    var
+        CollaborationSetup: Record "AMC Collaboration Setup";
+        PurchaseHeader: Record "Purchase Header";
+        Vendor: Record Vendor;
+        VendorAccessToken: Record "AMC Vendor Access Token";
+        VendorRequest: Record "AMC Vendor Request";
+        RequestMgt: Codeunit "AMC Request Mgt";
+        RequestNo: Code[20];
+        VendorNo: Code[20];
+        VCHReq0002Err: Label 'VCH-REQ-0002: Link Validity Days (%1) must be greater than or equal to vendor response days (%2).', Comment = '%1 = link validity days, %2 = vendor response days';
+    begin
+        // Given
+        this.ConfigureEnabledSetup();
+        CollaborationSetup.GetSetup();
+        CollaborationSetup."Link Validity Days" := 14;
+        CollaborationSetup.Modify(true);
+        VendorNo := this.CreateVendor(true);
+        Vendor.Get(VendorNo);
+        Vendor."AMC Response Days" := 15;
+        Vendor.Modify(true);
+        this.CreatePurchaseOrder(PurchaseHeader, VendorNo, PurchaseHeader.Status::Open);
+        RequestNo := RequestMgt.CreateFromOrder(PurchaseHeader);
+        VendorRequest.Get(RequestNo);
+        Commit();
+
+        // When
+        asserterror RequestMgt.Send(VendorRequest);
+
+        // Then
+        this.AssertExpectedError(StrSubstNo(VCHReq0002Err, 14, 15));
+        VendorRequest.Get(RequestNo);
+        this.Assert.AreEqual(VendorRequest.Status::Draft, VendorRequest.Status, 'An invalid link lifetime must retain Draft status.');
+        VendorAccessToken.SetRange("Request No.", RequestNo);
+        this.Assert.IsTrue(VendorAccessToken.IsEmpty(), 'An invalid link lifetime must not issue a token.');
+    end;
 
     local procedure CreateRequestNo(): Code[20]
     begin
         exit(CopyStr(DelChr(Format(CreateGuid()), '=', '{}-'), 1, 20));
+    end;
+
+    local procedure HashAndIssueToken(RequestNo: Code[20]): Text[64]
+    var
+        AccessTokenMgt: Codeunit "AMC Access Token Mgt";
+    begin
+        exit(AccessTokenMgt.HashToken(AccessTokenMgt.Issue(RequestNo)));
+    end;
+
+    local procedure AssertExpectedError(ExpectedError: Text)
+    begin
+        this.Assert.ExpectedError(ExpectedError);
+        ClearLastError();
     end;
 
     [ConfirmHandler]
@@ -363,8 +644,11 @@ codeunit 50131 "AMC Request Tests"
         CollaborationSetup.Modify(true);
         CollaborationSetup."Request Nos." := RequestNoSeriesCode;
         CollaborationSetup."Proposal Nos." := ProposalNoSeriesCode;
+        CollaborationSetup."Default Response Days" := 7;
         CollaborationSetup."Portal Base URL" := 'https://portal.contoso.com';
         CollaborationSetup."Portal Support E-Mail" := 'support@contoso.com';
+        CollaborationSetup."Link Validity Days" := 14;
+        CollaborationSetup."Attach Order PDF" := false;
         CollaborationSetup.Validate(Enabled, true);
         CollaborationSetup.Modify(true);
     end;
@@ -408,9 +692,70 @@ codeunit 50131 "AMC Request Tests"
         Vendor.Init();
         Vendor."No." := VendorNo;
         Vendor.Name := VendorNo;
+        Vendor."E-Mail" := 'vendor@contoso.com';
         Vendor."AMC Collaboration Enabled" := CollaborationEnabled;
         Vendor.Insert(false);
         exit(VendorNo);
+    end;
+
+    local procedure BindEmailSendHandler(var EmailSendHandler: Codeunit "AMC Email Send Test Handler"; EmailHandOffSucceeds: Boolean)
+    begin
+        EmailSendHandler.SetEmailHandOffResult(EmailHandOffSucceeds);
+        BindSubscription(EmailSendHandler);
+    end;
+
+    local procedure UnbindEmailSendHandler(var EmailSendHandler: Codeunit "AMC Email Send Test Handler")
+    begin
+        UnbindSubscription(EmailSendHandler);
+        EmailSendHandler.Reset();
+    end;
+
+    local procedure SendRequestWithEmailHandOff(var VendorRequest: Record "AMC Vendor Request"; EmailHandOffSucceeds: Boolean)
+    var
+        EmailSendHandler: Codeunit "AMC Email Send Test Handler";
+        RequestMgt: Codeunit "AMC Request Mgt";
+        LastErrorText: Text;
+    begin
+        this.BindEmailSendHandler(EmailSendHandler, EmailHandOffSucceeds);
+        if this.TrySendRequest(VendorRequest, RequestMgt) then begin
+            this.UnbindEmailSendHandler(EmailSendHandler);
+            exit;
+        end;
+
+        LastErrorText := GetLastErrorText();
+        this.UnbindEmailSendHandler(EmailSendHandler);
+        Error(LastErrorText);
+    end;
+
+    [TryFunction]
+    local procedure TrySendRequest(var VendorRequest: Record "AMC Vendor Request"; var RequestMgt: Codeunit "AMC Request Mgt")
+    begin
+        RequestMgt.Send(VendorRequest);
+    end;
+
+    local procedure CreateVendorWithLanguage(CollaborationEnabled: Boolean; LanguageCode: Code[10]): Code[20]
+    var
+        Vendor: Record Vendor;
+        VendorNo: Code[20];
+    begin
+        VendorNo := this.CreateRequestNo();
+        Vendor.Init();
+        Vendor."No." := VendorNo;
+        Vendor.Name := VendorNo;
+        Vendor."E-Mail" := 'vendor@contoso.com';
+        Vendor."Language Code" := LanguageCode;
+        Vendor."AMC Collaboration Enabled" := CollaborationEnabled;
+        Vendor.Insert(false);
+        exit(VendorNo);
+    end;
+
+    local procedure GetAlternateLanguageCode(CompanyLanguageCode: Code[10]): Code[10]
+    var
+        LanguageRecord: Record Language;
+    begin
+        LanguageRecord.SetFilter(Code, '<>%1', CompanyLanguageCode);
+        if LanguageRecord.FindFirst() then
+            exit(LanguageRecord.Code);
     end;
 
     local procedure CreatePurchaseOrder(var PurchaseHeader: Record "Purchase Header"; VendorNo: Code[20]; Status: Enum "Purchase Document Status")

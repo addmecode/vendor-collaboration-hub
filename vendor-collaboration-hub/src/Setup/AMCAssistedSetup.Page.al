@@ -254,6 +254,7 @@ page 50101 "AMC Assisted Setup"
     var
         CollaborationSetup: Record "AMC Collaboration Setup";
         GuidedExperience: Codeunit "Guided Experience";
+        TokenExpiryJob: Codeunit "AMC Token Expiry Job";
     begin
         if not CollaborationSetup.Get() then begin
             CollaborationSetup.Init();
@@ -262,6 +263,7 @@ page 50101 "AMC Assisted Setup"
 
         this.ApplySetupValues(CollaborationSetup);
         CollaborationSetup.Modify(true);
+        TokenExpiryJob.ScheduleTokenExpiryJob();
 
         GuidedExperience.CompleteAssistedSetup(ObjectType::Page, Page::"AMC Assisted Setup");
         CurrPage.Close();

@@ -106,6 +106,12 @@ page 50103 "AMC Vendor Request"
                 Caption = 'Timeline';
                 SubPageLink = "Source Type" = const(Request), "Source No." = field("No.");
             }
+            part(VendorAccessLinks; "AMC Vendor Access Links Part")
+            {
+                ApplicationArea = All;
+                Caption = 'Vendor Access Links';
+                SubPageLink = "Request No." = field("No.");
+            }
             group(Statistics)
             {
                 Caption = 'Statistics';
@@ -123,4 +129,53 @@ page 50103 "AMC Vendor Request"
             }
         }
     }
+
+    actions
+    {
+        area(Processing)
+        {
+            action(AMCSend)
+            {
+                ApplicationArea = All;
+                Caption = 'Send';
+                Enabled = this.SendEnabled;
+                Image = SendTo;
+                ToolTip = 'Sends the vendor request and an access link to the vendor.';
+
+                trigger OnAction()
+                begin
+                    this.SendRequest();
+                end;
+            }
+            action(AMCResendLink)
+            {
+                ApplicationArea = All;
+                Caption = 'Re-send Link';
+                Enabled = Rec.Status = Rec.Status::"Awaiting Vendor";
+                Image = SendTo;
+                ToolTip = 'Supersedes the current access link and sends a new link to the vendor.';
+
+                trigger OnAction()
+                begin
+                    this.SendRequest();
+                end;
+            }
+        }
+    }
+
+    trigger OnAfterGetCurrRecord()
+    begin
+        this.SendEnabled := (Rec.Status = Rec.Status::Draft) or (Rec.Status = Rec.Status::Sent);
+    end;
+
+    local procedure SendRequest()
+    var
+        RequestMgt: Codeunit "AMC Request Mgt";
+    begin
+        RequestMgt.Send(Rec);
+        CurrPage.Update(false);
+    end;
+
+    var
+        SendEnabled: Boolean;
 }

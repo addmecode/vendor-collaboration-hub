@@ -48,6 +48,30 @@ codeunit 50106 "AMC Telemetry"
         this.LogMessage(this.VCH0221Lbl, ProposalApplyFailedMsg, Verbosity::Error, CustomDimensions);
     end;
 
+    procedure LogLinkSent(RequestNo: Code[20]; VendorNo: Code[20]; OrderNo: Code[20])
+    var
+        CustomDimensions: Dictionary of [Text, Text];
+        LinkSentMsg: Label 'Vendor access link email sent.';
+    begin
+        CustomDimensions.Add(this.VCHRequestNoLbl, RequestNo);
+        CustomDimensions.Add(this.VCHVendorNoLbl, VendorNo);
+        CustomDimensions.Add(this.VCHOrderNoLbl, OrderNo);
+        CustomDimensions.Add(this.VCHResultLbl, 'sent');
+        this.LogMessage(this.VCH0121Lbl, LinkSentMsg, Verbosity::Normal, CustomDimensions);
+    end;
+
+    procedure LogLinkSendFailed(RequestNo: Code[20]; VendorNo: Code[20]; OrderNo: Code[20])
+    var
+        CustomDimensions: Dictionary of [Text, Text];
+        LinkSendFailedMsg: Label 'Vendor access link email failed to send.';
+    begin
+        CustomDimensions.Add(this.VCHRequestNoLbl, RequestNo);
+        CustomDimensions.Add(this.VCHVendorNoLbl, VendorNo);
+        CustomDimensions.Add(this.VCHOrderNoLbl, OrderNo);
+        CustomDimensions.Add(this.VCHResultLbl, 'failed');
+        this.LogMessage(this.VCH0122Lbl, LinkSendFailedMsg, Verbosity::Error, CustomDimensions);
+    end;
+
     local procedure FormatDurationInMilliseconds(Duration: Duration): Text
     begin
         exit(Format(Duration / 1, 0, 9));
