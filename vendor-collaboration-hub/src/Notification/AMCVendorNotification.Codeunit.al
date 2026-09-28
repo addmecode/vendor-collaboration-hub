@@ -18,13 +18,21 @@ codeunit 50118 "AMC Vendor Notification"
     Telemetry: Codeunit "AMC Telemetry";
     AccessLink: Text;
     LastErrorText: Text;
+    Recipient: Text;
+    RawToken: Text;
+    EmailWasSent: Boolean;
+    IsHandled: Boolean;
   begin
     VendorRequest.Get(RequestNo);
-    this.AssertRecipientExists(VendorRequest);
+    Recipient := this.GetRecipient(VendorRequest);
 
-    AccessLink := this.CreateAccessLink(VendorRequest, AccessTokenMgt.Issue(RequestNo));
+    RawToken := AccessTokenMgt.Issue(RequestNo);
+    AccessLink := this.CreateAccessLink(VendorRequest, RawToken);
     this.Prepare(VendorRequest, AccessLink, EmailMessage);
-    if not this.TrySend(Email, EmailMessage) then begin
+    this.OnBeforeEmailSend(EmailMessage, Enum::"Email Scenario"::"Vendor Collaboration", IsHandled, EmailWasSent);
+    if not IsHandled then
+      EmailWasSent := this.TrySend(Email, EmailMessage);
+    if not EmailWasSent then begin
       LastErrorText := GetLastErrorText();
       if LastErrorText = '' then
         LastErrorText := this.EmailNotSentErr;
@@ -33,6 +41,7 @@ codeunit 50118 "AMC Vendor Notification"
       Error(LastErrorText);
     end;
 
+    this.StampTokenSent(AccessTokenMgt.HashToken(RawToken), Recipient);
     CollabLog.LogEvent("AMC Source Type"::Request, VendorRequest."No.", 0, "AMC Collab Entry Type"::LinkSent, "AMC Actor Type"::Buyer, '', UserId(), false, this.LinkSentDescriptionLbl, CreateGuid());
     Telemetry.LogLinkSent(VendorRequest."No.", VendorRequest."Vendor No.", VendorRequest."Purchase Order No.");
   end;
@@ -75,11 +84,6 @@ codeunit 50118 "AMC Vendor Notification"
       this.AddPurchaseOrderPdf(VendorRequest, EmailMessage);
   end;
 
-  local procedure AssertRecipientExists(VendorRequest: Record "AMC Vendor Request")
-  begin
-    this.GetRecipient(VendorRequest);
-  end;
-
   local procedure GetRecipient(VendorRequest: Record "AMC Vendor Request"): Text
   var
     Vendor: Record Vendor;
@@ -109,6 +113,17 @@ codeunit 50118 "AMC Vendor Notification"
     exit(CollaborationSetup."Portal Base URL" + '/request/' + VendorRequest."No." + '?token=' + RawToken);
   end;
 
+  local procedure StampTokenSent(TokenHash: Text[64]; Recipient: Text)
+  var
+    VendorAccessToken: Record "AMC Vendor Access Token";
+  begin
+    VendorAccessToken.SetRange("Token Hash", TokenHash);
+    VendorAccessToken.FindFirst();
+    VendorAccessToken."Sent To E-Mail" := CopyStr(Recipient, 1, MaxStrLen(VendorAccessToken."Sent To E-Mail"));
+    VendorAccessToken."Sent At" := CurrentDateTime();
+    VendorAccessToken.Modify(true);
+  end;
+
   local procedure AddPurchaseOrderPdf(VendorRequest: Record "AMC Vendor Request"; var EmailMessage: Codeunit "Email Message")
   var
     PurchaseHeader: Record "Purchase Header";
@@ -134,6 +149,11 @@ codeunit 50118 "AMC Vendor Notification"
   begin
     if not Email.Send(EmailMessage, Enum::"Email Scenario"::"Vendor Collaboration") then
       Error(this.EmailNotSentErr);
+  end;
+
+  [IntegrationEvent(false, false)]
+  procedure OnBeforeEmailSend(var EmailMessage: Codeunit "Email Message"; EmailScenario: Enum "Email Scenario"; var IsHandled: Boolean; var EmailWasSent: Boolean)
+  begin
   end;
 
   var

@@ -116,6 +116,24 @@ page 50100 "AMC Collaboration Setup"
         }
     }
 
+    actions
+    {
+        area(Processing)
+        {
+            action(AMCScheduleTokenExpiryJob)
+            {
+                ApplicationArea = All;
+                Caption = 'Schedule Token Expiry Job';
+                ToolTip = 'Schedules the recurring job that marks expired vendor access links as expired.';
+
+                trigger OnAction()
+                begin
+                    this.ScheduleTokenExpiryJob();
+                end;
+            }
+        }
+    }
+
     trigger OnOpenPage()
     begin
         this.EnsureSetup();
@@ -136,6 +154,13 @@ page 50100 "AMC Collaboration Setup"
     local procedure UpdateSetupFieldsEditable()
     begin
         this.SetupFieldsEditable := not Rec.Enabled;
+    end;
+
+    local procedure ScheduleTokenExpiryJob()
+    var
+        TokenExpiryJob: Codeunit "AMC Token Expiry Job";
+    begin
+        TokenExpiryJob.ScheduleTokenExpiryJob();
     end;
 
     var

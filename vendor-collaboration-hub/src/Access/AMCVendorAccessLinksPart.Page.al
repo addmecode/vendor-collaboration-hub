@@ -90,4 +90,33 @@ page 50111 "AMC Vendor Access Links Part"
             }
         }
     }
+
+    actions
+    {
+        area(Processing)
+        {
+            action(AMCRevokeLink)
+            {
+                ApplicationArea = All;
+                Caption = 'Revoke Link';
+                Enabled = Rec.Status = Rec.Status::Active;
+                Image = Cancel;
+                ToolTip = 'Revokes the selected vendor access link.';
+
+                trigger OnAction()
+                begin
+                    this.RevokeLink();
+                end;
+            }
+        }
+    }
+
+    local procedure RevokeLink()
+    var
+        AccessTokenMgt: Codeunit "AMC Access Token Mgt";
+        RevokedByBuyerLbl: Label 'Revoked by buyer from vendor access links.';
+    begin
+        AccessTokenMgt.Revoke(Rec."Token Id", RevokedByBuyerLbl);
+        CurrPage.Update(false);
+    end;
 }

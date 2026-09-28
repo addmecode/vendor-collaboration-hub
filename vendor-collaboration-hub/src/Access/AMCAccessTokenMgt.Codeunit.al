@@ -1,5 +1,6 @@
 namespace Addmecode.VendorCollaborationHub;
 
+using Microsoft.Purchases.Vendor;
 using System.Security.Encryption;
 using System.Text;
 using System.Utilities;
@@ -11,12 +12,15 @@ codeunit 50117 "AMC Access Token Mgt"
         CollaborationSetup: Record "AMC Collaboration Setup";
         VendorAccessToken: Record "AMC Vendor Access Token";
         VendorRequest: Record "AMC Vendor Request";
+        Vendor: Record Vendor;
         CollabLog: Codeunit "AMC Collab Log";
         RawToken: Text;
         IssuedAt: DateTime;
     begin
         VendorRequest.Get(RequestNo);
         CollaborationSetup.GetSetup();
+        Vendor.Get(VendorRequest."Vendor No.");
+        this.VerifyLinkValidity(Vendor, CollaborationSetup);
 
         RawToken := this.CreateRawToken();
         IssuedAt := CurrentDateTime();
@@ -82,7 +86,17 @@ codeunit 50117 "AMC Access Token Mgt"
         VendorAccessToken."Revoked By" := CopyStr(UserId(), 1, MaxStrLen(VendorAccessToken."Revoked By"));
         VendorAccessToken."Revocation Reason" := RevocationReason;
         VendorAccessToken.Modify(true);
-        this.LogTokenLifecycle(VendorAccessToken, "AMC Actor Type"::Buyer, this.LinkRevokedDescriptionLbl);
+        this.LogTokenLifecycle(VendorAccessToken, "AMC Collab Entry Type"::LinkRevoked, "AMC Actor Type"::Buyer, this.LinkRevokedDescriptionLbl);
+    end;
+
+    procedure RevokeRequestTokens(RequestNo: Code[20]; RevocationReason: Text[250])
+    var
+        VendorAccessToken: Record "AMC Vendor Access Token";
+    begin
+        VendorAccessToken.SetRange("Request No.", RequestNo);
+        VendorAccessToken.SetRange(Status, VendorAccessToken.Status::Active);
+        while VendorAccessToken.FindFirst() do
+            this.Revoke(VendorAccessToken."Token Id", RevocationReason);
     end;
 
     procedure Supersede(RequestNo: Code[20])
@@ -94,7 +108,7 @@ codeunit 50117 "AMC Access Token Mgt"
         while VendorAccessToken.FindFirst() do begin //todo: findset
             VendorAccessToken.Status := VendorAccessToken.Status::Superseded;
             VendorAccessToken.Modify(true);
-            this.LogTokenLifecycle(VendorAccessToken, "AMC Actor Type"::Buyer, this.LinkSupersededDescriptionLbl);
+            this.LogTokenLifecycle(VendorAccessToken, "AMC Collab Entry Type"::LinkRevoked, "AMC Actor Type"::Buyer, this.LinkSupersededDescriptionLbl);
         end;
     end;
 
@@ -107,7 +121,7 @@ codeunit 50117 "AMC Access Token Mgt"
         while VendorAccessToken.FindFirst() do begin //todo: findset
             VendorAccessToken.Status := VendorAccessToken.Status::Expired;
             VendorAccessToken.Modify(true);
-            this.LogTokenLifecycle(VendorAccessToken, "AMC Actor Type"::System, this.LinkExpiredDescriptionLbl);
+            this.LogTokenLifecycle(VendorAccessToken, "AMC Collab Entry Type"::LinkExpired, "AMC Actor Type"::System, this.LinkExpiredDescriptionLbl);
         end;
     end;
 
@@ -123,6 +137,23 @@ codeunit 50117 "AMC Access Token Mgt"
     begin
         if (VendorAccessToken.Status <> VendorAccessToken.Status::Active) or (VendorAccessToken."Expires At" <= CurrentDateTime()) then
             Error(this.VCHAut0003Err);
+    end;
+
+    local procedure VerifyLinkValidity(Vendor: Record Vendor; CollaborationSetup: Record "AMC Collaboration Setup")
+    var
+        VendorResponseDays: Integer;
+    begin
+        VendorResponseDays := this.GetVendorResponseDays(Vendor, CollaborationSetup);
+        if CollaborationSetup."Link Validity Days" < VendorResponseDays then
+            Error(this.VCHReq0002Err, CollaborationSetup."Link Validity Days", VendorResponseDays);
+    end;
+
+    local procedure GetVendorResponseDays(Vendor: Record Vendor; CollaborationSetup: Record "AMC Collaboration Setup"): Integer
+    begin
+        if Vendor."AMC Response Days" <> 0 then
+            exit(Vendor."AMC Response Days");
+
+        exit(CollaborationSetup."Default Response Days");
     end;
 
     local procedure CreateRawToken(): Text
@@ -163,16 +194,17 @@ codeunit 50117 "AMC Access Token Mgt"
         exit(LinkValidityDays * 24 * 60 * 60 * 1000);
     end;
 
-    local procedure LogTokenLifecycle(VendorAccessToken: Record "AMC Vendor Access Token"; ActorType: Enum "AMC Actor Type"; Description: Text[250])
+    local procedure LogTokenLifecycle(VendorAccessToken: Record "AMC Vendor Access Token"; EntryType: Enum "AMC Collab Entry Type"; ActorType: Enum "AMC Actor Type"; Description: Text[250])
     var
         CollabLog: Codeunit "AMC Collab Log";
     begin
-        CollabLog.LogEvent("AMC Source Type"::Request, VendorAccessToken."Request No.", 0, "AMC Collab Entry Type"::LinkRevoked, ActorType, '', UserId(), false, Description, CreateGuid());
+        CollabLog.LogEvent("AMC Source Type"::Request, VendorAccessToken."Request No.", 0, EntryType, ActorType, '', UserId(), false, Description, CreateGuid());
     end;
 
     var
         VCHAut0003Err: Label 'VCH-AUT-0003: This access link is no longer valid.';
         VCHAut0004Err: Label 'VCH-AUT-0004: This access link does not belong to the specified request and vendor.';
+        VCHReq0002Err: Label 'VCH-REQ-0002: Link Validity Days (%1) must be greater than or equal to vendor response days (%2).', Comment = '%1 = link validity days, %2 = vendor response days';
         LinkIssuedDescriptionLbl: Label 'Vendor access link issued.';
         LinkOpenedDescriptionLbl: Label 'Vendor access link opened.';
         LinkRevokedDescriptionLbl: Label 'Vendor access link revoked.';

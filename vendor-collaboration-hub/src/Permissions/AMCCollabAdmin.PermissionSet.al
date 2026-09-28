@@ -1,6 +1,7 @@
 namespace Addmecode.VendorCollaborationHub;
 
 using Microsoft.Foundation.NoSeries;
+using System.Threading;
 
 permissionset 50102 "AMC Collab Admin"
 {
@@ -11,7 +12,9 @@ permissionset 50102 "AMC Collab Admin"
 
     Permissions =
     tabledata "AMC Collaboration Setup" = RIMD,
+    tabledata "Job Queue Entry" = RIMD,
     tabledata "No. Series" = R,
     page "AMC Assisted Setup" = X,
-    page "No. Series" = X;
+    page "No. Series" = X,
+    codeunit "AMC Token Expiry Job" = X;
 }

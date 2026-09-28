@@ -1,6 +1,8 @@
 namespace Addmecode.VendorCollaborationHub.Tests;
 
 using Addmecode.VendorCollaborationHub;
+using Microsoft.Purchases.Vendor;
+using System.Threading;
 using System.TestLibraries.Utilities;
 
 codeunit 50143 "AMC Access Token Tests"
@@ -147,19 +149,23 @@ codeunit 50143 "AMC Access Token Tests"
         AccessTokenMgt: Codeunit "AMC Access Token Mgt";
         RequestNo: Code[20];
         VendorNo: Code[20];
+        VendorAccessLinks: TestPage "AMC Vendor Access Links";
     begin
         // Given
         RequestNo := this.CreateVendorRequest(VendorNo);
         this.IssueToken(RequestNo, VendorAccessToken);
 
         // When
-        AccessTokenMgt.Revoke(VendorAccessToken."Token Id", 'Buyer revoked the link.');
+        VendorAccessLinks.OpenEdit();
+        VendorAccessLinks.GotoRecord(VendorAccessToken);
+        VendorAccessLinks.AMCRevokeLink.Invoke();
+        VendorAccessLinks.Close();
 
         // Then
         VendorAccessToken.Get(VendorAccessToken."Token Id");
         this.Assert.AreEqual(VendorAccessToken.Status::Revoked, VendorAccessToken.Status, 'Revoking must set the token status to Revoked.');
         this.Assert.AreNotEqual(0DT, VendorAccessToken."Revoked At", 'Revoking must stamp the revocation time.');
-        this.Assert.AreEqual('Buyer revoked the link.', VendorAccessToken."Revocation Reason", 'Revoking must retain the revocation reason.');
+        this.Assert.AreEqual('Revoked by buyer from vendor access links.', VendorAccessToken."Revocation Reason", 'Revoking must retain the revocation reason.');
         CollaborationEntry.SetRange("Source Type", "AMC Source Type"::Request);
         CollaborationEntry.SetRange("Source No.", RequestNo);
         CollaborationEntry.SetRange("Entry Type", "AMC Collab Entry Type"::LinkRevoked);
@@ -197,10 +203,10 @@ codeunit 50143 "AMC Access Token Tests"
     [Test]
     procedure GivenOverdueActiveAndOtherTokens_WhenExpire_ThenOnlyOverdueActiveTokensChange()
     var
+        CollaborationEntry: Record "AMC Collaboration Entry";
         FutureVendorAccessToken: Record "AMC Vendor Access Token";
         InactiveVendorAccessToken: Record "AMC Vendor Access Token";
         OverdueVendorAccessToken: Record "AMC Vendor Access Token";
-        AccessTokenMgt: Codeunit "AMC Access Token Mgt";
         FutureRequestNo: Code[20];
         InactiveRequestNo: Code[20];
         OverdueRequestNo: Code[20];
@@ -224,7 +230,7 @@ codeunit 50143 "AMC Access Token Tests"
         InactiveVendorAccessToken.Modify(true);
 
         // When
-        AccessTokenMgt.Expire();
+        Codeunit.Run(Codeunit::"AMC Token Expiry Job");
 
         // Then
         OverdueVendorAccessToken.Get(OverdueVendorAccessToken."Token Id");
@@ -233,6 +239,35 @@ codeunit 50143 "AMC Access Token Tests"
         this.Assert.AreEqual(OverdueVendorAccessToken.Status::Expired, OverdueVendorAccessToken.Status, 'Expiring must change overdue active tokens.');
         this.Assert.AreEqual(FutureVendorAccessToken.Status::Active, FutureVendorAccessToken.Status, 'Expiring must not change future tokens.');
         this.Assert.AreEqual(InactiveVendorAccessToken.Status::Revoked, InactiveVendorAccessToken.Status, 'Expiring must not change inactive tokens.');
+        CollaborationEntry.SetRange("Source Type", "AMC Source Type"::Request);
+        CollaborationEntry.SetRange("Source No.", OverdueRequestNo);
+        CollaborationEntry.SetRange("Entry Type", "AMC Collab Entry Type"::LinkExpired);
+        this.Assert.IsFalse(CollaborationEntry.IsEmpty(), 'Expiring must add a token lifecycle timeline entry.');
+    end;
+
+    [Test]
+    procedure GivenCollaborationSetup_WhenSchedulingTokenExpiryJobTwice_ThenOneRecurringJobIsCreated()
+    var
+        CollaborationSetup: Record "AMC Collaboration Setup";
+        JobQueueEntry: Record "Job Queue Entry";
+        CollaborationSetupPage: TestPage "AMC Collaboration Setup";
+    begin
+        // Given
+        CollaborationSetup.GetSetup();
+        CollaborationSetupPage.OpenEdit();
+        CollaborationSetupPage.GotoRecord(CollaborationSetup);
+
+        // When
+        CollaborationSetupPage.AMCScheduleTokenExpiryJob.Invoke();
+        CollaborationSetupPage.AMCScheduleTokenExpiryJob.Invoke();
+
+        // Then
+        JobQueueEntry.SetRange("Object Type to Run", JobQueueEntry."Object Type to Run"::Codeunit);
+        JobQueueEntry.SetRange("Object ID to Run", Codeunit::"AMC Token Expiry Job");
+        this.Assert.AreEqual(1, JobQueueEntry.Count(), 'Scheduling the token expiry job repeatedly must retain one job queue entry.');
+        JobQueueEntry.FindFirst();
+        this.Assert.IsTrue(JobQueueEntry."Recurring Job", 'The token expiry job must recur.');
+        CollaborationSetupPage.Close();
     end;
 
     local procedure AssertInvalidToken(AccessTokenMgt: Codeunit "AMC Access Token Mgt"; VendorAccessToken: Record "AMC Vendor Access Token"; RequestNo: Code[20]; VendorNo: Code[20])
@@ -246,11 +281,16 @@ codeunit 50143 "AMC Access Token Tests"
 
     local procedure CreateVendorRequest(var VendorNo: Code[20]): Code[20]
     var
+        Vendor: Record Vendor;
         VendorRequest: Record "AMC Vendor Request";
         RequestNo: Code[20];
     begin
         RequestNo := this.CreateUniqueCode();
         VendorNo := this.CreateUniqueCode();
+        Vendor.Init();
+        Vendor."No." := VendorNo;
+        Vendor.Name := VendorNo;
+        Vendor.Insert(false);
         VendorRequest.Init();
         VendorRequest."No." := RequestNo;
         VendorRequest."Vendor No." := VendorNo;
