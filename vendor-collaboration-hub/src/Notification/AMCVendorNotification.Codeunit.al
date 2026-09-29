@@ -72,7 +72,7 @@ codeunit 50118 "AMC Vendor Notification"
   begin
     Recipient := this.GetRecipient(VendorRequest);
     VendorEmailBuilder.Build(VendorRequest, AccessLink, Subject, HtmlBody, PlainTextBody);
-    EmailMessage.Create(Recipient, Subject, HtmlBody, true, true);
+    EmailMessage.Create(Recipient, Subject, HtmlBody, true, false);
     ReplyTo := this.GetBuyerEmail(VendorRequest);
     if ReplyTo <> '' then begin
       EmailMessage.SetHeader('Reply-To', ReplyTo);

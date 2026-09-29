@@ -22,5 +22,13 @@ permissionset 50103 "AMC API Integration"
     codeunit "AMC Proposal Mgt" = X,
     codeunit "AMC Proposal Validator" = X,
     codeunit "AMC Validation Result" = X,
-    codeunit "AMC Access Token Mgt" = X;
+    codeunit "AMC Access Token Mgt" = X,
+    codeunit "AMC API Token Scope" = X,
+    codeunit "AMC Collab Log" = X,
+    table "AMC Vendor Request" = X,
+    table "AMC Vendor Request Line" = X,
+    table "AMC Vendor Access Token" = X,
+    page "AMC Vendor Request API" = X,
+    page "AMC Vendor Request Line API" = X,
+    page "AMC Vendor Access Token API" = X;
 }
