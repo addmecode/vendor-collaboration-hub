@@ -2949,12 +2949,6 @@ GitHub OIDC, so there is no Azure secret in the repository at all — which is w
 doing here precisely because it is the same mechanism V2 applies to the Function's
 own BC credential.
 
-Branch policy: `main` protected; work on `feature/<short-name>`; PR requires a green
-build + test run and one review (self-review with a written checklist is acceptable
-for a solo project — the point is the habit and the PR description).
-
-Commit convention: Conventional Commits (`feat:`, `fix:`, `test:`, `docs:`,
-`refactor:`, `chore:`).
 
 ## 12.2 Analyzers
 
@@ -3270,6 +3264,9 @@ Twenty-eight tasks in dependency order, grouped into milestones. Each task is on
 pull request: small enough to review in a sitting, large enough to be worth
 reviewing, and finished only when there is something to look at in Business Central
 rather than only a green test run.
+
+The **Status** column records completion as `DONE`; an empty cell represents an
+unfinished task.
 
 Two obligations every task carries, which the tables below do not repeat:
 
