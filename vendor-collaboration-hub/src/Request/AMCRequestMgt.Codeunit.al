@@ -7,7 +7,11 @@ using System.Globalization;
 
 codeunit 50100 "AMC Request Mgt"
 {
-    Permissions = tabledata "Purchase Header" = M;
+    Permissions = tabledata "AMC Vendor Request" = rim,
+                  tabledata "AMC Vendor Request Line" = i,
+                  tabledata "Purchase Header" = rm,
+                  tabledata "Purchase Line" = r,
+                  tabledata Vendor = r;
 
     procedure CreateFromOrder(var PurchaseHeader: Record "Purchase Header"): Code[20]
     var
@@ -46,10 +50,18 @@ codeunit 50100 "AMC Request Mgt"
         PurchaseHeader."AMC Collaboration Status" := VendorRequest.Status;
         PurchaseHeader.Modify(true);
 
-        CollabLog.LogEvent("AMC Source Type"::Request, RequestNo, 0, "AMC Collab Entry Type"::RequestCreated, "AMC Actor Type"::Buyer, '', UserId(), false, RequestCreatedDescriptionLbl, CreateGuid());
+        CollabLog.LogEvent("AMC Source Type"::Request, RequestNo, 0, "AMC Collab Entry Type"::RequestCreated, "AMC Actor Type"::Buyer, '', UserId(), RequestCreatedDescriptionLbl, CreateGuid());
         Telemetry.LogRequestCreated(RequestNo, PurchaseHeader."Buy-from Vendor No.", PurchaseHeader."No.", LineCount);
 
         exit(RequestNo);
+    end;
+
+    procedure OpenRequest(RequestNo: Code[20])
+    var
+        VendorRequest: Record "AMC Vendor Request";
+    begin
+        VendorRequest.Get(RequestNo);
+        Page.Run(Page::"AMC Vendor Request", VendorRequest);
     end;
 
     procedure Cancel(var PurchaseHeader: Record "Purchase Header")
@@ -92,7 +104,7 @@ codeunit 50100 "AMC Request Mgt"
         end;
         OrderLockMgt.RestoreSuppressionContext(PreviousPurchaseOrderNo, PreviousRequestNo);
 
-        CollabLog.LogEvent("AMC Source Type"::Request, RequestNo, 0, "AMC Collab Entry Type"::OrderUnlocked, "AMC Actor Type"::Buyer, '', UserId(), false, RequestCancelledDescriptionLbl, CreateGuid());
+        CollabLog.LogEvent("AMC Source Type"::Request, RequestNo, 0, "AMC Collab Entry Type"::OrderUnlocked, "AMC Actor Type"::Buyer, '', UserId(), RequestCancelledDescriptionLbl, CreateGuid());
     end;
 
     procedure CloseAfterApply(var VendorRequest: Record "AMC Vendor Request"; var PurchaseHeader: Record "Purchase Header")
@@ -131,7 +143,7 @@ codeunit 50100 "AMC Request Mgt"
             VendorRequest.Status::Draft:
                 begin
                     this.SetStatus(VendorRequest, VendorRequest.Status::Sent);
-                    CollabLog.LogEvent("AMC Source Type"::Request, VendorRequest."No.", 0, "AMC Collab Entry Type"::RequestSent, "AMC Actor Type"::Buyer, '', UserId(), false, RequestSentDescriptionLbl, CreateGuid());
+                    CollabLog.LogEvent("AMC Source Type"::Request, VendorRequest."No.", 0, "AMC Collab Entry Type"::RequestSent, "AMC Actor Type"::Buyer, '', UserId(), RequestSentDescriptionLbl, CreateGuid());
                 end;
             VendorRequest.Status::Sent,
             VendorRequest.Status::"Awaiting Vendor":

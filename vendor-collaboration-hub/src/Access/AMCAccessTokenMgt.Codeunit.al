@@ -7,6 +7,10 @@ using System.Utilities;
 
 codeunit 50117 "AMC Access Token Mgt"
 {
+    Permissions = tabledata "AMC Vendor Access Token" = rim,
+                  tabledata "AMC Vendor Request" = r,
+                  tabledata Vendor = r;
+
     procedure Issue(RequestNo: Code[20]): Text
     var
         CollaborationSetup: Record "AMC Collaboration Setup";
@@ -35,7 +39,7 @@ codeunit 50117 "AMC Access Token Mgt"
         VendorAccessToken."Expires At" := IssuedAt + this.GetTokenLifetime(CollaborationSetup."Link Validity Days");
         VendorAccessToken.Insert(true);
 
-        CollabLog.LogEvent("AMC Source Type"::Request, VendorRequest."No.", 0, "AMC Collab Entry Type"::LinkIssued, "AMC Actor Type"::Buyer, '', UserId(), false, this.LinkIssuedDescriptionLbl, CreateGuid());
+        CollabLog.LogEvent("AMC Source Type"::Request, VendorRequest."No.", 0, "AMC Collab Entry Type"::LinkIssued, "AMC Actor Type"::Buyer, '', UserId(), this.LinkIssuedDescriptionLbl, CreateGuid());
         exit(RawToken);
     end;
 
@@ -68,7 +72,7 @@ codeunit 50117 "AMC Access Token Mgt"
         VendorAccessToken."Access Count" += 1;
         VendorAccessToken.Modify(true);
 
-        CollabLog.LogEvent("AMC Source Type"::Request, VendorAccessToken."Request No.", 0, "AMC Collab Entry Type"::LinkOpened, "AMC Actor Type"::Vendor, '', '', false, this.LinkOpenedDescriptionLbl, CreateGuid());
+        CollabLog.LogEvent("AMC Source Type"::Request, VendorAccessToken."Request No.", 0, "AMC Collab Entry Type"::LinkOpened, "AMC Actor Type"::Vendor, '', '', this.LinkOpenedDescriptionLbl, CreateGuid());
     end;
 
     procedure Revoke(TokenId: Guid; RevocationReason: Text[250])
@@ -198,7 +202,7 @@ codeunit 50117 "AMC Access Token Mgt"
     var
         CollabLog: Codeunit "AMC Collab Log";
     begin
-        CollabLog.LogEvent("AMC Source Type"::Request, VendorAccessToken."Request No.", 0, EntryType, ActorType, '', UserId(), false, Description, CreateGuid());
+        CollabLog.LogEvent("AMC Source Type"::Request, VendorAccessToken."Request No.", 0, EntryType, ActorType, '', UserId(), Description, CreateGuid());
     end;
 
     var

@@ -8,6 +8,7 @@ table 50100 "AMC Collaboration Setup"
 {
     Caption = 'Vendor Collaboration Setup';
     DataClassification = SystemMetadata;
+    Permissions = tabledata "AMC Collaboration Setup" = ri;
 
     fields
     {

@@ -48,11 +48,6 @@ table 50105 "AMC Collaboration Entry"
             Caption = 'User ID';
             DataClassification = EndUserIdentifiableInformation;
         }
-        field(9; "Visible to Vendor"; Boolean)
-        {
-            Caption = 'Visible to Vendor';
-            DataClassification = CustomerContent;
-        }
         field(10; "Field Name"; Text[80])
         {
             Caption = 'Field Name';
@@ -97,7 +92,7 @@ table 50105 "AMC Collaboration Entry"
         key(EntryTimeline; "Entry Type", "Date Time")
         {
         }
-        key(VendorTimeline; "Source Type", "Source No.", "Visible to Vendor")
+        key(SourceComments; "Source Type", "Source No.", "Entry Type")
         {
         }
     }

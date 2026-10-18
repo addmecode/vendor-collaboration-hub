@@ -9,7 +9,8 @@ table 50103 "AMC Vendor Proposal"
     DataClassification = CustomerContent;
     DrillDownPageId = "AMC Vendor Proposals";
     LookupPageId = "AMC Vendor Proposals";
-    Permissions = tabledata "AMC Vendor Proposal Line" = rd;
+    Permissions = tabledata "AMC Vendor Proposal" = r,
+                  tabledata "AMC Vendor Proposal Line" = d;
 
     fields
     {
@@ -23,12 +24,14 @@ table 50103 "AMC Vendor Proposal"
             Caption = 'Request No.';
             DataClassification = CustomerContent;
             TableRelation = "AMC Vendor Request";
+            ValidateTableRelation = false;
         }
         field(3; "Vendor No."; Code[20])
         {
             Caption = 'Vendor No.';
             DataClassification = CustomerContent;
             TableRelation = Vendor;
+            ValidateTableRelation = false;
         }
         field(4; "Purchase Order No."; Code[20])
         {
@@ -101,6 +104,23 @@ table 50103 "AMC Vendor Proposal"
             Caption = 'Superseded By';
             DataClassification = CustomerContent;
             TableRelation = "AMC Vendor Proposal";
+        }
+        field(18; "Payload Hash"; Text[64])
+        {
+            Caption = 'Payload Hash';
+            DataClassification = SystemMetadata;
+            Editable = false;
+        }
+        field(19; "External Reference"; Text[100])
+        {
+            Caption = 'External Reference';
+            DataClassification = CustomerContent;
+        }
+        field(20; "API Submission Pending"; Boolean)
+        {
+            Caption = 'API Submission Pending';
+            DataClassification = SystemMetadata;
+            Editable = false;
         }
     }
 

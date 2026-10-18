@@ -16,7 +16,7 @@ page 50125 "AMC Vendor Access Token API"
     ModifyAllowed = false;
     ODataKeyFields = SystemId;
     PageType = API;
-    Permissions = tabledata "AMC Vendor Access Token" = M;
+    Permissions = tabledata "AMC Vendor Access Token" = m;
     SourceTable = "AMC Vendor Access Token";
 
     layout
@@ -84,7 +84,7 @@ page 50125 "AMC Vendor Access Token API"
     Rec."Last Accessed At" := AccessedAt;
     Rec."Access Count" += 1;
     Rec.Modify(true);
-    CollabLog.LogEvent("AMC Source Type"::Request, Rec."Request No.", 0, "AMC Collab Entry Type"::LinkOpened, "AMC Actor Type"::Vendor, '', '', false, this.LinkOpenedDescriptionLbl, CreateGuid());
+    CollabLog.LogEvent("AMC Source Type"::Request, Rec."Request No.", 0, "AMC Collab Entry Type"::LinkOpened, "AMC Actor Type"::Vendor, '', '', this.LinkOpenedDescriptionLbl, CreateGuid());
 
     ActionContext.SetObjectType(ObjectType::Page);
     ActionContext.SetObjectId(Page::"AMC Vendor Access Token API");

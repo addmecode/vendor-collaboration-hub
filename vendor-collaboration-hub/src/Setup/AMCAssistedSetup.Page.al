@@ -9,6 +9,7 @@ page 50101 "AMC Assisted Setup"
     Caption = 'Set Up Vendor Collaboration';
     Editable = true;
     PageType = NavigatePage;
+    Permissions = tabledata "AMC Collaboration Setup" = rim;
     UsageCategory = None;
 
     layout

@@ -83,6 +83,11 @@ page 50106 "AMC Vendor Proposal"
                 SubPageLink = "Proposal No." = field("No.");
                 UpdatePropagation = Both;
             }
+            part(CollabTimeline; "AMC Collab Timeline")
+            {
+                Caption = 'Timeline';
+                SubPageLink = "Source Type" = const(Proposal), "Source No." = field("No.");
+            }
             group(Decision)
             {
                 Caption = 'Decision';

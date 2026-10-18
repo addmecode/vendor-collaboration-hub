@@ -68,11 +68,6 @@ page 50107 "AMC Collab Timeline"
                     ApplicationArea = All;
                     ToolTip = 'Specifies the value after the change, if any.';
                 }
-                field("Visible to Vendor"; Rec."Visible to Vendor")
-                {
-                    ApplicationArea = All;
-                    ToolTip = 'Specifies whether this entry can be returned to the vendor.';
-                }
                 field("Correlation Id"; Rec."Correlation Id")
                 {
                     ApplicationArea = All;

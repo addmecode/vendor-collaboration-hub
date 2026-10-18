@@ -4,7 +4,7 @@ using System.Threading;
 
 codeunit 50124 "AMC Token Expiry Job"
 {
-    Permissions = tabledata "AMC Vendor Access Token" = RM;
+    Permissions = tabledata "Job Queue Entry" = ri;
 
     trigger OnRun()
     begin

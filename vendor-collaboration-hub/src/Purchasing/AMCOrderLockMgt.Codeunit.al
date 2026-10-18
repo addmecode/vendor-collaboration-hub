@@ -4,6 +4,7 @@ using Microsoft.Purchases.Document;
 
 codeunit 50120 "AMC Order Lock Mgt"
 {
+    Permissions = tabledata "Purchase Header" = r;
     SingleInstance = true;
 
     procedure VerifyPurchaseHeaderCanBeModified(PurchaseHeader: Record "Purchase Header")

@@ -807,7 +807,6 @@ creation.
 | Actor Type | Enum `AMC Actor Type` | Buyer / Vendor / System / Integration |
 | Actor Name | Text[100] | the name the vendor gave, for vendor actions |
 | User ID | Code[50] | BC user; blank for vendor and system entries |
-| **Visible to Vendor** | Boolean | `false` = internal note or internal-only event, never returned by the API |
 | Field Name | Text[80] | filled for field-level changes recorded during apply |
 | Old Value | Text[250] | |
 | New Value | Text[250] | |
@@ -820,14 +819,24 @@ creation.
 | `Entry No.` | primary key |
 | `Source Type, Source No., Date Time` | the timeline of one document, in order |
 | `Entry Type, Date Time` | "every forced unlock this month" style queries |
-| `Source Type, Source No., Visible to Vendor` | what the API may return |
+| `Source Type, Source No., Entry Type` | comments for a scoped request or proposal |
 
-`Entry Type = Comment` carries a human remark in `Description`; every other value
-records a process event. `Visible to Vendor = false` covers both an internal buyer
-note and an event the vendor has no business seeing, and the API page filters on it
-at page level for this API endpoint. The Function additionally restricts the
-source request/proposal to the current session. The page projection and visibility
-filter are not per-link table permissions for the shared S2S identity (§4.7).
+`Entry Type = Comment` carries a human remark in `Description`. All comments are
+vendor-facing by policy; internal buyer notes are not supported. Every other entry
+type records an internal BC process event. The `collaborationComments` API page
+(50124) returns only `Entry Type = Comment`; comments and events both remain in the
+read-only BC timeline and administrator list. The Function restricts the source
+request/proposal to the current session. This external read-session boundary is
+not an AL read guard or per-link table permission for the shared S2S identity
+(§4.7). The AL comment writer separately validates token/request/vendor ownership
+for Request and Proposal sources before appending a vendor-authored comment.
+
+Focused coverage in codeunits 50132 and 50148 checks visibility-free comment/event/
+field-change wrappers, immutable mixed BC history, forced vendor comment audit
+fields and source ownership rejection (including a same-request, foreign-vendor
+proposal). Comment-only API responses and payload shape require authenticated
+published OData verification through the Function/session route; Record and
+TestPage checks do not prove that API read boundary.
 
 The page over this table is `Editable = false`, `InsertAllowed = false`,
 `ModifyAllowed = false`, `DeleteAllowed = false`. Only `AMC Collab Log` writes to
@@ -1100,6 +1109,7 @@ reachable only through the orchestrator.
 | `AMC Collab Activities` | 50109 | CardPart with cues |
 | `AMC Vendor Access Links` | 50110 | List — every link, filterable by status and vendor. The page an administrator opens to revoke everything for one vendor after a mailbox incident |
 | `AMC Vendor Access Links Part` | 50111 | ListPart on the request document — which link was sent, to whom, when it was opened, when it expires; actions *Re-send link* and *Revoke link* |
+| `AMC Collaboration Entries` | 50112 | Read-only administrator List — all entries, filterable by Source Type, Source No., Entry Type, Date Time and Correlation Id; discoverable through Tell Me, with page execution granted only by `AMC Collab Admin` |
 
 The two access-link pages are `Editable = false`, `InsertAllowed = false`,
 `DeleteAllowed = false`, and neither shows `Token Hash` — there is nothing a human can do with it, and putting it
@@ -1108,7 +1118,7 @@ the ordinary BC shape (the same table needs a standalone view and an embedded on
 what they must not become is two different column sets.
 
 API pages take `50120–50125` (§8.2) — a deliberate gap after the UI pages, so the two
-groups stay visibly separate — and pages use 18 of 50 IDs in total.
+groups stay visibly separate — and pages use 19 of 50 IDs in total.
 
 There is no separate "proposals to review" page. The cue on the role center opens
 `AMC Vendor Proposals` filtered to `Submitted`/`In Review`, which is the same
@@ -2126,8 +2136,12 @@ POST .../collaborationComments
   "comment": "We can pull 400 pcs forward to 2026-09-18 if you accept partial invoicing." }
 ```
 
-`visibleToVendor` is not writable over the API — it is forced to `true` for
-vendor-authored comments.
+All comments are vendor-facing; there is no per-comment visibility choice in the
+request or response. The AL writer forces the Comment entry type and Vendor audit
+identity and validates token/request/vendor ownership for Request and Proposal
+sources. The API returns comments by `Entry Type = Comment` only; non-comment
+events remain internal BC history. The Function scopes reads to the session's
+request/proposal documents, not an AL-side read-session guard on this page.
 
 ## 8.4 Error contract
 
@@ -2558,7 +2572,10 @@ mean a vendor waiting on someone who has no idea they are waiting.
   their values have to stay, or the trail stops being one.
 - The address a link was sent to is stored on the token, because a buyer must be
   able to see where it went. It is not exposed by any API entity the vendor reads.
-- Vendor comments marked `Visible to Vendor = false` are excluded at API page level.
+- All comments are vendor-facing. The API returns only `Entry Type = Comment`;
+  non-comment events remain internal BC history. Function session document scoping
+  limits comment reads to the current request/proposal; the AL page's entry-type
+  filter is not a per-session ownership guard. AL validates write ownership.
 - No raw token, full link, session JWT or client secret is written to AMC tables,
   `Session.LogMessage` or Application Insights. Telemetry carries `vchTokenId`, a
   Guid, and never the token or its hash. Standard Email message bodies are the
@@ -2849,6 +2866,17 @@ comments, `LibraryPurchase` / `LibraryInventory` / `LibraryRandom` /
 | A retry after failure applies the whole proposal once and restores session flags | `Decision_RetryAfterApplyFailure_AppliesOnce` |
 | Illegal status transitions error | `Status_IllegalTransition_Fails` |
 | No permission set can delete a collaboration entry | `Log_Entry_CannotBeDeleted` |
+| The proposal timeline isolates the active proposal, clears stale rows on navigation (including an empty proposal), and is non-editable even on an editable document | `GivenProposalEntries_WhenNavigating_ThenTimelineFollowsProposal` |
+| The proposal timeline orders entries newest-first, independently of insertion order | `GivenDatedProposalEntries_WhenOpened_ThenNewestIsFirst` |
+| The all-entry list visibly exposes source, event type, date/time and correlation ID, and is non-editable even when opened for editing | `GivenEntryList_WhenOpenedForEditing_ThenFieldsAreVisibleAndReadOnly` |
+| All-entry source type and source number filters combine correctly, work independently and allow an empty result | `GivenMixedSources_WhenListIsFiltered_ThenOnlyMatchingSourcesRemain` |
+| The all-entry list filters by event type and by correlation ID | `GivenEntryTypes_WhenListIsFiltered_ThenOnlyMatchingTypeRemains` / `GivenCorrelations_WhenListIsFiltered_ThenOnlyMatchingCorrelationRemains` |
+| The all-entry date/time range includes both endpoints and excludes entries outside the range | `GivenDatedEntries_WhenListIsFiltered_ThenRangeIsInclusive` |
+
+Collaboration-page TestPage tests do not establish effective role permissions or
+the individual insert/modify/delete flags. Inspect the explicit page restrictions
+and validate administrator-only discovery/opening with a restricted user after
+publication; unrestricted TestPage access is not proof of permission exclusivity.
 
 Release/posting lock tests invoke standard codeunit entry points with realistic
 purchase data and the Receive/Invoice flags set for each scenario. Assert the
@@ -3341,7 +3369,7 @@ M3, M4, M6 and M9 each end with the ADRs listed in §15.1.
 | # | Task | Delivers | See it work | Status |
 |---|---|---|---|---|
 | 16 | **Read API** | API pages `vendorRequests` (50120), `vendorRequestLines` (50121) and `vendorAccessTokens` (50125) with a read-only `tokenHash` property in metadata, an exact hash/id scope guard, `$select` excluding the hash and the `registerAccess` bound action (§8.2); page 50125 alone elevates token M in the integration path, backed by role Rm and counter-only updates (§4.7); the Entra application registration, enabled in BC and granted `AMC Api Integration` only | Acquire an S2S token, resolve a real link's hash, then read the request and its lines. Try to list `vendorAccessTokens` without a filter and be refused. Verify direct S2S can read another authorized vendor’s request without a link, while the Function rejects that same foreign read under the original browser session; verify the BC-assigned company boundary | DONE |
-| 17 | **Write API** | `vendorProposals` (50122) with the nested `vendorProposalLines` part (50123) and the nine-step `OnInsertRecord` of §8.3; `collaborationComments` (50124); `AMC Idempotency Mgt` (50121); the error contract of §8.4 and the generated `docs/api/error-codes.md`; `docs/api/collaboration-v1.yaml` | Post the whole PO-10482 answer in one call and get `201`. Post it again with the same key and get `VCH-IDM-0000` with the original id. Break one line and confirm nothing at all was written. Try to PATCH the proposal and be refused | |
+| 17 | **Write API** | `vendorProposals` (50122) with the nested `vendorProposalLines` part (50123) and the nine-step `OnInsertRecord` of §8.3; `collaborationComments` (50124); `AMC Idempotency Mgt` (50121); the error contract of §8.4 and the generated `docs/api/error-codes.md`; `docs/api/collaboration-v1.yaml` | Post the whole PO-10482 answer in one call and get `201`. Post it again with the same key and get `VCH-IDM-0000` with the original id. Break one line and confirm nothing at all was written. Try to PATCH the proposal and be refused | DONE |
 
 ## M6 — The middle tier
 

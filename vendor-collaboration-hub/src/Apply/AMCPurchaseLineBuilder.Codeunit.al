@@ -4,6 +4,8 @@ using Microsoft.Purchases.Document;
 
 codeunit 50123 "AMC Purchase Line Builder"
 {
+  Permissions = tabledata "Purchase Line" = ri;
+
   procedure Build(OriginPurchaseLine: Record "Purchase Line"; ProposalLine: Record "AMC Vendor Proposal Line"; ItemNo: Code[20]; VariantCode: Code[10]; NewQuantity: Decimal; PromisedReceiptDate: Date; var NewPurchaseLine: Record "Purchase Line")
   var
     NextPurchaseLine: Record "Purchase Line";

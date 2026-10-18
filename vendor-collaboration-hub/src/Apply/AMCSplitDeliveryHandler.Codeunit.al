@@ -4,6 +4,11 @@ using Microsoft.Purchases.Document;
 
 codeunit 50114 "AMC Split Delivery Handler" implements "AMC IProposalLineHandler"
 {
+  Permissions = tabledata "AMC Vendor Proposal" = r,
+                tabledata "AMC Vendor Proposal Line" = r,
+                tabledata "AMC Vendor Request Line" = r,
+                tabledata "Purchase Line" = rm;
+
   procedure Validate(var ProposalLine: Record "AMC Vendor Proposal Line"; var RequestLine: Record "AMC Vendor Request Line"; var Result: Codeunit "AMC Validation Result")
   begin
   end;
