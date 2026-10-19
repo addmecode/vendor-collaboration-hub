@@ -105,7 +105,8 @@ path that applies it to purchasing data.
 **Why there is a Function between the page and the ERP.** The page is a bundle of
 static files. It cannot hold the client secret the Business Central API requires,
 and it cannot be trusted to state which vendor it is. The Function solves both: it
-holds the credential (from Key Vault, through a managed identity) and it derives
+holds the credential (from backend-only local configuration during development;
+from Key Vault through a managed identity in Azure) and it derives
 `vendorNumber` and `requestNumber` from the access token instead of accepting them
 from the browser. It also enforces the vendor-facing read scope before using its
 shared BC credential; this access control is part of the trusted middle tier,
@@ -356,7 +357,8 @@ readable on the `AMC Collab Timeline` and answerable in an audit.
 | Solution prefix | `VCH` on identifiers that belong to this solution rather than to the publisher: error codes, telemetry event ids and telemetry dimensions |
 | Data classification | Mandatory on every field. Collaboration data = `CustomerContent`, setup = `SystemMetadata` |
 | Features | `NoImplicitWith`, `TranslationFile` |
-| Secret storage | The BC client secret stays in Key Vault for the Function. AMC token data stores only the access-link hash; the standard Email module retains the full bearer link in message content (§9.7) |
+| Execution order | M6 backend and M7 frontend run and pass the local end-to-end gate against the real BC sandbox first; task 18 provisions Azure and deploys only afterwards (§14) |
+| Secret storage | Local development: backend process environment or ignored `local.settings.json`, never the Vite bundle. Azure: Key Vault for the Function. AMC token data stores only the access-link hash; the standard Email module retains the full bearer link in message content (§9.7) |
 
 **Why "PTE shape, AppSource rules":** the app will never hit AppSource, so a free
 ID range and manual deploy are fine. But the *rules* of AppSource — affixes, no
@@ -807,7 +809,6 @@ creation.
 | Actor Type | Enum `AMC Actor Type` | Buyer / Vendor / System / Integration |
 | Actor Name | Text[100] | the name the vendor gave, for vendor actions |
 | User ID | Code[50] | BC user; blank for vendor and system entries |
-| **Visible to Vendor** | Boolean | `false` = internal note or internal-only event, never returned by the API |
 | Field Name | Text[80] | filled for field-level changes recorded during apply |
 | Old Value | Text[250] | |
 | New Value | Text[250] | |
@@ -820,14 +821,24 @@ creation.
 | `Entry No.` | primary key |
 | `Source Type, Source No., Date Time` | the timeline of one document, in order |
 | `Entry Type, Date Time` | "every forced unlock this month" style queries |
-| `Source Type, Source No., Visible to Vendor` | what the API may return |
+| `Source Type, Source No., Entry Type` | comments for a scoped request or proposal |
 
-`Entry Type = Comment` carries a human remark in `Description`; every other value
-records a process event. `Visible to Vendor = false` covers both an internal buyer
-note and an event the vendor has no business seeing, and the API page filters on it
-at page level for this API endpoint. The Function additionally restricts the
-source request/proposal to the current session. The page projection and visibility
-filter are not per-link table permissions for the shared S2S identity (§4.7).
+`Entry Type = Comment` carries a human remark in `Description`. All comments are
+vendor-facing by policy; internal buyer notes are not supported. Every other entry
+type records an internal BC process event. The `collaborationComments` API page
+(50124) returns only `Entry Type = Comment`; comments and events both remain in the
+read-only BC timeline and administrator list. The Function restricts the source
+request/proposal to the current session. This external read-session boundary is
+not an AL read guard or per-link table permission for the shared S2S identity
+(§4.7). The AL comment writer separately validates token/request/vendor ownership
+for Request and Proposal sources before appending a vendor-authored comment.
+
+Focused coverage in codeunits 50132 and 50148 checks visibility-free comment/event/
+field-change wrappers, immutable mixed BC history, forced vendor comment audit
+fields and source ownership rejection (including a same-request, foreign-vendor
+proposal). Comment-only API responses and payload shape require authenticated
+published OData verification through the Function/session route; Record and
+TestPage checks do not prove that API read boundary.
 
 The page over this table is `Editable = false`, `InsertAllowed = false`,
 `ModifyAllowed = false`, `DeleteAllowed = false`. Only `AMC Collab Log` writes to
@@ -957,7 +968,7 @@ Deliberately **no** `AMC Confirmed Date` — that is `Promised Receipt Date` (§
 
 | Enum | ID | Ext. | Values |
 |---|---|---|---|
-| `AMC Request Status` | 50100 | yes | Draft, Sent, Awaiting Vendor, Vendor Responded, In Review, Closed, Cancelled |
+| `AMC Request Status` | 50100 | yes | Draft, Awaiting Vendor, Vendor Responded, In Review, Closed, Cancelled |
 | `AMC Request Line Status` | 50101 | yes | Open, Change Proposed, Partially Confirmed, Confirmed, Cancelled |
 | `AMC Proposal Status` | 50102 | yes | Draft, Submitted, In Review, Changes Requested, Approved, Rejected, Applied, Apply Failed, Withdrawn, Superseded, Expired |
 | `AMC Proposal Line Type` | 50103 | yes | Confirm, Change Quantity, Change Date, Split Delivery, Substitute Item, Cancel Remainder |
@@ -1100,6 +1111,7 @@ reachable only through the orchestrator.
 | `AMC Collab Activities` | 50109 | CardPart with cues |
 | `AMC Vendor Access Links` | 50110 | List — every link, filterable by status and vendor. The page an administrator opens to revoke everything for one vendor after a mailbox incident |
 | `AMC Vendor Access Links Part` | 50111 | ListPart on the request document — which link was sent, to whom, when it was opened, when it expires; actions *Re-send link* and *Revoke link* |
+| `AMC Collaboration Entries` | 50112 | Read-only administrator List — all entries, filterable by Source Type, Source No., Entry Type, Date Time and Correlation Id; discoverable through Tell Me, with page execution granted only by `AMC Collab Admin` |
 
 The two access-link pages are `Editable = false`, `InsertAllowed = false`,
 `DeleteAllowed = false`, and neither shows `Token Hash` — there is nothing a human can do with it, and putting it
@@ -1108,7 +1120,7 @@ the ordinary BC shape (the same table needs a standalone view and an embedded on
 what they must not become is two different column sets.
 
 API pages take `50120–50125` (§8.2) — a deliberate gap after the UI pages, so the two
-groups stay visibly separate — and pages use 18 of 50 IDs in total.
+groups stay visibly separate — and pages use 19 of 50 IDs in total.
 
 There is no separate "proposals to review" page. The cue on the role center opens
 `AMC Vendor Proposals` filtered to `Submitted`/`In Review`, which is the same
@@ -1216,16 +1228,16 @@ Permission semantics: [Microsoft Learn — Permissions property](https://learn.m
 ## 5.1 Vendor Request
 
 ```text
-Draft --(Send)--> Sent --> Awaiting Vendor
-                              |
-             (proposal submitted via API)
-                              v
-                      Vendor Responded --(buyer opens)--> In Review
-                              |                               |
-                              |                   (approve + apply)
-                              |                               v
-                              +-------------------------->  Closed
-Draft|Sent|Awaiting Vendor|Vendor Responded --(Cancel)--> Cancelled
+Draft --(Send)--> Awaiting Vendor
+                         |
+        (proposal submitted via API)
+                         v
+                 Vendor Responded --(buyer opens)--> In Review
+                         |                              |
+                         |                  (approve + apply)
+                         |                              v
+                         +--------------------------> Closed
+Draft|Awaiting Vendor|Vendor Responded|In Review --(Cancel)--> Cancelled
 ```
 
 `Draft` and `Send` are reached from one place only: the *Send to Vendor
@@ -1254,7 +1266,7 @@ lets the vendor's link resolve to one question without ambiguity, and what keeps
 two competing snapshots of the same order.
 
 `AMC Request Mgt.CreateFromOrder` enforces it: it locks the purchase header, checks
-for an existing request in `Draft`, `Sent`, `Awaiting Vendor`, `Vendor Responded` or
+for an existing request in `Draft`, `Awaiting Vendor`, `Vendor Responded` or
 `In Review`, and refuses with `VCH-REQ-0001` naming that request. The lock matters —
 the header field is a pointer, not a database constraint, and two buyers pressing
 *Send* at the same moment is exactly how one gets written twice.
@@ -2126,8 +2138,12 @@ POST .../collaborationComments
   "comment": "We can pull 400 pcs forward to 2026-09-18 if you accept partial invoicing." }
 ```
 
-`visibleToVendor` is not writable over the API — it is forced to `true` for
-vendor-authored comments.
+All comments are vendor-facing; there is no per-comment visibility choice in the
+request or response. The AL writer forces the Comment entry type and Vendor audit
+identity and validates token/request/vendor ownership for Request and Proposal
+sources. The API returns comments by `Entry Type = Comment` only; non-comment
+events remain internal BC history. The Function scopes reads to the session's
+request/proposal documents, not an AL-side read-session guard on this page.
 
 ## 8.4 Error contract
 
@@ -2303,7 +2319,7 @@ VENDOR              STATIC WEB APP        AZURE FUNCTION       BUSINESS CENTRAL
 |---|---|---|---|
 | Vendor → page | the access link | possession | in the vendor's mailbox, until it expires or is revoked |
 | Page → Function | a signed page session (JWT, 30 min) | that a valid link was presented recently | in the browser tab, in `sessionStorage` |
-| Function → BC | OAuth 2.0 client credentials, Entra app registration | application identity and its assigned BC scope; no browser/link-possession proof | in Key Vault, read through a managed identity |
+| Function → BC | OAuth 2.0 client credentials, Entra app registration | application identity and its assigned BC scope; no browser/link-possession proof | backend-only local configuration; in Azure, Key Vault read through a managed identity |
 
 The vendor never holds a Business Central credential. Business Central mints the
 raw link and sends it through the Email module; vendor-facing API calls send only
@@ -2446,20 +2462,28 @@ review, not a setting.
   `https://api.businesscentral.dynamics.com/.default`. The Entra app is registered
   in BC under *Microsoft Entra Applications*, set to **Enabled**, and granted
   **only** `AMC Api Integration` (§4.7).
-- **Secrets:** client secret and session signing key in Key Vault, read through the
-  Function App's system-assigned managed identity. Nothing in app settings, nothing
-  in the repository. V2 replaces the secret with workload identity federation.
+- **Secrets:** in Azure, client secret and session signing secret in Key Vault,
+  read through the Function App's system-assigned managed identity; app settings
+  contain identifiers, not these secret values. Locally, use backend-only process
+  environment or ignored `local.settings.json` (§13.1.2), with a sandbox credential
+  and a separate development signing secret. Neither reaches the repository or
+  browser bundle. Managed identity is not available to the local Functions host;
+  Key Vault is not a prerequisite for M6/M7. V2 replaces the BC client secret with
+  workload identity federation.
 - **Token cache:** the BC token is cached in the Function instance until ~5 minutes
   before expiry; one silent re-acquire on a `401`, then fail.
-- **Page session:** a JWT signed HS256 with the Key Vault key, claims `jti`,
+- **Page session:** a JWT signed HS256 with the configured signing secret (a Key
+  Vault secret in Azure, not an asymmetric Key Vault Keys signing operation), claims `jti`,
   `sub` = access token id, `req`, `ven`, `cmp`, `exp` (30 minutes). It never
   contains the raw link, and it is not accepted for any request other than the one
   in its claims. Nothing in it binds to a hostname, so moving the page to a custom
   domain changes no token, no claim and no validation.
 - **Rate limiting:** `/api/session` is the only anonymous endpoint and therefore the
   only brute-force surface. A fixed-window counter per client IP and per token-hash
-  prefix, kept in Table Storage, returns `429` past the threshold. Failures are
-  logged with the IP hashed, never in clear.
+  prefix, kept in Table Storage (Azurite locally, Azure Storage after deployment),
+  returns `429` past the threshold. Use the same counter/atomic-update behavior in
+  both profiles, not a disabled or process-memory-only limiter for local acceptance.
+  Failures are logged with the IP hashed, never in clear.
 - **No business rules.** The Function never decides whether a proposal is legal,
   never computes a quantity, and never edits a payload beyond attaching identity
   fields it derived from the session. The moment it starts to, that logic belongs
@@ -2481,7 +2505,8 @@ controls — is what ADR-010 and ADR-013 should record.
 ## 9.4 The page
 
 `staticwebapp.config.json` carries the part of the security model that lives in the
-browser:
+browser after Azure deployment. Vite does not apply that file automatically;
+local header/fallback checks use the setup in §13.1.2:
 
 - `Referrer-Policy: no-referrer`, so the token in the initial URL cannot leak to
   any third-party host through a `Referer` header,
@@ -2558,7 +2583,10 @@ mean a vendor waiting on someone who has no idea they are waiting.
   their values have to stay, or the trail stops being one.
 - The address a link was sent to is stored on the token, because a buyer must be
   able to see where it went. It is not exposed by any API entity the vendor reads.
-- Vendor comments marked `Visible to Vendor = false` are excluded at API page level.
+- All comments are vendor-facing. The API returns only `Entry Type = Comment`;
+  non-comment events remain internal BC history. Function session document scoping
+  limits comment reads to the current request/proposal; the AL page's entry-type
+  filter is not a per-session ownership guard. AL validates write ownership.
 - No raw token, full link, session JWT or client secret is written to AMC tables,
   `Session.LogMessage` or Application Insights. Telemetry carries `vchTokenId`, a
   Guid, and never the token or its hash. Standard Email message bodies are the
@@ -2783,7 +2811,7 @@ comments, `LibraryPurchase` / `LibraryInventory` / `LibraryRandom` /
 | Rule | Test |
 |---|---|
 | A vendor request snapshots the PO lines as sent | `Request_Create_CopiesLineSnapshot` |
-| A sent request cannot be edited | `Request_Sent_IsNotEditable` |
+| An active request snapshot cannot be edited | `Request_Active_SnapshotIsNotEditable` |
 | A second request cannot be created while one is active | `Request_SecondWhileActive_Fails` |
 | Cancelling a request clears the pointer, revokes the token and supersedes open proposals | `Request_Cancel_ReleasesOrderForNewRequest` |
 | A closed request leaves the order free for a new one | `Request_Closed_AllowsNewRequest` |
@@ -2849,6 +2877,17 @@ comments, `LibraryPurchase` / `LibraryInventory` / `LibraryRandom` /
 | A retry after failure applies the whole proposal once and restores session flags | `Decision_RetryAfterApplyFailure_AppliesOnce` |
 | Illegal status transitions error | `Status_IllegalTransition_Fails` |
 | No permission set can delete a collaboration entry | `Log_Entry_CannotBeDeleted` |
+| The proposal timeline isolates the active proposal, clears stale rows on navigation (including an empty proposal), and is non-editable even on an editable document | `GivenProposalEntries_WhenNavigating_ThenTimelineFollowsProposal` |
+| The proposal timeline orders entries newest-first, independently of insertion order | `GivenDatedProposalEntries_WhenOpened_ThenNewestIsFirst` |
+| The all-entry list visibly exposes source, event type, date/time and correlation ID, and is non-editable even when opened for editing | `GivenEntryList_WhenOpenedForEditing_ThenFieldsAreVisibleAndReadOnly` |
+| All-entry source type and source number filters combine correctly, work independently and allow an empty result | `GivenMixedSources_WhenListIsFiltered_ThenOnlyMatchingSourcesRemain` |
+| The all-entry list filters by event type and by correlation ID | `GivenEntryTypes_WhenListIsFiltered_ThenOnlyMatchingTypeRemains` / `GivenCorrelations_WhenListIsFiltered_ThenOnlyMatchingCorrelationRemains` |
+| The all-entry date/time range includes both endpoints and excludes entries outside the range | `GivenDatedEntries_WhenListIsFiltered_ThenRangeIsInclusive` |
+
+Collaboration-page TestPage tests do not establish effective role permissions or
+the individual insert/modify/delete flags. Inspect the explicit page restrictions
+and validate administrator-only discovery/opening with a restricted user after
+publication; unrestricted TestPage access is not proof of permission exclusivity.
 
 Release/posting lock tests invoke standard codeunit entry points with realistic
 purchase data and the Receive/Invoice flags set for each scenario. Assert the
@@ -2917,6 +2956,30 @@ does not prove Email confidentiality. Provider/mailbox/archive/backup retention 
 an operational control, not an AL unit-test guarantee. Deliverability itself
 (SPF, DKIM, DMARC) is verified once per environment, not in a test.
 
+## 11.4 Local acceptance vs Azure deployment verification
+
+**Local acceptance is a real integration, not an offline demo.** Run the browser
+and Functions host on localhost, Azurite on loopback, and the published M5 APIs in
+the actual BC SaaS sandbox. Unit tests may use doubles for controlled failures;
+the end-to-end gate must not substitute mocked BC responses for real writes.
+
+| Area | Required locally before task 18 | Required again / only after Azure deployment |
+|---|---|---|
+| Full vendor flow | Open a link delivered to the test mailbox → exchange for a session → read the request/lines → submit one complete proposal → send a comment on that request or its proposal. Confirm proposal and vendor-authored comment in BC; the purchase order is unchanged | Repeat the same flow using the SWA HTTPS origin and `/api`, with the deployed BC company/identity |
+| Authentication and isolation | Missing, expired or tampered JWT is refused by backend code; expired/revoked/unknown links follow §8.4/§9.5. Two-vendor tests from §11.3 cover request, lines, proposal and comment sources; company/query injection cannot widen scope | Repeat through SWA; verify App Service linked-backend authentication and that the direct Function hostname cannot bypass intended ingress restrictions or application authorization |
+| Writes and failures | Identity fields are derived by the backend; duplicate submit/retry produces one proposal; invalid nested line rolls back the whole write and maps to the row error; foreign comment source is refused. Controlled tests cover paging, `401`, `429`/`Retry-After`, timeouts and `5xx` | Smoke-test real auth and writes; verify deployed retry/configuration and storage permissions, without deliberately flooding BC |
+| Session and secrets | Shared AL/C# digest vector passes; session expires after 30 minutes; no BC access token, client secret, signing secret or link hash in browser responses/bundle/storage. The browser holds only its scoped page JWT and its own draft, and temporarily handles the raw link during exchange | Managed identity reads only required Key Vault secrets; rotation/restart behavior works; no local credential fallback; inspect deployed assets and diagnostics for leaks |
+| Browser behavior | Relative `/api` calls via Vite proxy; `/r/<token>` deep-link/refresh works, token removed from URL/history, draft recovery and comment submission work. Check `no-referrer`, `no-store` and local security headers; use responsive browser emulation | Verify actual SWA routing, CSP and other §9.4 headers, TLS/certificate, custom domain/DNS if configured, cache behavior and real mobile/mail-client navigation |
+| Rate limiting | Real Table-backed limiter returns `429` against Azurite, including concurrent counter updates; storage outage follows a defined fail-closed path | Verify Azure Table authorization, counter concurrency across Function instances, trusted client-IP derivation through SWA and scale behavior; Azurite Table support is preview and not cloud parity proof |
+| Diagnostics | Sanitized console/test output carries correlation ids; BC business timeline is authoritative. Inspect browser, proxy, host and test logs for raw links/tokens; do not save secret-bearing HAR files | Task 18 verifies baseline AL/Function ingestion, correlation and redaction at actual cloud ingress/sinks. Task 23 completes schema normalization, retention, dashboards and alerts (§10); these are not local-gate prerequisites |
+
+Record the local run's commit, tool versions, sandbox/company, request/proposal
+numbers and pass/fail results, **without credentials, raw links or JWTs**. All local
+checks must pass before task 18 starts. Local completion does not imply that
+managed identity, Key Vault RBAC, Azure networking, TLS, scaling, OIDC deployment or
+cloud telemetry have been verified; those require task-18 acceptance evidence,
+with the full observability work completed separately in task 23.
+
 ---
 
 # 12. CI/CD and repository
@@ -2934,8 +2997,8 @@ signing and environment deployment, and it is what BC teams actually use.
   CreateRelease
   IncrementVersionNumber
   Current / NextMinor / NextMajor   scheduled compatibility builds
-  vendor-web.yaml        page + Function: build, test, deploy to Static Web Apps
-  infra.yaml             Bicep: what-if on PR, deploy on main
+  vendor-web.yaml        M6/M7: page + Function build/test only; task 18 adds deployment
+  infra.yaml             task 18 only: Bicep what-if + gated resource deployment
 ```
 
 AL-Go owns the Business Central app; the Azure side is a separate, ordinary
@@ -2944,17 +3007,19 @@ different deployment targets. They share only the OpenAPI contract in `docs/api/
 which is the correct amount of coupling.
 
 Repository secrets: `AuthContext` (S2S credentials for the BC sandbox deployment).
-Azure deployments authenticate through an Entra workload-identity federation to
-GitHub OIDC, so there is no Azure secret in the repository at all — which is worth
-doing here precisely because it is the same mechanism V2 applies to the Function's
-own BC credential.
+M6/M7 build and unit-test jobs require no Azure hosting resources or deployment
+credentials. Sandbox HTTP tests are a separate opt-in, protected job using sandbox
+credentials; they never run with secrets on untrusted fork PRs.
 
-Branch policy: `main` protected; work on `feature/<short-name>`; PR requires a green
-build + test run and one review (self-review with a written checklist is acceptable
-for a solo project — the point is the habit and the PR description).
+After the local gate, task 18 adds protected deployment jobs and GitHub OIDC
+federation for Azure resource/Function deployment, not a stored Azure client secret.
+Deploy the linked Function App separately from the static assets; SWA uses
+`api_location: ""`, not managed API deployment. Verify the selected SWA action's
+authentication requirements separately: an SWA deployment token, if required, is
+fetched/masked at runtime or held in protected secrets, never committed. OIDC login
+to Azure alone is not proof that the SWA upload is authenticated. No cloud deploy
+job runs before the §11.4 local acceptance evidence and explicit environment approval.
 
-Commit convention: Conventional Commits (`feat:`, `fix:`, `test:`, `docs:`,
-`refactor:`, `chore:`).
 
 ## 12.2 Analyzers
 
@@ -2983,8 +3048,8 @@ vendor-collaboration-hub/
   bc/
     vendor-collaboration-hub/  test/
   vendor-portal/
-    web/   React + TypeScript, deployed to Azure Static Web Apps
-    api/   Azure Functions, .NET 9 isolated
+    web/   React + TypeScript + Vite; localhost first, later Azure Static Web Apps
+    api/   Azure Functions, .NET 10 LTS isolated; local Functions host first
   azure/
     infrastructure/  Bicep: SWA, Function App, Key Vault, storage, App Insights
   power-platform/
@@ -3007,7 +3072,12 @@ migration requires it.
 
 # 13. Vendor front end (V1)
 
-Two deployables behind one origin:
+Two deployables, first run locally (§13.1.1–§13.1.2), then hosted in Azure only
+after the §11.4 local gate. The responsibility boundary is identical in both:
+the browser talks to the backend, and the backend alone owns session issuance,
+authorization, credentials and communication with BC. AL owns ERP business rules.
+
+Target Azure topology (task 18, not a prerequisite for M6/M7):
 
 ```text
                   https://vendorhub.example.com
@@ -3027,28 +3097,37 @@ Two deployables behind one origin:
                               Business Central API
 ```
 
-## 13.1 Hosting
+## 13.1 Hosting — local first, Azure afterwards
 
 **Azure Static Web Apps, Standard tier, with a linked ("bring your own") Function
 App.**
 
 Why Static Web Apps: the vendor front end is static files plus an API, which is the
 exact shape this service is built for. It provides a global CDN, free managed TLS, a
-custom domain, per-PR preview environments, `staticwebapp.config.json` for routing
-and headers (§9.4), and a GitHub Action that deploys the page and the API together.
+custom domain and `staticwebapp.config.json` for routing and headers (§9.4).
+Static assets and the linked Function App have separate deployment steps (§12.1).
+SWA PR previews do **not** support linked backends: they are not full-stack
+acceptance environments. Use localhost for M6/M7 and a separately provisioned,
+supported cloud test environment after task 18 if cloud staging is needed.
 
 Why a *linked* Function App rather than the managed API that Static Web Apps can
 host for you: the managed option cannot use a managed identity, and the entire
 secret story of §9.3 depends on one. Linking a Function App keeps `/api/*` on the
 same origin — so there is no CORS and no cross-site cookie problem — while giving
 the Function its own identity, Key Vault access, scaling behaviour and Application
-Insights. The Free tier with a managed API is fine for a first spike; it is not
-where this design ends.
+Insights. A cloud spike on the Free tier/managed API is not part of the local-first
+plan and is not a substitute for the target linked-backend deployment.
 
 Everything is described in Bicep under `azure/infrastructure/`: Static Web App,
-Function App on a consumption plan, storage account, Key Vault with access granted
+Function App on a plan/OS supporting the selected .NET runtime and SWA linkage,
+storage account, Key Vault with access granted
 to the Function's managed identity, and the Application Insights resource shared
 with Business Central (§10).
+
+Provision these resources only in task 18. In particular, .NET 10 is not supported
+on **Linux Consumption**; choose a supported combination (for example Windows
+Consumption) and verify current region/plan/linking constraints before Bicep is
+finalized. Hosting-plan compatibility is not established by a successful local run.
 
 **Nothing in the application knows its own hostname.** A custom domain is a Static
 Web Apps setting and a DNS record, and that is the whole of it: the page calls
@@ -3062,6 +3141,106 @@ The one thing a later change cannot reach is links already delivered. A token mi
 under one host is in a vendor's mailbox pointing at that host, so a domain change
 after real links have gone out needs the old host left resolving, or those vendors
 need a re-send (§9.2).
+
+### 13.1.1 Local prerequisites and Azure dependencies
+
+```text
+Browser: http://localhost:5173/r/<token>
+  -> Vite serves React; relative /api/* proxied without path rewriting
+  -> Azure Functions Core Tools: http://localhost:7071/api/*
+       -> Entra client credentials -> real BC SaaS sandbox custom APIs (HTTPS)
+       -> Azurite Table endpoint on loopback (rate-limit counters)
+```
+
+No incoming connection from BC to localhost is needed: BC sends the e-mail, the
+tester's browser opens the local page, and the backend makes outbound HTTPS calls.
+`localhost` in that e-mail means the **machine opening the link**, not the BC server.
+Use a test mailbox on the development machine; do not send localhost links to real
+vendors. A phone cannot reach the developer's localhost: use browser device
+emulation for the local gate and a real phone for the post-deployment check.
+
+| Dependency | Local M6/M7 requirement | Azure dependency / deferred control |
+|---|---|---|
+| Backend toolchain | .NET 10 LTS SDK, compatible isolated-worker packages, GA Azure Functions Core Tools v4; pin SDK/packages/tool versions and confirm host discovers all HTTP endpoints | Same supported runtime in Function App; verify plan/OS support in task 18 |
+| Frontend toolchain | Supported Node.js LTS + npm meeting the pinned Vite version's requirements; lockfile and Vite dev server | SWA Standard only when deploying; Azure CLI/Bicep and deployment OIDC are not local prerequisites |
+| BC and Entra | Published M5 extension/APIs in a real sandbox, enabled setup, number series and test orders/vendors; Entra app with application `API.ReadWrite.All` + admin consent, short-lived sandbox credential, enabled in BC with company-scoped `AMC Api Integration` | These remain real cloud dependencies even while code runs locally; no mock BC or mock Entra for acceptance. No new Azure hosting subscription resources are required locally |
+| Runtime permissions | Follow [the existing sandbox S2S setup](entra-s2s-postman-setup.md), including its narrowly scoped `AMC_API_RUNTIME` Execute-only dependency if required by the current sandbox; verify effective permissions, never add broad roles to make a test pass | Recheck the target sandbox's runtime dependencies and assigned company after deployment |
+| Storage | Run Azurite Blob/Queue/Table services (default ports 10000/10001/10002), `UseDevelopmentStorage=true` for host and the Table client; keep emulator state outside tracked files | Azure Storage account, identity/access configuration and distributed-counter tests in task 18. HTTP-only functions can sometimes omit host storage, but this design needs Table Storage for the limiter regardless |
+| Secrets and identity | Backend-only local configuration; no managed identity or Key Vault required | Key Vault + system-assigned managed identity and secret-read RBAC in task 18. Optional developer access to an existing dev vault uses the developer's identity, not the Function App's managed identity, and does not satisfy cloud acceptance |
+| Telemetry and delivery | Sanitized console/test logging; existing BC Email account/scenario and controlled mailbox for a genuine link | No new App Insights resource, Power Automate flow or Teams dependency for the local vendor flow; cloud ingestion/dashboard/alerts and Power Platform checks follow later |
+
+### 13.1.2 Local configuration and startup contract
+
+These are the configuration requirements to implement in tasks 19–22, not files
+or scripts already supplied by this document. Keep the same endpoints, DTOs, JWT
+validation and authorization code across profiles; only service configuration changes.
+
+Backend configuration (flat string values in `local.settings.json.Values`, or
+backend process environment; commit only a placeholder-only example file):
+
+| Setting | Local value / purpose | Azure value / source |
+|---|---|---|
+| `FUNCTIONS_WORKER_RUNTIME` | `dotnet-isolated` | Same worker model |
+| `AZURE_FUNCTIONS_ENVIRONMENT` | `Development` | `Production`; reject local-only secret/storage modes |
+| `AzureWebJobsStorage` | `UseDevelopmentStorage=true` | Real host storage configuration for the selected plan |
+| `RateLimitStorageConnection` | `UseDevelopmentStorage=true` for a real Azurite-backed Table client | Real Azure Table client configuration/access, not emulator or in-memory fallback |
+| `BcTenantId`, `BcEnvironment`, `BcClientId`, `companyId` | Actual sandbox tenant, environment name, application id and one company GUID; fixed backend configuration | Target environment/company and application, explicitly set per deployment |
+| `BcScope` | `https://api.businesscentral.dynamics.com/.default` | Same scope |
+| `SecretSource` | Explicit local configuration mode, allowed only in Development | Key Vault mode; startup fails if vault/identity/secrets are unavailable |
+| `BcClientSecret`, `SessionSigningSecret` | Backend-only sandbox client secret and independent cryptographically random HS256 secret of at least 32 bytes; no shared production keys | Retrieved from Key Vault by the backend; local secret values are not uploaded |
+| `KeyVaultUri`, `BcClientSecretName`, `SessionSigningSecretName` | Not needed in local mode | Vault URI and names of the two secrets, not their values |
+| `APPLICATIONINSIGHTS_CONNECTION_STRING` | Not required; use sanitized local output | Shared App Insights resource (§10) |
+
+`host.json` retains the `/api` route prefix. Run the host with
+`func start --port 7071` from `vendor-portal/api/` after dependencies restore/build. Functions host
+access keys are **not** vendor authentication: local Core Tools normally skips
+key enforcement, and every protected endpoint must still validate the page JWT in
+backend code. Never put a Function access key in the frontend. The Azure linked
+ingress policy is a separate control from these application-level checks.
+
+In `vendor-portal/web/`, configure Vite for `host: 'localhost'`, `port: 5173`,
+`strictPort: true` and `server.proxy: { '/api': 'http://localhost:7071' }`, preserving
+the `/api` prefix. Run `npm ci`, then `npm run dev` in that directory. The proxy
+target is dev-server configuration, **not** a BC proxy or an API origin compiled
+into the browser. The browser always calls relative `/api/...`; no wildcard CORS
+is needed. If direct cross-origin debugging is used, allow only the exact local
+frontend origin in the Functions host, never `*`, and still enforce JWT authorization.
+
+Set BC **Portal Base URL** to `http://localhost:5173` (no trailing slash) in the
+test company, and issue/re-send a fresh test link. Loopback HTTP is a development
+exception only; all outbound BC/Entra traffic and the eventual public portal use
+HTTPS. If local HTTPS is chosen instead, configure a trusted development certificate
+and use that same scheme/origin consistently in BC and the dev server.
+
+Start Azurite, then the Functions host, then Vite, each in its own terminal. Verify
+session/request/proposal/comment calls against port 7071 before opening the full
+link on port 5173. Serve the §9.4 headers locally using Vite headers/middleware
+(`no-referrer` and `no-store` on link pages); keep any HMR-only CSP relaxation
+development-only. Optionally use SWA CLI to check the built static assets with
+`staticwebapp.config.json` and the running local API. SWA CLI emulation needs no
+deployed SWA resource and does not replace backend authorization or prove cloud
+header/ingress behavior. If using its default port 4280, change BC's base URL and
+re-send test links rather than mixing origins.
+
+Exclude `local.settings.json`, credential-bearing environment files, development
+certificates/private keys, Azurite data and secret-bearing test artifacts from Git.
+Use process environment if those exclusions are not yet in place. No secret may
+use a `VITE_*` variable or live under the web project's source/public folders;
+inspect the built bundle and browser network traffic. Disable/redact raw `/r/*`
+URL logging and session request bodies in local servers/proxies as well as cloud
+diagnostics. On migration to Azure, set the public HTTPS Portal Base URL and
+re-send links: existing localhost links do not redirect themselves to the cloud.
+
+### 13.1.3 Research sources and limits (checked 2026-10-18)
+
+- [Functions local development](https://learn.microsoft.com/en-us/azure/azure-functions/functions-develop-local): local host, local-only settings, CORS and storage requirements; Core Tools v4 is GA, CLI v5 is preview.
+- [.NET isolated-worker support](https://learn.microsoft.com/en-us/azure/azure-functions/dotnet-isolated-process-guide): .NET 10 support and Linux Consumption exclusion; pin compatible worker/tool versions when creating M6.
+- [BC S2S authentication](https://learn.microsoft.com/en-us/dynamics365/business-central/dev-itpro/administration/automation-apis-using-s2s-authentication): Entra application credentials, consent and separate BC permissions; client credentials does not require a localhost OAuth callback.
+- [Azurite services and differences](https://learn.microsoft.com/en-us/azure/storage/common/storage-use-azurite): local Blob/Queue/Table support; Tables remain preview and do not establish Azure scale/concurrency parity.
+- [Vite server options](https://vite.dev/config/server-options) and [SWA local development](https://learn.microsoft.com/en-us/azure/static-web-apps/local-development): local proxy, fixed ports and optional routing emulator.
+- [Key Vault developer guidance](https://learn.microsoft.com/en-us/azure/key-vault/general/developers-guide): developer credentials for optional local vault access vs managed identity after deployment.
+- [Bring your own Functions backend](https://learn.microsoft.com/en-us/azure/static-web-apps/functions-bring-your-own): SWA Standard, retained `/api` prefix, separate Function deployment, linked-ingress authentication and no linked-backend support in PR environments.
+- [SWA build/deployment configuration](https://learn.microsoft.com/en-us/azure/static-web-apps/build-configuration): upload authentication and `api_location`; do not assume Azure OIDC login replaces every SWA deployment-token requirement.
 
 ## 13.2 The page
 
@@ -3084,6 +3263,7 @@ vendor-portal/web/src/
     RequestLine.tsx       one requested line and the answer under it
     SplitEditor.tsx       quantity/date rows for one request line
     SubstituteEditor.tsx  substitute picker, limited to what the request offers
+    CommentForm.tsx       scoped request/proposal comment -> POST /api/comment
   lib/
     api.ts          typed client, generated from docs/api/vendor-api-v1.yaml
     session.ts      the page session, in sessionStorage
@@ -3108,7 +3288,8 @@ Rules the page must follow:
   the URL — it comes from the session.
 - A validation failure is shown against the row it belongs to, using the
   `[line s/r]` marker the Function parsed out, never as a raw BC message.
-- Nothing is editable except the answer: the request itself is read-only.
+- Only the answer and new comment text are editable: the request itself and
+  submitted proposals/comments are read-only.
 - The language comes from the session claim, never from `Accept-Language` or a
   browser setting (§13.4).
 - Every call is relative — `/api/…`, never an absolute origin, and never an origin
@@ -3117,7 +3298,10 @@ Rules the page must follow:
 
 ## 13.3 Vendor API (Azure Functions)
 
-**.NET 9 isolated worker, C#.** A typed Business Central client, first-class retry
+**.NET 10 LTS isolated worker, C#, Functions runtime 4.x.** Use the same target
+locally and in Azure, with SDK/worker packages pinned to a compatible supported
+set; this replaces the earlier .NET 9 baseline for new M6 work. A typed Business
+Central client, first-class retry
 through Polly, and the Azure SDK and MSAL libraries the token acquisition and Key
 Vault access depend on. TypeScript everywhere is the alternative, if one language
 across the repository matters more than any of that.
@@ -3139,8 +3323,8 @@ vendor-portal/api/src/
     BcErrorMapper.cs    VCH-xxx-nnnn -> LINK- / FORM- / BUSY- (§8.4)
   Access/
     TokenHasher.cs      SHA-256, uppercase hex, matching the AL side exactly
-    SessionIssuer.cs    JWT sign and verify against the Key Vault key
-    RateLimiter.cs      fixed window per IP and token-hash prefix, in Table Storage
+    SessionIssuer.cs    JWT sign/verify; local signing secret, Key Vault in Azure
+    RateLimiter.cs      Table-backed fixed window; Azurite locally, Azure later
   Models/               generated from docs/api/collaboration-v1.yaml
 vendor-portal/api/test/ unit tests + integration tests against a sandbox
 ```
@@ -3266,10 +3450,14 @@ still empty is the thing to chase (§4.6).
 
 # 14. Delivery plan
 
-Twenty-eight tasks in dependency order, grouped into milestones. Each task is one
-pull request: small enough to review in a sitting, large enough to be worth
-reviewing, and finished only when there is something to look at in Business Central
-rather than only a green test run.
+Twenty-eight tasks, grouped into milestones. Task numbers are stable identifiers,
+not execution order: **task 18 is deliberately moved after tasks 19–22 and the
+local end-to-end gate**. Each task is one pull request: small enough to review in a
+sitting, large enough to be worth reviewing, and finished only when its stated
+acceptance evidence exists rather than only a green test run.
+
+The **Status** column records completion as `DONE`; an empty cell represents an
+unfinished task.
 
 Two obligations every task carries, which the tables below do not repeat:
 
@@ -3281,11 +3469,29 @@ Two obligations every task carries, which the tables below do not repeat:
   which rules must end up covered.
 
 M4 comes deliberately before M5, and M5 before M6: the link and its lifecycle are a
-Business Central concern, and settling them inside BC — with tests, before any Azure
-resource exists — keeps the security model from being shaped by whatever the hosting
-happened to make convenient.
+Business Central concern. Settling them inside BC with tests before provisioning
+portal hosting keeps the security model independent of hosting convenience. The
+BC SaaS sandbox and Entra registration already exist; this does not mean that local
+development is offline or has no cloud identity dependency.
 
-M3, M4, M6 and M9 each end with the ADRs listed in §15.1.
+Required order for the portal:
+
+```text
+M5 (16–17, real sandbox APIs + Entra S2S)
+  -> M6 local backend (19–20, Core Tools + Azurite, curl/HTTP tests)
+  -> M7 local frontend (21–22, localhost + relative /api proxy)
+  -> LOCAL GATE: supplier link -> request read -> proposal submit -> comment (§11.4)
+  -> M7a Azure deployment (18, Bicep + secrets/identity + deploy + cloud checks)
+  -> M8–M10
+```
+
+No SWA, Function App, Key Vault, Azure Storage or new Application Insights resource
+is provisioned for M6/M7. Backend/frontend build and test CI may be added then;
+infrastructure/deploy jobs wait for task 18. Local acceptance and cloud acceptance
+are separate records (§11.4); neither is claimed by passing only the other.
+
+M3, M4, M6 (with the hosting part completed in M7a) and M9 each end with the ADRs
+listed in §15.1.
 
 ## M0 — Foundation
 
@@ -3293,7 +3499,7 @@ M3, M4, M6 and M9 each end with the ADRs listed in §15.1.
 
 | # | Task | Delivers | See it work | Status |
 |---|---|---|---|---|
-| 1 | **Repo and pipeline** | AL-Go PTE template; `bc/vendor-collaboration-hub` and `bc/test` projects with the `app.json` of §2.1 (`idRanges` 50100–50129 and 50130–50149); CodeCop / UICop / PerTenantExtensionCop / AppSourceCop with `mandatoryAffixes: ["AMC"]` and the ruleset that promotes missing `DataClassification` and captions to errors; warnings fail the build; the workflows of §12.1 | A push turns CI green, and both extensions appear in *Extension Management* in the sandbox at 1.0.0.0 | DONE |
+| 1 | **Repo and pipeline** | AL-Go PTE template; `bc/vendor-collaboration-hub` and `bc/test` projects with the `app.json` of §2.1 (`idRanges` 50100–50129 and 50130–50149); CodeCop / UICop / PerTenantExtensionCop / AppSourceCop with `mandatoryAffixes: ["AMC"]` and the ruleset that promotes missing `DataClassification` and captions to errors; warnings fail the build; AL workflows of §12.1 (portal build/test comes with M6/M7, Azure deployment with task 18) | A push turns CI green, and both extensions appear in *Extension Management* in the sandbox at 1.0.0.0 | DONE |
 | 2 | **Setup, Assisted Setup, permissions** | `AMC Collaboration Setup` (50100) with every field of §4.2 and `GetSetup` on the table; setup Card page (50100); editable `AMC Assisted Setup` NavigatePage (50101), registered by `AMC Install` (50109), which holds number-series selections in page variables and creates the singleton record only on **Finish**; the four permission sets (50100–50103), including the administrator's number-series lookup access | Install into a clean company, run *Set Up Vendor Collaboration*, select two existing number series, and finish. Confirm that cancelling creates neither a persistent setup record nor a number series, and that the setup card then shows the selected series and defaults | DONE |
 
 ## M1 — The question
@@ -3335,7 +3541,7 @@ M3, M4, M6 and M9 each end with the ADRs listed in §15.1.
 |---|---|---|---|---|
 | 13 | **Access token** | `AMC Vendor Access Token` (50106) and `AMC Access Token Status` (50107); `AMC Access Token Mgt` (50117) with `Issue`, `Assert`, `RegisterAccess`, `Revoke`, `Supersede` and `Expire`, storing only the SHA-256 hash (§9.2); no blanket token-write elevation on the shared codeunit (§4.7); pages 50109 and 50110 | Issue and send a token from a test: confirm no generated raw value/full link appears in AMC application tables, while the standard Email body contains the expected link (§9.7). Revoke it and watch the status change and the timeline record it. Assert a token against the wrong request and get `VCH-AUT-0004` | DONE |
 | 14 | **The e-mail** | `AMC Vendor Email Builder` (50119), pure, returning subject, HTML and plain text; `AMC Vendor Notification` (50118) resolving the recipient and sending through the Email module; `AMC Email Scenario Ext` (50100); the language rules and the `GlobalLanguage` restore of §13.4 | Configure an e-mail account, map the scenario, and send yourself the message for VCR-000148. Check it renders in a real client, that the plain-text alternative carries the same link, and that a vendor with a language code gets that language | DONE |
-| 15 | **Send, re-send, revoke, expire** | `Send` moving `Draft → Sent → Awaiting Vendor`, minting the token and handing over the e-mail in one transaction (§5.1); *Re-send link* and *Revoke link* actions; the `VCH-REQ-0002` and `VCH-REQ-0003` guards; `AMC Token Expiry Job` (50124) and the setup action that schedules it | Press *Send* on PO-10482 and receive the e-mail. Press *Re-send* and confirm the first link's token is `Superseded`. Set `Link Validity Days` below the vendor's response days and be refused. Run the job against a back-dated token and watch it flip to `Expired` | DONE |
+| 15 | **Send, re-send, revoke, expire** | `Send` moving directly `Draft → Awaiting Vendor` after successful e-mail handoff, minting the token and handing over the e-mail in one transaction (§5.1); *Re-send link* and *Revoke link* actions; the `VCH-REQ-0002` and `VCH-REQ-0003` guards; `AMC Token Expiry Job` (50124) and the setup action that schedules it | Press *Send* on PO-10482 and receive the e-mail; confirm the request and purchase order collaboration status are `Awaiting Vendor`. Press *Re-send* and confirm the first link's token is `Superseded`. Set `Link Validity Days` below the vendor's response days and be refused. Run the job against a back-dated token and watch it flip to `Expired` | DONE |
 
 ## M5 — The contract
 
@@ -3343,27 +3549,39 @@ M3, M4, M6 and M9 each end with the ADRs listed in §15.1.
 
 | # | Task | Delivers | See it work | Status |
 |---|---|---|---|---|
-| 16 | **Read API** | API pages `vendorRequests` (50120), `vendorRequestLines` (50121) and `vendorAccessTokens` (50125) with a read-only `tokenHash` property in metadata, an exact hash/id scope guard, `$select` excluding the hash and the `registerAccess` bound action (§8.2); page 50125 alone elevates token M in the integration path, backed by role Rm and counter-only updates (§4.7); the Entra application registration, enabled in BC and granted `AMC Api Integration` only | Acquire an S2S token, resolve a real link's hash, then read the request and its lines. Try to list `vendorAccessTokens` without a filter and be refused. Verify direct S2S can read another authorized vendor’s request without a link, while the Function rejects that same foreign read under the original browser session; verify the BC-assigned company boundary | |
-| 17 | **Write API** | `vendorProposals` (50122) with the nested `vendorProposalLines` part (50123) and the nine-step `OnInsertRecord` of §8.3; `collaborationComments` (50124); `AMC Idempotency Mgt` (50121); the error contract of §8.4 and the generated `docs/api/error-codes.md`; `docs/api/collaboration-v1.yaml` | Post the whole PO-10482 answer in one call and get `201`. Post it again with the same key and get `VCH-IDM-0000` with the original id. Break one line and confirm nothing at all was written. Try to PATCH the proposal and be refused | |
+| 16 | **Read API** | API pages `vendorRequests` (50120), `vendorRequestLines` (50121) and `vendorAccessTokens` (50125) with a read-only `tokenHash` property in metadata, an exact hash/id scope guard, `$select` excluding the hash and the `registerAccess` bound action (§8.2); page 50125 alone elevates token M in the integration path, backed by role Rm and counter-only updates (§4.7); the Entra application registration, enabled in BC and granted `AMC Api Integration` only | Acquire an S2S token, resolve a real link's hash, then read the request and its lines. Try to list `vendorAccessTokens` without a filter and be refused. Verify direct S2S can read another authorized vendor’s request without a link, while the Function rejects that same foreign read under the original browser session; verify the BC-assigned company boundary | DONE |
+| 17 | **Write API** | `vendorProposals` (50122) with the nested `vendorProposalLines` part (50123) and the nine-step `OnInsertRecord` of §8.3; `collaborationComments` (50124); `AMC Idempotency Mgt` (50121); the error contract of §8.4 and the generated `docs/api/error-codes.md`; `docs/api/collaboration-v1.yaml` | Post the whole PO-10482 answer in one call and get `201`. Post it again with the same key and get `VCH-IDM-0000` with the original id. Break one line and confirm nothing at all was written. Try to PATCH the proposal and be refused | DONE |
 
-## M6 — The middle tier
+## M6 — The middle tier, locally
 
-*The flow runs from `curl`, starting from nothing but a link.*
-
-| # | Task | Delivers | See it work | Status |
-|---|---|---|---|---|
-| 18 | **Azure infrastructure** | Bicep under `azure/infrastructure/` for the Static Web App, the linked Function App, storage, Key Vault and the shared Application Insights (§13.1); GitHub OIDC federation so no Azure secret lives in the repo; the `infra.yaml` and `vendor-web.yaml` workflows | A workflow run provisions the resources, and a health endpoint answers on the Static Web App's own origin under `/api` | |
-| 19 | **Session and request** | `TokenHasher` matching the AL digest byte for byte against the shared vector (§11.3); `BcTokenProvider` and `BcApiClient` with paging, `Retry-After` and backoff; `SessionIssuer`; `RateLimiter`; `POST /api/session` and `GET /api/request` | `curl` a real link's token and get a session and the request back. Use an expired link and get `LINK-0002`. Hammer the endpoint and get `429` | |
-| 20 | **Proposal and comment** | `POST /api/proposal`, `GET /api/proposal/{number}`, `POST /api/comment`; identity attached from the session and never merged from the body; `BcErrorMapper` producing the `LINK-` / `FORM-` / `BUSY-` codes of §8.4; retry carrying one idempotency key | `curl` the whole answer through the Function and watch the proposal appear in BC. Send a body claiming another vendor and confirm it is overwritten, not honoured. Break a line and get `FORM-0001` naming the row | |
-
-## M7 — The vendor's page
-
-*A vendor answers PO-10482 on a phone, having received only an e-mail.*
+*The Azure Functions backend runs in Core Tools on localhost, talks to the real BC
+sandbox with Entra S2S and passes HTTP tests from `curl`, starting with a real link.
+No Azure hosting resources are needed; task 18 is not a dependency.*
 
 | # | Task | Delivers | See it work | Status |
 |---|---|---|---|---|
-| 21 | **Shell and resolve** | Vite + React + TypeScript project; `staticwebapp.config.json` with the headers and fallback of §9.4; the `/r/:token` route exchanging the token and stripping it with `history.replaceState`; the read-only order view; the expired page showing `Portal Support E-Mail` | Click the link in the e-mail on a phone and see PO-10482. Check the address bar no longer holds the token and the back button does not restore it. Open a revoked link and get the same page as an unknown one | |
-| 22 | **Answer and submit** | `RequestLine`, `SplitEditor` and `SubstituteEditor`; the `localStorage` draft; one `POST` per submit with a key generated once per attempt; per-row error highlighting from the `[line s/r]` marker; the sent page | Build the 600 + 400 + ITEM-B2 answer on a phone, close the tab halfway, reopen the link and find the draft. Submit, and watch the proposal reach the buyer's queue in BC | |
+| 19 | **Local host, session and request** | .NET 10 isolated Functions project and startup instructions; placeholder-only local settings example with real sandbox/company configuration, backend-only secret provider and Azurite storage (§13.1.1–§13.1.2); `TokenHasher` matching the shared AL vector (§11.3); `BcTokenProvider`/`BcApiClient` with paging, `Retry-After` and backoff; `SessionIssuer`; Table-backed `RateLimiter`; `POST /api/session` and `GET /api/request`; build/unit-test CI without deployment | Run Core Tools on localhost:7071 and `curl` a real token to get the scoped session/request from BC. Reject missing/tampered/expired JWTs in backend code; expired link maps to `LINK-0002`, Table-backed rate limit to `429`. Two-vendor read and company-isolation HTTP tests pass; no token/hash/secret leaks to responses or logs | |
+| 20 | **Local proposal and comment** | `POST /api/proposal`, `GET /api/proposal/{number}`, `POST /api/comment`; session-derived identity; `BcErrorMapper` producing §8.4 codes; retry with one idempotency key; local HTTP and sandbox integration tests | Submit the whole answer through the local Function and see one proposal in BC, including after a duplicate/retry. Spoofed vendor fields are overwritten; a bad line gives row-specific `FORM-0001` and no partial write. Post a comment and confirm its source/vendor audit fields in BC; reject a foreign proposal/comment source. The integration cannot approve/apply or change the purchase order | |
+
+## M7 — The vendor's page, locally
+
+*A tester opens the supplier link on localhost and completes the whole flow against
+the real sandbox through the local backend. Use responsive browser emulation here;
+real phone navigation is a cloud acceptance check, not a localhost prerequisite.*
+
+| # | Task | Delivers | See it work | Status |
+|---|---|---|---|---|
+| 21 | **Local shell and resolve** | Vite + React + TypeScript project on localhost:5173 with fixed-port `/api` proxy to localhost:7071; `staticwebapp.config.json` for eventual Azure headers/fallback plus equivalent local link protections (§13.1.2); `/r/:token` exchange and `history.replaceState`; read-only order view; expired page with `Portal Support E-Mail`; frontend build/test CI without deployment | Set the sandbox Portal Base URL to localhost, re-send a test link and open it on that machine. Read PO-10482 from the real BC sandbox through the local backend, never directly. Verify deep-link refresh, URL/history cleanup and identical revoked/unknown-link pages; inspect bundle/network for absence of BC credentials/tokens | |
+| 22 | **Local answer, submit and comment** | `RequestLine`, `SplitEditor`, `SubstituteEditor`; browser draft; one `POST` per submit with one key reused on retries; row error highlighting; sent page and comment form calling `/api/comment`; reproducible §11.4 local acceptance evidence | In a responsive localhost browser build the 600 + 400 + ITEM-B2 answer; close/reopen and recover the draft. Submit and verify proposal in the BC buyer queue, then send a request/proposal comment and verify it in the BC timeline. Pass all local §11.4 checks: link → read → proposal → comment. Only this gate unlocks task 18 | |
+
+## M7a — Azure infrastructure and deployment (deferred task 18)
+
+*Starts only after M6/M7 local acceptance. Deploy the tested backend and frontend
+without moving sessions, authorization or BC access into the browser.*
+
+| # | Task | Delivers | See it work | Status |
+|---|---|---|---|---|
+| 18 | **Azure infrastructure and deployment** | Bicep under `azure/infrastructure/` for SWA Standard, a compatible linked Function App, host/Table storage, Key Vault with managed-identity secret-read access and shared App Insights (§13.1); protected `infra.yaml`/`vendor-web.yaml` deploy jobs, Azure GitHub OIDC and verified SWA upload authentication (§12.1); separate Function/static-asset deployment with `api_location: ""`; cloud configuration with no local-secret fallback | Provision/deploy only after recorded local gate approval. Check `/api` health on the SWA origin, then re-send a link using the public HTTPS Portal Base URL and repeat link → read → proposal → comment against BC. Pass the cloud column of §11.4: Key Vault/managed identity, storage authorization, linked ingress/direct-host protection, TLS/DNS, headers/fallback/cache, real mobile, multi-instance limiter and redacted cloud telemetry. A green localhost run or health endpoint alone does not complete this task | |
 
 ## M8 — Seeing it
 
@@ -3453,6 +3671,7 @@ M3, M4, M6 and M9 each end with the ADRs listed in §15.1.
 | 53 | Nothing in the application knows its own hostname | compiling the origin into the front-end bundle; hard-coding a link host in AL; binding the page session to an origin | the page calls `/api` relative to where it is served, BC builds links from `Portal Base URL`, and the session binds to a request — so the domain stays a deployment choice that can be made late and revised. The one thing it cannot outrun is links already in vendors' mailboxes, which keep pointing at the host that minted them |
 | 54 | Send requires Open; active-request AL guards block manual/automatic release and purchase-order posting; apply alone may release its matching locked order | relying on Open as a posting block; global suppression that also bypasses posting | standard posting can automatically release an Open order. Existing Order Lock Mgt/Purchase Events enforce the pointer-based guards, preserving the vendor snapshot and preventing fulfillment/accounting changes during negotiation; successful apply closes the request and permits standard posting (§7.3) |
 | 55 | A vendor is told a link "no longer works", never why | distinguishing expired / revoked / unknown to the caller | the distinction helps nobody except someone probing; the real reason is in telemetry and in the timeline, where the buyer can act on it |
+| 56 | Local M6/M7 integration with the real BC sandbox precedes task 18 Azure infrastructure/deployment | provisioning hosting before verifying the vendor flow; an offline mock-only demo; browser-to-BC access for local convenience | Core Tools, Vite proxy, backend-only local secrets and Azurite exercise the target responsibility split without hosting dependency; link → read → proposal → comment is the local gate, while managed identity, Key Vault, SWA ingress, TLS and scaling remain separate cloud acceptance (§11.4, §13.1, §14) |
 
 ## 15.1 ADRs to write from this document
 
@@ -3469,5 +3688,5 @@ M3, M4, M6 and M9 each end with the ADRs listed in §15.1.
 | ADR-011 Locking the purchase order under an open request | §5.1, §7.3 (decisions 10, 28, 54) |
 | ADR-012 Idempotency over Business Central APIs | §8.5 (decision 14) |
 | ADR-013 Vendor access token design | §9.2, §9.5, §9.6 (decisions 34, 35, 36, 48, 49, 51, 52, 55) |
-| ADR-014 Static Web Apps + Functions as the vendor front end | §8.1, §13 (decisions 37, 38, 40, 45, 53) |
+| ADR-014 Static Web Apps + Functions as the vendor front end | §8.1, §11.4, §13, §14 (decisions 37, 38, 40, 45, 53, 56); local-first architecture in M6, deployment evidence in M7a |
 | ADR-015 Object granularity and the ID range | §4.1, §4.5 (decisions 27–33) |

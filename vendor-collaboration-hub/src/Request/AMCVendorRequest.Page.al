@@ -165,7 +165,7 @@ page 50103 "AMC Vendor Request"
 
     trigger OnAfterGetCurrRecord()
     begin
-        this.SendEnabled := (Rec.Status = Rec.Status::Draft) or (Rec.Status = Rec.Status::Sent);
+        this.SendEnabled := Rec.Status = Rec.Status::Draft;
     end;
 
     local procedure SendRequest()

@@ -63,6 +63,25 @@ codeunit 50122 "AMC Validation Result"
         exit(JsonText);
     end;
 
+  procedure AsFirstErrorText(): Text
+  begin
+    if this.HasErrors() then
+      exit(this.FormatError(1));
+  end;
+
+  procedure GetErrorCodeList(): Text
+  var
+    ErrorCode: Code[20];
+    CodeList: Text;
+  begin
+    foreach ErrorCode in this.ErrorCodes do begin
+      if CodeList <> '' then
+        CodeList += ',';
+      CodeList += ErrorCode;
+    end;
+    exit(CodeList);
+  end;
+
     procedure AsDisplayText(): Text
     var
         ErrorText: Text;
@@ -79,7 +98,7 @@ codeunit 50122 "AMC Validation Result"
 
     local procedure FormatError(Index: Integer): Text
     begin
-        if this.RequestLineNos.Get(Index) = 0 then
+        if (this.RequestLineNos.Get(Index) = 0) and (this.SequenceNos.Get(Index) = 0) then
             exit(StrSubstNo('%1: %2', this.ErrorCodes.Get(Index), this.ErrorTexts.Get(Index)));
 
         exit(StrSubstNo('%1 [line %2/%3]: %4', this.ErrorCodes.Get(Index), this.SequenceNos.Get(Index), this.RequestLineNos.Get(Index), this.ErrorTexts.Get(Index)));
@@ -87,7 +106,7 @@ codeunit 50122 "AMC Validation Result"
 
     local procedure FormatDisplayError(Index: Integer): Text
     begin
-        if this.RequestLineNos.Get(Index) = 0 then
+        if (this.RequestLineNos.Get(Index) = 0) and (this.SequenceNos.Get(Index) = 0) then
             exit(this.ErrorTexts.Get(Index));
 
         exit(StrSubstNo('Line %1/%2: %3', this.SequenceNos.Get(Index), this.RequestLineNos.Get(Index), this.ErrorTexts.Get(Index)));

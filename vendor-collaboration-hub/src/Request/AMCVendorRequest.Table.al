@@ -11,7 +11,7 @@ table 50101 "AMC Vendor Request"
     DataClassification = CustomerContent;
     DrillDownPageId = "AMC Vendor Requests";
     LookupPageId = "AMC Vendor Requests";
-    Permissions = tabledata "AMC Vendor Request Line" = rd;
+    Permissions = tabledata "AMC Vendor Request" = r;
 
     fields
     {

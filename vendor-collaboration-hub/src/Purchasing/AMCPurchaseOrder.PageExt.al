@@ -56,7 +56,6 @@ pageextension 50100 "AMC Purchase Order" extends "Purchase Order"
 
     local procedure CreateVendorRequest()
     var
-        VendorRequest: Record "AMC Vendor Request";
         RequestMgt: Codeunit "AMC Request Mgt";
         RequestNo: Code[20];
         OpenCreatedVendorRequestQst: Label 'Vendor request %1 has been created. Do you want to open it?', Comment = '%1 = vendor request number';
@@ -66,8 +65,7 @@ pageextension 50100 "AMC Purchase Order" extends "Purchase Order"
         if not Confirm(OpenCreatedVendorRequestQst, false, RequestNo) then
             exit;
 
-        VendorRequest.Get(RequestNo);
-        Page.Run(Page::"AMC Vendor Request", VendorRequest);
+        RequestMgt.OpenRequest(RequestNo);
     end;
 
     local procedure UnlockPurchaseOrder()

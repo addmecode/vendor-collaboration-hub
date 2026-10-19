@@ -5,6 +5,8 @@ using System.Integration;
 
 codeunit 50119 "AMC Vendor Email Builder"
 {
+  Permissions = tabledata "AMC Vendor Request Line" = r;
+
   procedure Build(VendorRequest: Record "AMC Vendor Request"; AccessLink: Text; var Subject: Text; var HtmlBody: Text; var PlainTextBody: Text)
   var
     OriginalLanguageId: Integer;

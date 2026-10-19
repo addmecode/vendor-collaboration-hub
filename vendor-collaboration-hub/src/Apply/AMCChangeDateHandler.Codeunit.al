@@ -4,6 +4,10 @@ using Microsoft.Purchases.Document;
 
 codeunit 50113 "AMC Change Date Handler" implements "AMC IProposalLineHandler"
 {
+  Permissions = tabledata "AMC Vendor Proposal" = r,
+                tabledata "AMC Vendor Request Line" = r,
+                tabledata "Purchase Line" = rm;
+
   procedure Validate(var ProposalLine: Record "AMC Vendor Proposal Line"; var RequestLine: Record "AMC Vendor Request Line"; var Result: Codeunit "AMC Validation Result")
   begin
     if ProposalLine."Proposed Delivery Date" < WorkDate() then

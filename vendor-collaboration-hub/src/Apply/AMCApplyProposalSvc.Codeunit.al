@@ -5,8 +5,12 @@ using Microsoft.Purchases.Document;
 codeunit 50104 "AMC Apply Proposal Svc"
 {
   TableNo = "AMC Vendor Proposal";
-  Permissions = tabledata "Purchase Header" = M,
-                tabledata "Purchase Line" = M;
+  Permissions = tabledata "AMC Vendor Proposal" = r,
+                tabledata "AMC Vendor Proposal Line" = rm,
+                tabledata "AMC Vendor Request" = r,
+                tabledata "AMC Vendor Request Line" = rm,
+                tabledata "Purchase Header" = r,
+                tabledata "Purchase Line" = r;
 
   trigger OnRun()
   begin
@@ -85,7 +89,7 @@ codeunit 50104 "AMC Apply Proposal Svc"
     VendorProposal."Last Error Code" := '';
     VendorProposal."Last Error Message" := '';
     ProposalMgt.SetStatus(VendorProposal, VendorProposal.Status::Approved);
-    CollabLog.LogEvent("AMC Source Type"::Proposal, VendorProposal."No.", 0, "AMC Collab Entry Type"::ProposalApproved, "AMC Actor Type"::Buyer, '', UserId(), false, this.ProposalApprovedDescriptionLbl, VendorProposal."Correlation Id");
+    CollabLog.LogEvent("AMC Source Type"::Proposal, VendorProposal."No.", 0, "AMC Collab Entry Type"::ProposalApproved, "AMC Actor Type"::Buyer, '', UserId(), this.ProposalApprovedDescriptionLbl, VendorProposal."Correlation Id");
   end;
 
   local procedure ApplyLine(VendorProposal: Record "AMC Vendor Proposal"; var VendorProposalLine: Record "AMC Vendor Proposal Line"; var PurchaseHeader: Record "Purchase Header"; CollabLog: Codeunit "AMC Collab Log")
@@ -158,17 +162,17 @@ codeunit 50104 "AMC Apply Proposal Svc"
 
   local procedure LogAppliedField(VendorProposal: Record "AMC Vendor Proposal"; VendorProposalLine: Record "AMC Vendor Proposal Line"; CollabLog: Codeunit "AMC Collab Log"; FieldName: Text[80]; OldValue: Text[250]; NewValue: Text[250])
   begin
-    CollabLog.LogFieldChange("AMC Source Type"::Proposal, VendorProposal."No.", VendorProposalLine."Line No.", "AMC Collab Entry Type"::ProposalApplied, "AMC Actor Type"::Buyer, '', UserId(), false, FieldName, OldValue, NewValue, this.ProposalAppliedDescriptionLbl, VendorProposal."Correlation Id");
+    CollabLog.LogFieldChange("AMC Source Type"::Proposal, VendorProposal."No.", VendorProposalLine."Line No.", "AMC Collab Entry Type"::ProposalApplied, "AMC Actor Type"::Buyer, '', UserId(), FieldName, OldValue, NewValue, this.ProposalAppliedDescriptionLbl, VendorProposal."Correlation Id");
   end;
 
   local procedure LogAppliedLine(VendorProposal: Record "AMC Vendor Proposal"; VendorProposalLine: Record "AMC Vendor Proposal Line"; CollabLog: Codeunit "AMC Collab Log")
   begin
-    CollabLog.LogEvent("AMC Source Type"::Proposal, VendorProposal."No.", VendorProposalLine."Line No.", "AMC Collab Entry Type"::ProposalApplied, "AMC Actor Type"::Buyer, '', UserId(), false, this.ProposalLineAppliedDescriptionLbl, VendorProposal."Correlation Id");
+    CollabLog.LogEvent("AMC Source Type"::Proposal, VendorProposal."No.", VendorProposalLine."Line No.", "AMC Collab Entry Type"::ProposalApplied, "AMC Actor Type"::Buyer, '', UserId(), this.ProposalLineAppliedDescriptionLbl, VendorProposal."Correlation Id");
   end;
 
   local procedure LogPriceRecalculated(VendorProposal: Record "AMC Vendor Proposal"; VendorProposalLine: Record "AMC Vendor Proposal Line"; CollabLog: Codeunit "AMC Collab Log"; FieldName: Text[80]; OldValue: Text[250]; NewValue: Text[250])
   begin
-    CollabLog.LogFieldChange("AMC Source Type"::Proposal, VendorProposal."No.", VendorProposalLine."Line No.", "AMC Collab Entry Type"::PriceRecalculated, "AMC Actor Type"::Buyer, '', UserId(), false, FieldName, OldValue, NewValue, this.PriceRecalculatedDescriptionLbl, VendorProposal."Correlation Id");
+    CollabLog.LogFieldChange("AMC Source Type"::Proposal, VendorProposal."No.", VendorProposalLine."Line No.", "AMC Collab Entry Type"::PriceRecalculated, "AMC Actor Type"::Buyer, '', UserId(), FieldName, OldValue, NewValue, this.PriceRecalculatedDescriptionLbl, VendorProposal."Correlation Id");
   end;
 
   local procedure RecalculateRequestLines(ProposalNo: Code[20]; RequestNo: Code[20])
@@ -221,7 +225,7 @@ codeunit 50104 "AMC Apply Proposal Svc"
       repeat
         if OtherVendorProposal."No." <> VendorProposal."No." then begin
           ProposalMgt.SetStatus(OtherVendorProposal, OtherVendorProposal.Status::Superseded);
-          CollabLog.LogEvent("AMC Source Type"::Proposal, OtherVendorProposal."No.", 0, "AMC Collab Entry Type"::ProposalSuperseded, "AMC Actor Type"::Buyer, '', UserId(), false, ProposalSupersededDescriptionLbl, OtherVendorProposal."Correlation Id");
+          CollabLog.LogEvent("AMC Source Type"::Proposal, OtherVendorProposal."No.", 0, "AMC Collab Entry Type"::ProposalSuperseded, "AMC Actor Type"::Buyer, '', UserId(), ProposalSupersededDescriptionLbl, OtherVendorProposal."Correlation Id");
         end;
       until OtherVendorProposal.Next() = 0;
   end;

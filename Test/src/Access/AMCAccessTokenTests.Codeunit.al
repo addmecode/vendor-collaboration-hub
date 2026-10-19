@@ -12,6 +12,8 @@ codeunit 50143 "AMC Access Token Tests"
     var
         Assert: Codeunit "Library Assert";
 
+        ExistingTokenExpiryJobMessageCount: Integer;
+
     [Test]
     procedure GivenVendorRequest_WhenIssue_ThenActiveBoundHashOnlyTokenIsStored()
     var
@@ -246,28 +248,53 @@ codeunit 50143 "AMC Access Token Tests"
     end;
 
     [Test]
+    [HandlerFunctions('ExistingTokenExpiryJobMessageHandler')]
     procedure GivenCollaborationSetup_WhenSchedulingTokenExpiryJobTwice_ThenOneRecurringJobIsCreated()
     var
         CollaborationSetup: Record "AMC Collaboration Setup";
         JobQueueEntry: Record "Job Queue Entry";
+        OriginalJobQueueEntry: Record "Job Queue Entry";
         CollaborationSetupPage: TestPage "AMC Collaboration Setup";
     begin
         // Given
+        this.ExistingTokenExpiryJobMessageCount := 0;
+        JobQueueEntry.SetRange("Object Type to Run", JobQueueEntry."Object Type to Run"::Codeunit);
+        JobQueueEntry.SetRange("Object ID to Run", Codeunit::"AMC Token Expiry Job");
+        JobQueueEntry.DeleteAll(true);
         CollaborationSetup.GetSetup();
         CollaborationSetupPage.OpenEdit();
         CollaborationSetupPage.GotoRecord(CollaborationSetup);
 
         // When
         CollaborationSetupPage.AMCScheduleTokenExpiryJob.Invoke();
+
+        // Then
+        this.Assert.AreEqual(0, this.ExistingTokenExpiryJobMessageCount, 'Creating the token expiry job must not show a message.');
+        this.Assert.AreEqual(1, JobQueueEntry.Count(), 'Scheduling the token expiry job must create one job queue entry.');
+        this.Assert.IsTrue(JobQueueEntry.FindFirst(), 'The created token expiry job must exist.');
+        this.Assert.IsTrue(JobQueueEntry."Recurring Job", 'The token expiry job must recur.');
+        OriginalJobQueueEntry := JobQueueEntry;
+
+        // When
         CollaborationSetupPage.AMCScheduleTokenExpiryJob.Invoke();
 
         // Then
-        JobQueueEntry.SetRange("Object Type to Run", JobQueueEntry."Object Type to Run"::Codeunit);
-        JobQueueEntry.SetRange("Object ID to Run", Codeunit::"AMC Token Expiry Job");
+        this.Assert.AreEqual(1, this.ExistingTokenExpiryJobMessageCount, 'Scheduling an existing token expiry job must show exactly one message.');
         this.Assert.AreEqual(1, JobQueueEntry.Count(), 'Scheduling the token expiry job repeatedly must retain one job queue entry.');
-        JobQueueEntry.FindFirst();
-        this.Assert.IsTrue(JobQueueEntry."Recurring Job", 'The token expiry job must recur.');
+        this.Assert.IsTrue(JobQueueEntry.FindFirst(), 'The original token expiry job must still exist.');
+        this.Assert.AreEqual(OriginalJobQueueEntry.ID, JobQueueEntry.ID, 'Scheduling again must preserve the original job queue entry.');
         CollaborationSetupPage.Close();
+    end;
+
+    [MessageHandler]
+    procedure ExistingTokenExpiryJobMessageHandler(Message: Text[1024])
+    var
+        ExistingTokenExpiryJobMsg: Label 'The token expiry job is already scheduled. No new job queue entry was created.';
+    begin
+        ;
+
+        this.ExistingTokenExpiryJobMessageCount += 1;
+        this.Assert.AreEqual(ExistingTokenExpiryJobMsg, Message, 'The existing token expiry job message must match the expected text.');
     end;
 
     local procedure AssertInvalidToken(AccessTokenMgt: Codeunit "AMC Access Token Mgt"; VendorAccessToken: Record "AMC Vendor Access Token"; RequestNo: Code[20]; VendorNo: Code[20])

@@ -5,6 +5,13 @@ using Microsoft.Inventory.Item.Substitution;
 
 codeunit 50102 "AMC Proposal Validator"
 {
+  Permissions = tabledata "AMC Collaboration Setup" = r,
+                tabledata "AMC Vendor Proposal Line" = r,
+                tabledata "AMC Vendor Request" = r,
+                tabledata "AMC Vendor Request Line" = r,
+                tabledata "Item Substitution" = r,
+                tabledata "Reason Code" = r;
+
   procedure Validate(VendorProposal: Record "AMC Vendor Proposal"; var Result: Codeunit "AMC Validation Result")
   var
     CollaborationSetup: Record "AMC Collaboration Setup";

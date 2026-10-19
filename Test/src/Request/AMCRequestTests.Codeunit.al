@@ -315,7 +315,6 @@ codeunit 50131 "AMC Request Tests"
     this.InsertVendorRequest(VendorRequest, RequestNo);
 
     // When
-    RequestMgt.SetStatus(VendorRequest, VendorRequest.Status::Sent);
     RequestMgt.SetStatus(VendorRequest, VendorRequest.Status::"Awaiting Vendor");
     RequestMgt.SetStatus(VendorRequest, VendorRequest.Status::"Vendor Responded");
     RequestMgt.SetStatus(VendorRequest, VendorRequest.Status::"In Review");
@@ -336,7 +335,6 @@ codeunit 50131 "AMC Request Tests"
     // Given
     RequestNo := this.CreateRequestNo();
     this.InsertVendorRequest(VendorRequest, RequestNo);
-    RequestMgt.SetStatus(VendorRequest, VendorRequest.Status::Sent);
     RequestMgt.SetStatus(VendorRequest, VendorRequest.Status::"Awaiting Vendor");
 
     // When
@@ -438,45 +436,6 @@ codeunit 50131 "AMC Request Tests"
         this.Assert.AreEqual(VendorRequest.Status::Draft, VendorRequest.Status, 'A failed email hand-off must retain Draft status.');
         VendorAccessToken.SetRange("Request No.", RequestNo);
         this.Assert.IsTrue(VendorAccessToken.IsEmpty(), 'A failed email hand-off must not retain an issued token.');
-    end;
-
-    [Test]
-    procedure GivenSentRequestWithActiveToken_WhenRetryingSend_ThenOldTokenIsSupersededAndRequestAwaitsVendor()
-    var
-        OldVendorAccessToken: Record "AMC Vendor Access Token";
-        PurchaseHeader: Record "Purchase Header";
-        VendorAccessToken: Record "AMC Vendor Access Token";
-        VendorRequest: Record "AMC Vendor Request";
-        RequestMgt: Codeunit "AMC Request Mgt";
-        RequestNo: Code[20];
-        VendorNo: Code[20];
-    begin
-        // Given
-        this.ConfigureEnabledSetup();
-        VendorNo := this.CreateVendor(true);
-        this.CreatePurchaseOrder(PurchaseHeader, VendorNo, PurchaseHeader.Status::Open);
-        RequestNo := RequestMgt.CreateFromOrder(PurchaseHeader);
-        VendorRequest.Get(RequestNo);
-        RequestMgt.SetStatus(VendorRequest, VendorRequest.Status::Sent);
-        VendorAccessToken.SetRange("Token Hash", this.HashAndIssueToken(RequestNo));
-        VendorAccessToken.FindFirst();
-        OldVendorAccessToken.Get(VendorAccessToken."Token Id");
-
-        // When
-        VendorRequest.Get(RequestNo);
-        this.SendRequestWithEmailHandOff(VendorRequest, true);
-
-        // Then
-        VendorRequest.Get(RequestNo);
-        this.Assert.AreEqual(VendorRequest.Status::"Awaiting Vendor", VendorRequest.Status, 'Retrying a sent request must move it to Awaiting Vendor.');
-        OldVendorAccessToken.Get(OldVendorAccessToken."Token Id");
-        this.Assert.AreEqual(OldVendorAccessToken.Status::Superseded, OldVendorAccessToken.Status, 'Retrying must supersede the prior active token.');
-        VendorAccessToken.Reset();
-        VendorAccessToken.SetRange("Request No.", RequestNo);
-        VendorAccessToken.SetRange(Status, VendorAccessToken.Status::Active);
-        this.Assert.AreEqual(1, VendorAccessToken.Count(), 'Retrying must issue one new active token.');
-        VendorAccessToken.FindFirst();
-        this.Assert.AreNotEqual(OldVendorAccessToken."Token Id", VendorAccessToken."Token Id", 'Retrying must issue a token different from the superseded token.');
     end;
 
     [Test]
@@ -666,7 +625,7 @@ codeunit 50131 "AMC Request Tests"
         StartingNo: Code[20];
     begin
         //todo: there is no function in standard tests libraries for this?
-        StartingNo := CopyStr('R' + DelChr(Format(CreateGuid()), '=', '{}-') + '1', 1, 20);
+        StartingNo := CopyStr('R' + DelChr(Format(CreateGuid()), '=', '{}-'), 1, MaxStrLen(StartingNo) - 1) + '1';
         NoSeries.Init();
         NoSeries.Code := NoSeriesCode;
         NoSeries.Description := NoSeriesCode;

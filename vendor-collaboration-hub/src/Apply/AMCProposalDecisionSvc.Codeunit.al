@@ -2,6 +2,9 @@ namespace Addmecode.VendorCollaborationHub;
 
 codeunit 50103 "AMC Proposal Decision Svc"
 {
+  Permissions = tabledata "AMC Vendor Proposal" = rm,
+                tabledata "AMC Vendor Proposal Line" = r;
+
   procedure Approve(var VendorProposal: Record "AMC Vendor Proposal"; DecisionReason: Text[250]): Boolean
   var
     ApplySucceeded: Boolean;
@@ -60,7 +63,7 @@ codeunit 50103 "AMC Proposal Decision Svc"
     VendorProposal."Decision User ID" := UserId();
     VendorProposal."Decision Reason" := DecisionReason;
     ProposalMgt.SetStatus(VendorProposal, VendorProposal.Status::Rejected);
-    CollabLog.LogEvent("AMC Source Type"::Proposal, VendorProposal."No.", 0, "AMC Collab Entry Type"::ProposalRejected, "AMC Actor Type"::Buyer, '', UserId(), false, ProposalRejectedDescriptionLbl, VendorProposal."Correlation Id");
+    CollabLog.LogEvent("AMC Source Type"::Proposal, VendorProposal."No.", 0, "AMC Collab Entry Type"::ProposalRejected, "AMC Actor Type"::Buyer, '', UserId(), ProposalRejectedDescriptionLbl, VendorProposal."Correlation Id");
   end;
 
   procedure RequestChanges(var VendorProposal: Record "AMC Vendor Proposal"; DecisionReason: Text[250])
@@ -75,7 +78,7 @@ codeunit 50103 "AMC Proposal Decision Svc"
     VendorProposal."Decision User ID" := UserId();
     VendorProposal."Decision Reason" := DecisionReason;
     ProposalMgt.SetStatus(VendorProposal, VendorProposal.Status::"Changes Requested");
-    CollabLog.LogEvent("AMC Source Type"::Proposal, VendorProposal."No.", 0, "AMC Collab Entry Type"::ChangesRequested, "AMC Actor Type"::Buyer, '', UserId(), false, ChangesRequestedDescriptionLbl, VendorProposal."Correlation Id");
+    CollabLog.LogEvent("AMC Source Type"::Proposal, VendorProposal."No.", 0, "AMC Collab Entry Type"::ChangesRequested, "AMC Actor Type"::Buyer, '', UserId(), ChangesRequestedDescriptionLbl, VendorProposal."Correlation Id");
   end;
 
   local procedure VerifyApprovalAllowed(VendorProposal: Record "AMC Vendor Proposal")
@@ -107,7 +110,7 @@ codeunit 50103 "AMC Proposal Decision Svc"
       VendorProposal.Modify(true)
     else
       ProposalMgt.SetStatus(VendorProposal, VendorProposal.Status::"Apply Failed");
-    CollabLog.LogEvent("AMC Source Type"::Proposal, VendorProposal."No.", 0, "AMC Collab Entry Type"::ProposalApplyFailed, "AMC Actor Type"::Buyer, '', UserId(), false, CopyStr(StrSubstNo(ProposalApplyFailedDescriptionLbl, ErrorMessage), 1, 250), VendorProposal."Correlation Id");
+    CollabLog.LogEvent("AMC Source Type"::Proposal, VendorProposal."No.", 0, "AMC Collab Entry Type"::ProposalApplyFailed, "AMC Actor Type"::Buyer, '', UserId(), CopyStr(StrSubstNo(ProposalApplyFailedDescriptionLbl, ErrorMessage), 1, 250), VendorProposal."Correlation Id");
   end;
 
   local procedure GetProposalLineCount(ProposalNo: Code[20]): Integer

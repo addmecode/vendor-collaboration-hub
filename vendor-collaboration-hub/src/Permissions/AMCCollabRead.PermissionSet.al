@@ -7,11 +7,11 @@ using Microsoft.Purchases.Vendor;
 permissionset 50100 "AMC Collab Read"
 {
     Assignable = true;
-    Caption = 'Vendor Collaboration Read';
+    Caption = 'Vendor Collaboration Read', MaxLength = 30;
 
     Permissions =
-    tabledata "AMC Collaboration Setup" = R,
     tabledata "AMC Collaboration Entry" = R,
+    tabledata "AMC Collaboration Setup" = R,
     tabledata "AMC Vendor Proposal" = R,
     tabledata "AMC Vendor Proposal Line" = R,
     tabledata "AMC Vendor Request" = R,
@@ -23,9 +23,9 @@ permissionset 50100 "AMC Collab Read"
     page "AMC Collaboration Setup" = X,
     page "AMC Collab Timeline" = X,
     page "AMC Vendor Proposal" = X,
-    page "AMC Vendor Proposal Subform" = X,
     page "AMC Vendor Proposals" = X,
+    page "AMC Vendor Proposal Subform" = X,
     page "AMC Vendor Request" = X,
-    page "AMC Vendor Request Subform" = X,
-    page "AMC Vendor Requests" = X;
+    page "AMC Vendor Requests" = X,
+    page "AMC Vendor Request Subform" = X;
 }

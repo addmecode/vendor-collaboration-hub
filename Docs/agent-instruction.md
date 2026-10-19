@@ -1,51 +1,96 @@
-# AI Agent Implementation Instructions
+# Vendor Collaboration Hub — Orchestrator Prompt
 
-## Objective
+## Objective and sources
 
-Implement the project according to the specification in `docs/tech.md`.
+Implement exactly one task from section **14. Delivery plan** in
+`Docs/project-doc.md` per implementation run. That document defines the project's
+business behavior, architecture, task deliverables, acceptance criteria, and
+dependencies. Execute the selected task using the shared workflow in
+`.opencode/agents/orchestrator.md`.
 
-Complete exactly one task from the **Delivery Plan** section during each run.
+Use these project-relative configuration sources rather than copying their values:
 
-## Required skills
+- `.AL-Go/settings.json`: application/test folders and CI analyzers;
+- `.AL-Go/algo.ruleset.json` and the applicable `.vscode/settings.json`: analyzer rules;
+- each configured project's `app.json`: identity, versions, dependencies, and ID ranges;
+- `vendor-collaboration-hub/.vscode/launch.json`: application publication context;
+- `Test/.vscode/launch.json`: test publication and execution context;
+- `.github/workflows/`: independent CI checks described in project documentation §12.
 
-Before inspecting or changing AL code, read and follow these skills:
+Read only the documentation sections and configuration relevant to the selected
+task. If the intended design and current configuration materially disagree,
+report the discrepancy and ask for direction before changing the affected behavior.
 
-- `al-language-server`
-- `al-testing`
+## Task selection and scope
 
-Use `al-language-server` for AL code navigation, implementation, compilation, diagnostics, and the required post-implementation code review. Use `al-testing` for creating and evaluating relevant automated tests.
+1. Read section 14 of `Docs/project-doc.md`.
+2. Select the task explicitly requested by the user; otherwise select the first
+   task in plan order whose status is not `DONE`.
+3. Treat `DONE` tasks as implemented. Do not implement them again. If an explicitly
+   requested task is already `DONE`, report that fact and ask whether a correction
+   is intended. If all tasks are `DONE`, report that the plan is complete and make
+   no implementation changes.
+4. Check the selected task's dependencies. If a required dependency is incomplete,
+   report the blocker and ask for direction; do not silently select another task
+   or implement the dependency in the same run.
+5. Read the selected task's referenced design sections and its **Delivers** and
+   **See it work** criteria. Include the cross-cutting requirements of section 14.
+6. Implement only that task and strictly necessary supporting changes. Do not
+   implement behavior assigned to later tasks or start a second task in this run.
 
-## Task selection
+## Required completion gates
 
-1. Read the **Delivery Plan** section in `docs/tech.md` and the technical-design sections referenced by the selected task. Do not read unrelated sections in full.
-2. If the user explicitly identifies a task to implement, select that task.
-3. Otherwise, scan the Delivery Plan from top to bottom and select the first task whose status is not `done`.
-4. Treat a task with status `done` as already implemented. Do not implement it again.
-5. Implement only the selected task during the current run. Do not start another Delivery Plan task after completing it.
-6. If every task has status `done`, make no implementation changes and tell the user that the Delivery Plan is complete.
+- The selected deliverables and acceptance criteria are implemented, including
+  applicable permissions and fixtures required by section 14.
+- For AL changes, affected projects compile successfully with their configured
+  analyzers, and relevant AL diagnostics have no unresolved errors.
+- For executable AL changes, affected application/test artifacts are published
+  to the configured sandbox and relevant automated tests pass. Use the affected
+  project and test selection procedures in `al-testing`; unrelated suites are
+  not a completion requirement for this run.
+- The independent scoped review has no unresolved in-scope findings.
+- The actual user-facing verification route is checked against the final
+  implementation. An entry point deliberately assigned to a later task may be
+  unavailable if this task's own acceptance criteria do not require it; report
+  that limitation and the available automated-test alternative. A missing entry
+  point required by this task is an implementation gap.
+- For documentation/configuration-only tasks, verify affected references,
+  configuration syntax, and the task's specified checks. Require AL build,
+  publication, and tests only if the change affects those artifacts or behavior.
+- For non-AL deliverables, use the checks specified by the selected task and
+  applicable design sections. Resolve missing tooling or validation requirements
+  before claiming completion.
 
-## Implementation workflow
+CI remains a separate repository gate. No commit or push is authorized to obtain
+a CI result during this run; report CI as pending unless an actual applicable run
+provides evidence.
 
-1. Inspect the existing implementation, relevant tests, project configuration, and the selected task's acceptance criteria before editing files.
-2. Implement all requirements of the selected task while keeping changes limited to that task and any strictly necessary supporting changes.
-3. Add or update automated tests when required to verify the implemented behavior. Follow the `al-testing` skill.
-4. Follow `.opencode/agents/orchestrator.md` for implementation delegation, code-review, compilation, publishing, test execution, and retry workflow.
-5. Only after the implementation, code review, and compilation have all succeeded, update the selected task's status in the Delivery Plan in `docs/tech.md` to `done`.
-6. Stop after completing that one task and report:
-    - which task was implemented;
-    - the main files changed;
-    - the compilation result;
-    - confirmation that its Delivery Plan status was changed to `done`;
-    - a user-facing summary of the uncommitted changes and their business impact;
-    - a manual test checklist for a Business Central user, with prerequisites, steps, and expected results. State explicitly when an end-to-end scenario cannot yet be exercised because a dependent Delivery Plan task is not complete, and give the available automated-test alternative.
+## Project-specific completion action
 
-## Failure and blocking rules
+Change only the selected task's **Status** cell in section 14 of
+`Docs/project-doc.md` to `DONE` after all applicable completion gates pass and
+acceptance criteria are satisfied. Preserve the other task rows and statuses.
+Do not mark incomplete, failing, blocked, or unresolved work as `DONE`. If a
+required check cannot be completed, leave the status unchanged and identify the
+blocker and outstanding checks in the report.
 
-- Never mark a task as `done` if its implementation is incomplete, the code review has unresolved issues, or compilation fails.
-- If compilation cannot be run because of a genuine external blocker, exhaust safe in-scope remedies, leave the task status unchanged, and clearly report the blocker and the commands or checks that remain to be completed.
+## Final report
+
+1. **Business impact:** what a Business Central user can now do or what the
+   application does differently, affected records/process states, and limitations.
+2. **Task and files:** selected task number/title, main changed files, and whether
+   its status was changed to `DONE`.
+3. **Validation:** diagnostics, compilation/publication results, named codeunit/test
+   method results, and scoped review outcome. Identify pending or blocked gates.
+4. **Assumptions and risks:** unresolved decisions, residual risks, and coverage gaps.
+5. **Manual verification:** prerequisites, required permissions, the actual
+   page/action/API/integration entry point, steps, and expected observable results.
+   If an end-to-end route is unavailable, name the missing entry point and whether
+   it is future-task work or an in-scope gap. Give the available automated-test
+   alternative by codeunit and method, or state that none exists.
 
 ## Git policy
 
-Do not commit any changes. The user will review the working tree and create the commit manually.
-
-Do not amend, reset, discard, or overwrite the user's existing uncommitted changes. Keep unrelated changes intact.
+Do not commit, push, amend, reset, discard, or overwrite the user's existing work.
+Preserve unrelated changes and existing staging. The user reviews the working tree
+and creates the commit manually.

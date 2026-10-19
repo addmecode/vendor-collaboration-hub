@@ -8,6 +8,12 @@ using System.Utilities;
 
 codeunit 50118 "AMC Vendor Notification"
 {
+  Permissions = tabledata "AMC Vendor Access Token" = rm,
+                tabledata "AMC Vendor Request" = r,
+                tabledata "Purchase Header" = r,
+                tabledata "Salesperson/Purchaser" = r,
+                tabledata Vendor = r;
+
   procedure Send(RequestNo: Code[20])
   var
     VendorRequest: Record "AMC Vendor Request";
@@ -36,13 +42,13 @@ codeunit 50118 "AMC Vendor Notification"
       LastErrorText := GetLastErrorText();
       if LastErrorText = '' then
         LastErrorText := this.EmailNotSentErr;
-      CollabLog.LogEvent("AMC Source Type"::Request, VendorRequest."No.", 0, "AMC Collab Entry Type"::LinkSendFailed, "AMC Actor Type"::Buyer, '', UserId(), false, CopyStr(LastErrorText, 1, 250), CreateGuid());
+      CollabLog.LogEvent("AMC Source Type"::Request, VendorRequest."No.", 0, "AMC Collab Entry Type"::LinkSendFailed, "AMC Actor Type"::Buyer, '', UserId(), CopyStr(LastErrorText, 1, 250), CreateGuid());
       Telemetry.LogLinkSendFailed(VendorRequest."No.", VendorRequest."Vendor No.", VendorRequest."Purchase Order No.");
       Error(LastErrorText);
     end;
 
     this.StampTokenSent(AccessTokenMgt.HashToken(RawToken), Recipient);
-    CollabLog.LogEvent("AMC Source Type"::Request, VendorRequest."No.", 0, "AMC Collab Entry Type"::LinkSent, "AMC Actor Type"::Buyer, '', UserId(), false, this.LinkSentDescriptionLbl, CreateGuid());
+    CollabLog.LogEvent("AMC Source Type"::Request, VendorRequest."No.", 0, "AMC Collab Entry Type"::LinkSent, "AMC Actor Type"::Buyer, '', UserId(), this.LinkSentDescriptionLbl, CreateGuid());
     Telemetry.LogLinkSent(VendorRequest."No.", VendorRequest."Vendor No.", VendorRequest."Purchase Order No.");
   end;
 
@@ -72,7 +78,7 @@ codeunit 50118 "AMC Vendor Notification"
   begin
     Recipient := this.GetRecipient(VendorRequest);
     VendorEmailBuilder.Build(VendorRequest, AccessLink, Subject, HtmlBody, PlainTextBody);
-    EmailMessage.Create(Recipient, Subject, HtmlBody, true, true);
+    EmailMessage.Create(Recipient, Subject, HtmlBody, true, false);
     ReplyTo := this.GetBuyerEmail(VendorRequest);
     if ReplyTo <> '' then begin
       EmailMessage.SetHeader('Reply-To', ReplyTo);

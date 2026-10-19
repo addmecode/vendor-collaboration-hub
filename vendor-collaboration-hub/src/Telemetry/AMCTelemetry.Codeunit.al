@@ -34,6 +34,43 @@ codeunit 50106 "AMC Telemetry"
         this.LogMessage(this.VCH0220Lbl, ProposalAppliedMsg, Verbosity::Normal, CustomDimensions);
     end;
 
+  procedure LogProposalSubmitted(VendorProposal: Record "AMC Vendor Proposal"; LineCount: Integer)
+  var
+    CustomDimensions: Dictionary of [Text, Text];
+    ReceivedMsg: Label 'Vendor proposal received.';
+    SubmittedMsg: Label 'Vendor proposal submitted.';
+  begin
+    this.AddProposalDimensions(VendorProposal, CustomDimensions);
+    CustomDimensions.Add(this.VCHLineCountLbl, Format(LineCount, 0, 9));
+    CustomDimensions.Add(this.VCHResultLbl, 'received');
+    this.LogMessage(this.VCH0201Lbl, ReceivedMsg, Verbosity::Normal, CustomDimensions);
+    CustomDimensions.Set(this.VCHResultLbl, 'submitted');
+    this.LogMessage(this.VCH0203Lbl, SubmittedMsg, Verbosity::Normal, CustomDimensions);
+  end;
+
+  procedure LogProposalValidationFailed(VendorProposal: Record "AMC Vendor Proposal"; var Result: Codeunit "AMC Validation Result")
+  var
+    CustomDimensions: Dictionary of [Text, Text];
+    ValidationFailedMsg: Label 'Vendor proposal validation failed.';
+    ErrorCountLbl: Label 'vchErrorCount', Locked = true;
+    ErrorCodesLbl: Label 'vchErrorCodes', Locked = true;
+  begin
+    this.AddProposalDimensions(VendorProposal, CustomDimensions);
+    CustomDimensions.Add(ErrorCountLbl, Format(Result.GetErrorCount(), 0, 9));
+    CustomDimensions.Add(ErrorCodesLbl, Result.GetErrorCodeList());
+    CustomDimensions.Add(this.VCHResultLbl, 'rejected');
+    this.LogMessage(this.VCH0202Lbl, ValidationFailedMsg, Verbosity::Error, CustomDimensions);
+  end;
+
+  local procedure AddProposalDimensions(VendorProposal: Record "AMC Vendor Proposal"; var CustomDimensions: Dictionary of [Text, Text])
+  begin
+    CustomDimensions.Add(this.VCHProposalNoLbl, VendorProposal."No.");
+    CustomDimensions.Add(this.VCHRequestNoLbl, VendorProposal."Request No.");
+    CustomDimensions.Add(this.VCHVendorNoLbl, VendorProposal."Vendor No.");
+    CustomDimensions.Add(this.VCHOrderNoLbl, VendorProposal."Purchase Order No.");
+    CustomDimensions.Add(this.VCHCorrelationIdLbl, Format(VendorProposal."Correlation Id", 0, 4));
+  end;
+
     procedure LogProposalApplyFailed(ProposalNo: Code[20]; RequestNo: Code[20]; OrderNo: Code[20]; ErrorCode: Code[20]; Duration: Duration)
     var
         CustomDimensions: Dictionary of [Text, Text];

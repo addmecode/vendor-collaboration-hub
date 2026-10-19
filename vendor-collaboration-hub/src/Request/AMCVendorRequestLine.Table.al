@@ -4,6 +4,7 @@ table 50102 "AMC Vendor Request Line"
 {
     Caption = 'Vendor Request Line';
     DataClassification = CustomerContent;
+    Permissions = tabledata "AMC Vendor Request Line" = r;
 
     fields
     {
