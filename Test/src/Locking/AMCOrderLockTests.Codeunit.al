@@ -226,8 +226,6 @@ codeunit 50141 "AMC Order Lock Tests"
         // Given
         this.CreateLockedPurchaseOrder(PurchaseHeader, RequestNo);
         VendorRequest.Get(RequestNo);
-        RequestMgt.SetStatus(VendorRequest, VendorRequest.Status::Sent);
-        RequestMgt.SetStatus(VendorRequest, VendorRequest.Status::"Awaiting Vendor");
         RequestMgt.SetStatus(VendorRequest, VendorRequest.Status::"Vendor Responded");
         RequestMgt.SetStatus(VendorRequest, VendorRequest.Status::"In Review");
 
@@ -313,6 +311,7 @@ codeunit 50141 "AMC Order Lock Tests"
         VendorRequest.Init();
         VendorRequest."No." := RequestNo;
         VendorRequest."Purchase Order No." := PurchaseHeader."No.";
+        VendorRequest.Status := VendorRequest.Status::"Awaiting Vendor";
         VendorRequest.Insert(false);
 
         PurchaseHeader."AMC Active Request No." := RequestNo;

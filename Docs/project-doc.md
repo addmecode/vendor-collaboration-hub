@@ -968,7 +968,7 @@ Deliberately **no** `AMC Confirmed Date` — that is `Promised Receipt Date` (§
 
 | Enum | ID | Ext. | Values |
 |---|---|---|---|
-| `AMC Request Status` | 50100 | yes | Draft, Sent, Awaiting Vendor, Vendor Responded, In Review, Closed, Cancelled |
+| `AMC Request Status` | 50100 | yes | Draft, Awaiting Vendor, Vendor Responded, In Review, Closed, Cancelled |
 | `AMC Request Line Status` | 50101 | yes | Open, Change Proposed, Partially Confirmed, Confirmed, Cancelled |
 | `AMC Proposal Status` | 50102 | yes | Draft, Submitted, In Review, Changes Requested, Approved, Rejected, Applied, Apply Failed, Withdrawn, Superseded, Expired |
 | `AMC Proposal Line Type` | 50103 | yes | Confirm, Change Quantity, Change Date, Split Delivery, Substitute Item, Cancel Remainder |
@@ -1228,16 +1228,16 @@ Permission semantics: [Microsoft Learn — Permissions property](https://learn.m
 ## 5.1 Vendor Request
 
 ```text
-Draft --(Send)--> Sent --> Awaiting Vendor
-                              |
-             (proposal submitted via API)
-                              v
-                      Vendor Responded --(buyer opens)--> In Review
-                              |                               |
-                              |                   (approve + apply)
-                              |                               v
-                              +-------------------------->  Closed
-Draft|Sent|Awaiting Vendor|Vendor Responded --(Cancel)--> Cancelled
+Draft --(Send)--> Awaiting Vendor
+                         |
+        (proposal submitted via API)
+                         v
+                 Vendor Responded --(buyer opens)--> In Review
+                         |                              |
+                         |                  (approve + apply)
+                         |                              v
+                         +--------------------------> Closed
+Draft|Awaiting Vendor|Vendor Responded|In Review --(Cancel)--> Cancelled
 ```
 
 `Draft` and `Send` are reached from one place only: the *Send to Vendor
@@ -1266,7 +1266,7 @@ lets the vendor's link resolve to one question without ambiguity, and what keeps
 two competing snapshots of the same order.
 
 `AMC Request Mgt.CreateFromOrder` enforces it: it locks the purchase header, checks
-for an existing request in `Draft`, `Sent`, `Awaiting Vendor`, `Vendor Responded` or
+for an existing request in `Draft`, `Awaiting Vendor`, `Vendor Responded` or
 `In Review`, and refuses with `VCH-REQ-0001` naming that request. The lock matters —
 the header field is a pointer, not a database constraint, and two buyers pressing
 *Send* at the same moment is exactly how one gets written twice.
@@ -2811,7 +2811,7 @@ comments, `LibraryPurchase` / `LibraryInventory` / `LibraryRandom` /
 | Rule | Test |
 |---|---|
 | A vendor request snapshots the PO lines as sent | `Request_Create_CopiesLineSnapshot` |
-| A sent request cannot be edited | `Request_Sent_IsNotEditable` |
+| An active request snapshot cannot be edited | `Request_Active_SnapshotIsNotEditable` |
 | A second request cannot be created while one is active | `Request_SecondWhileActive_Fails` |
 | Cancelling a request clears the pointer, revokes the token and supersedes open proposals | `Request_Cancel_ReleasesOrderForNewRequest` |
 | A closed request leaves the order free for a new one | `Request_Closed_AllowsNewRequest` |
@@ -3541,7 +3541,7 @@ listed in §15.1.
 |---|---|---|---|---|
 | 13 | **Access token** | `AMC Vendor Access Token` (50106) and `AMC Access Token Status` (50107); `AMC Access Token Mgt` (50117) with `Issue`, `Assert`, `RegisterAccess`, `Revoke`, `Supersede` and `Expire`, storing only the SHA-256 hash (§9.2); no blanket token-write elevation on the shared codeunit (§4.7); pages 50109 and 50110 | Issue and send a token from a test: confirm no generated raw value/full link appears in AMC application tables, while the standard Email body contains the expected link (§9.7). Revoke it and watch the status change and the timeline record it. Assert a token against the wrong request and get `VCH-AUT-0004` | DONE |
 | 14 | **The e-mail** | `AMC Vendor Email Builder` (50119), pure, returning subject, HTML and plain text; `AMC Vendor Notification` (50118) resolving the recipient and sending through the Email module; `AMC Email Scenario Ext` (50100); the language rules and the `GlobalLanguage` restore of §13.4 | Configure an e-mail account, map the scenario, and send yourself the message for VCR-000148. Check it renders in a real client, that the plain-text alternative carries the same link, and that a vendor with a language code gets that language | DONE |
-| 15 | **Send, re-send, revoke, expire** | `Send` moving `Draft → Sent → Awaiting Vendor`, minting the token and handing over the e-mail in one transaction (§5.1); *Re-send link* and *Revoke link* actions; the `VCH-REQ-0002` and `VCH-REQ-0003` guards; `AMC Token Expiry Job` (50124) and the setup action that schedules it | Press *Send* on PO-10482 and receive the e-mail. Press *Re-send* and confirm the first link's token is `Superseded`. Set `Link Validity Days` below the vendor's response days and be refused. Run the job against a back-dated token and watch it flip to `Expired` | DONE |
+| 15 | **Send, re-send, revoke, expire** | `Send` moving directly `Draft → Awaiting Vendor` after successful e-mail handoff, minting the token and handing over the e-mail in one transaction (§5.1); *Re-send link* and *Revoke link* actions; the `VCH-REQ-0002` and `VCH-REQ-0003` guards; `AMC Token Expiry Job` (50124) and the setup action that schedules it | Press *Send* on PO-10482 and receive the e-mail; confirm the request and purchase order collaboration status are `Awaiting Vendor`. Press *Re-send* and confirm the first link's token is `Superseded`. Set `Link Validity Days` below the vendor's response days and be refused. Run the job against a back-dated token and watch it flip to `Expired` | DONE |
 
 ## M5 — The contract
 

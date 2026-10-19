@@ -8,10 +8,6 @@ enum 50100 "AMC Request Status"
     {
         Caption = 'Draft';
     }
-    value(1; Sent)
-    {
-        Caption = 'Sent';
-    }
     value(2; "Awaiting Vendor")
     {
         Caption = 'Awaiting Vendor';
