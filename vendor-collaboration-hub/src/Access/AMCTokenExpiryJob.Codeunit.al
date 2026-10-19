@@ -19,7 +19,7 @@ codeunit 50124 "AMC Token Expiry Job"
         AccessTokenMgt.Expire();
     end;
 
-    procedure ScheduleTokenExpiryJob()
+    procedure ScheduleTokenExpiryJob(): Boolean
     var
         JobQueueEntry: Record "Job Queue Entry";
     begin
@@ -27,7 +27,7 @@ codeunit 50124 "AMC Token Expiry Job"
         JobQueueEntry.SetRange("Object Type to Run", JobQueueEntry."Object Type to Run"::Codeunit);
         JobQueueEntry.SetRange("Object ID to Run", Codeunit::"AMC Token Expiry Job");
         if JobQueueEntry.FindFirst() then
-            exit;
+            exit(false);
 
         JobQueueEntry.Init();
         JobQueueEntry."Object Type to Run" := JobQueueEntry."Object Type to Run"::Codeunit;
@@ -38,5 +38,6 @@ codeunit 50124 "AMC Token Expiry Job"
         JobQueueEntry."User ID" := UserId();
         JobQueueEntry.Insert(true);
         JobQueueEntry.SetStatus(JobQueueEntry.Status::Ready);
+        exit(true);
     end;
 }

@@ -159,8 +159,10 @@ page 50100 "AMC Collaboration Setup"
     local procedure ScheduleTokenExpiryJob()
     var
         TokenExpiryJob: Codeunit "AMC Token Expiry Job";
+        ExistingTokenExpiryJobMsg: Label 'The token expiry job is already scheduled. No new job queue entry was created.';
     begin
-        TokenExpiryJob.ScheduleTokenExpiryJob();
+        if not TokenExpiryJob.ScheduleTokenExpiryJob() then
+            Message(ExistingTokenExpiryJobMsg);
     end;
 
     var
