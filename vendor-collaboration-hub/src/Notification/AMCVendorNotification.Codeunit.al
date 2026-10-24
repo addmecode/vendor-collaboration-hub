@@ -37,7 +37,7 @@ codeunit 50118 "AMC Vendor Notification"
     RawToken := AccessTokenMgt.Issue(RequestNo);
     AccessLink := this.CreateAccessLink(VendorRequest, RawToken);
     this.Prepare(VendorRequest, AccessLink, EmailMessage);
-    this.OnBeforeEmailSend(RequestNo, Enum::"Email Scenario"::"Vendor Collaboration", IsHandled, EmailWasSent);
+    this.OnSendOnBeforeEmailSend(RequestNo, Enum::"Email Scenario"::"Vendor Collaboration", IsHandled, EmailWasSent);
     if not IsHandled then
       EmailWasSent := this.TrySend(Email, EmailMessage);
     if not EmailWasSent then begin
@@ -175,7 +175,7 @@ codeunit 50118 "AMC Vendor Notification"
 
   // Existing bypass retained with metadata only; see Docs/email-send-transaction-and-test-seam.md.
   [IntegrationEvent(false, false)]
-  procedure OnBeforeEmailSend(RequestNo: Code[20]; EmailScenario: Enum "Email Scenario"; var IsHandled: Boolean; var EmailWasSent: Boolean)
+  procedure OnSendOnBeforeEmailSend(RequestNo: Code[20]; EmailScenario: Enum "Email Scenario"; var IsHandled: Boolean; var EmailWasSent: Boolean)
   begin
   end;
 
