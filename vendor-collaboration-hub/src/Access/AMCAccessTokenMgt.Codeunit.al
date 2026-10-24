@@ -89,7 +89,7 @@ codeunit 50117 "AMC Access Token Mgt"
         VendorAccessToken."Revoked At" := CurrentDateTime();
         VendorAccessToken."Revoked By" := CopyStr(UserId(), 1, MaxStrLen(VendorAccessToken."Revoked By"));
         VendorAccessToken."Revocation Reason" := RevocationReason;
-        VendorAccessToken.Modify(true);
+        VendorAccessToken.Modify(false);
         this.LogTokenLifecycle(VendorAccessToken, "AMC Collab Entry Type"::LinkRevoked, "AMC Actor Type"::Buyer, this.LinkRevokedDescriptionLbl);
     end;
 
@@ -111,7 +111,7 @@ codeunit 50117 "AMC Access Token Mgt"
         VendorAccessToken.SetRange(Status, VendorAccessToken.Status::Active);
         while VendorAccessToken.FindFirst() do begin //todo: findset
             VendorAccessToken.Status := VendorAccessToken.Status::Superseded;
-            VendorAccessToken.Modify(true);
+            VendorAccessToken.Modify(false);
             this.LogTokenLifecycle(VendorAccessToken, "AMC Collab Entry Type"::LinkRevoked, "AMC Actor Type"::Buyer, this.LinkSupersededDescriptionLbl);
         end;
     end;
@@ -124,7 +124,7 @@ codeunit 50117 "AMC Access Token Mgt"
         VendorAccessToken.SetFilter("Expires At", '<%1', CurrentDateTime());
         while VendorAccessToken.FindFirst() do begin //todo: findset
             VendorAccessToken.Status := VendorAccessToken.Status::Expired;
-            VendorAccessToken.Modify(true);
+            VendorAccessToken.Modify(false);
             this.LogTokenLifecycle(VendorAccessToken, "AMC Collab Entry Type"::LinkExpired, "AMC Actor Type"::System, this.LinkExpiredDescriptionLbl);
         end;
     end;

@@ -235,7 +235,7 @@ codeunit 50101 "AMC Proposal Mgt"
       Error(VCHPro0001Err, VendorProposal.Status, NewStatus);
 
     VendorProposal.Status := NewStatus;
-    VendorProposal.Modify(true);
+    VendorProposal.Modify(false);
   end;
 
   local procedure IsStatusTransitionAllowed(CurrentStatus: Enum "AMC Proposal Status"; NewStatus: Enum "AMC Proposal Status"): Boolean

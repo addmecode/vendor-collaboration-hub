@@ -105,7 +105,7 @@ codeunit 50104 "AMC Apply Proposal Svc"
     this.LogAppliedLine(VendorProposal, VendorProposalLine, CollabLog);
     VendorProposalLine.Applied := true;
     VendorProposalLine."Applied Purchase Line No." := OriginalPurchaseLine."Line No.";
-    VendorProposalLine.Modify(true);
+    VendorProposalLine.Modify(false);
   end;
 
   local procedure GetOriginPurchaseLine(VendorProposal: Record "AMC Vendor Proposal"; VendorProposalLine: Record "AMC Vendor Proposal Line"; var PurchaseLine: Record "Purchase Line")
@@ -201,17 +201,12 @@ codeunit 50104 "AMC Apply Proposal Svc"
   end;
 
   local procedure GetConfirmedQuantity(ProposalNo: Code[20]; RequestLineNo: Integer; var VendorProposalLine: Record "AMC Vendor Proposal Line"): Decimal
-  var
-    ConfirmedQuantity: Decimal;
   begin
     VendorProposalLine.Reset();
     VendorProposalLine.SetRange("Proposal No.", ProposalNo);
     VendorProposalLine.SetRange("Request Line No.", RequestLineNo);
-    if VendorProposalLine.FindSet() then
-      repeat
-        ConfirmedQuantity += VendorProposalLine."Proposed Quantity";
-      until VendorProposalLine.Next() = 0;
-    exit(ConfirmedQuantity);
+    VendorProposalLine.CalcSums("Proposed Quantity");
+    exit(VendorProposalLine."Proposed Quantity");
   end;
 
   local procedure SupersedeOtherOpenProposals(VendorProposal: Record "AMC Vendor Proposal"; ProposalMgt: Codeunit "AMC Proposal Mgt"; CollabLog: Codeunit "AMC Collab Log")

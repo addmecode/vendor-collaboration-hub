@@ -305,7 +305,7 @@ codeunit 50100 "AMC Request Mgt"
                 VendorRequestLine."Confirmed Quantity" := 0;
                 VendorRequestLine."Outstanding Quantity" := PurchaseLine.Quantity;
                 VendorRequestLine.Status := VendorRequestLine.Status::Open;
-                VendorRequestLine.Insert(true);
+                VendorRequestLine.Insert(false);
                 LineCount += 1;
             until PurchaseLine.Next() = 0;
     end;

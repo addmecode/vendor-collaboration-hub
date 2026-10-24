@@ -72,6 +72,9 @@ codeunit 50120 "AMC Order Lock Mgt"
     var
         PurchaseHeader: Record "Purchase Header";
     begin
+        if PurchaseLine."Document Type" <> PurchaseLine."Document Type"::Order then
+            exit;
+
         if not PurchaseHeader.Get(PurchaseLine."Document Type", PurchaseLine."Document No.") then
             exit;
 
@@ -86,6 +89,7 @@ codeunit 50120 "AMC Order Lock Mgt"
         if PurchaseHeader."Document Type" <> PurchaseHeader."Document Type"::Order then
             exit;
 
+        PersistedPurchaseHeader.SetLoadFields("Document Type", "No.", "AMC Active Request No.");
         if not PersistedPurchaseHeader.Get(PurchaseHeader."Document Type", PurchaseHeader."No.") then
             exit;
 

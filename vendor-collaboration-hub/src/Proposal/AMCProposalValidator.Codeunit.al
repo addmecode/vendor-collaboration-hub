@@ -92,9 +92,10 @@ codeunit 50102 "AMC Proposal Validator"
       exit;
     end;
 
-    if (VendorProposalLine."Reason Code" <> '') and not ReasonCode.Get(VendorProposalLine."Reason Code") then
-      this.AddLineError(Result, this.ReasonCodeRequiredCodeLbl, VendorProposalLine,
-        StrSubstNo(this.ReasonCodeNotFoundErr, VendorProposalLine."Reason Code"));
+    if VendorProposalLine."Reason Code" <> '' then
+      if not ReasonCode.Get(VendorProposalLine."Reason Code") then
+        this.AddLineError(Result, this.ReasonCodeRequiredCodeLbl, VendorProposalLine,
+          StrSubstNo(this.ReasonCodeNotFoundErr, VendorProposalLine."Reason Code"));
   end;
 
   local procedure ValidateSplitCount(VendorProposalLine: Record "AMC Vendor Proposal Line"; CollaborationSetup: Record "AMC Collaboration Setup"; var SplitCounts: Dictionary of [Integer, Integer]; var Result: Codeunit "AMC Validation Result")

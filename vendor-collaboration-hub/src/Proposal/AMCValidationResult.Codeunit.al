@@ -28,19 +28,19 @@ codeunit 50122 "AMC Validation Result"
 
     procedure AsErrorText(): Text
     var
-        ErrorText: Text;
+        ErrorText: TextBuilder;
         Index: Integer;
     begin
         if not this.HasErrors() then
             exit('');
 
         for Index := 1 to this.ErrorCodes.Count() do begin
-            if ErrorText <> '' then
-                ErrorText += ' ';
-            ErrorText += this.FormatError(Index);
+            if ErrorText.Length() > 0 then
+                ErrorText.Append(' ');
+            ErrorText.Append(this.FormatError(Index));
         end;
 
-        exit(ErrorText);
+        exit(ErrorText.ToText());
     end;
 
     procedure AsJson(): Text
@@ -72,28 +72,28 @@ codeunit 50122 "AMC Validation Result"
   procedure GetErrorCodeList(): Text
   var
     ErrorCode: Code[20];
-    CodeList: Text;
+    CodeList: TextBuilder;
   begin
     foreach ErrorCode in this.ErrorCodes do begin
-      if CodeList <> '' then
-        CodeList += ',';
-      CodeList += ErrorCode;
+      if CodeList.Length() > 0 then
+        CodeList.Append(',');
+      CodeList.Append(ErrorCode);
     end;
-    exit(CodeList);
+    exit(CodeList.ToText());
   end;
 
     procedure AsDisplayText(): Text
     var
-        ErrorText: Text;
+        ErrorText: TextBuilder;
         Index: Integer;
     begin
         for Index := 1 to this.ErrorTexts.Count() do begin
-            if ErrorText <> '' then
-                ErrorText += ' ';
-            ErrorText += this.FormatDisplayError(Index);
+            if ErrorText.Length() > 0 then
+                ErrorText.Append(' ');
+            ErrorText.Append(this.FormatDisplayError(Index));
         end;
 
-        exit(ErrorText);
+        exit(ErrorText.ToText());
     end;
 
     local procedure FormatError(Index: Integer): Text
