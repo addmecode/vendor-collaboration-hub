@@ -10,7 +10,7 @@ codeunit 50117 "AMC Access Token Mgt"
                   tabledata Vendor = r;
 
     [NonDebuggable]
-    procedure Issue(RequestNo: Code[20]): Text
+    internal procedure Issue(RequestNo: Code[20]): Text
     var
         CollaborationSetup: Record "AMC Collaboration Setup";
         VendorAccessToken: Record "AMC Vendor Access Token";

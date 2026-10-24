@@ -4,7 +4,7 @@ codeunit 50126 "AMC API Token Scope"
 {
   Permissions = tabledata "AMC Vendor Access Token" = r;
 
-  procedure ApplyTokenScope(var VendorAccessToken: Record "AMC Vendor Access Token"; AllowBoundSystemId: Boolean)
+  internal procedure ApplyTokenScope(var VendorAccessToken: Record "AMC Vendor Access Token"; AllowBoundSystemId: Boolean)
   var
     ClientFilterGroup: Integer;
     SystemIdFilter: Text;
