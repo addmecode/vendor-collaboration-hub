@@ -8,7 +8,7 @@ codeunit 50103 "AMC Proposal Decision Svc"
   procedure Approve(var VendorProposal: Record "AMC Vendor Proposal"; DecisionReason: Text[250]): Boolean
   var
     ApplySucceeded: Boolean;
-    DecisionContext: Record "AMC Vendor Proposal" temporary;
+    TempDecisionContext: Record "AMC Vendor Proposal" temporary;
     OrderLockMgt: Codeunit "AMC Order Lock Mgt";
     Telemetry: Codeunit "AMC Telemetry";
     ErrorCode: Code[20];
@@ -20,17 +20,17 @@ codeunit 50103 "AMC Proposal Decision Svc"
     VendorProposal.Get(VendorProposal."No.");
     this.VerifyApprovalAllowed(VendorProposal);
 
-    DecisionContext.Init();
-    DecisionContext."No." := VendorProposal."No.";
-    DecisionContext.Status := DecisionContext.Status::Approved;
-    DecisionContext."Decision Reason" := DecisionReason;
-    DecisionContext."Decision User ID" := UserId();
-    DecisionContext."Correlation Id" := VendorProposal."Correlation Id";
+    TempDecisionContext.Init();
+    TempDecisionContext."No." := VendorProposal."No.";
+    TempDecisionContext.Status := TempDecisionContext.Status::Approved;
+    TempDecisionContext."Decision Reason" := DecisionReason;
+    TempDecisionContext."Decision User ID" := UserId();
+    TempDecisionContext."Correlation Id" := VendorProposal."Correlation Id";
     OrderLockMgt.GetSuppressionContext(PreviousPurchaseOrderNo, PreviousRequestNo);
     StartedAt := CurrentDateTime();
 
     ClearLastError();
-    ApplySucceeded := Codeunit.Run(Codeunit::"AMC Apply Proposal Svc", DecisionContext);
+    ApplySucceeded := Codeunit.Run(Codeunit::"AMC Apply Proposal Svc", TempDecisionContext);
     if not ApplySucceeded then begin
       ErrorMessage := GetLastErrorText();
       ErrorCode := this.GetErrorCode(ErrorMessage);

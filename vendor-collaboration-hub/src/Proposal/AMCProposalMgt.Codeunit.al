@@ -209,7 +209,7 @@ codeunit 50101 "AMC Proposal Mgt"
         VendorProposal: Record "AMC Vendor Proposal";
         NoSeries: Codeunit "No. Series";
         ProposalNo: Code[20];
-        ManualIdempotencyKeyLbl: Label 'MANUAL-%1', Locked = true;
+        ManualIdempotencyKeyLbl: Label 'MANUAL-%1', Locked = true, Comment = '%1 = proposal number';
     begin
         VendorRequest.Get(VendorRequest."No.");
         CollaborationSetup.GetSetup();
