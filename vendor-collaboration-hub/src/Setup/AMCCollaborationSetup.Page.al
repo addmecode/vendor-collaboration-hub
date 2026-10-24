@@ -123,7 +123,7 @@ page 50100 "AMC Collaboration Setup"
             action(AMCScheduleTokenExpiryJob)
             {
                 ApplicationArea = All;
-                Caption = 'Schedule Token Expiry Job';
+                Caption = 'Schedule token expiry job';
                 ToolTip = 'Schedules the recurring job that marks expired vendor access links as expired.';
 
                 trigger OnAction()

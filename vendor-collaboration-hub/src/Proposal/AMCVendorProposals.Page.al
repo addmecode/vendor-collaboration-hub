@@ -67,7 +67,7 @@ page 50105 "AMC Vendor Proposals"
             action(AMCCreateDraftProposal)
             {
                 ApplicationArea = All;
-                Caption = 'Create Draft Proposal';
+                Caption = 'Create draft proposal';
                 Image = NewDocument;
                 ToolTip = 'Creates a draft proposal for a vendor request.';
 

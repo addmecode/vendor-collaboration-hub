@@ -150,7 +150,7 @@ page 50103 "AMC Vendor Request"
             action(AMCResendLink)
             {
                 ApplicationArea = All;
-                Caption = 'Re-send Link';
+                Caption = 'Re-send link';
                 Enabled = Rec.Status = Rec.Status::"Awaiting Vendor";
                 Image = SendTo;
                 ToolTip = 'Supersedes the current access link and sends a new link to the vendor.';

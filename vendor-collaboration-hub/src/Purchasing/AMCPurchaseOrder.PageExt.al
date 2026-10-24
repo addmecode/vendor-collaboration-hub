@@ -42,7 +42,7 @@ pageextension 50100 "AMC Purchase Order" extends "Purchase Order"
             action(AMCUnlockPurchaseOrder)
             {
                 ApplicationArea = All;
-                Caption = 'Unlock Purchase Order';
+                Caption = 'Unlock purchase order';
                 Enabled = Rec."AMC Active Request No." <> '';
                 ToolTip = 'Cancels the active vendor request and unlocks this purchase order.';
 

@@ -101,6 +101,7 @@ page 50101 "AMC Assisted Setup"
                     ApplicationArea = All;
                     Caption = 'Portal Base URL';
                     ExtendedDatatype = URL;
+                    ShowMandatory = this.Enabled;
                     ToolTip = 'Specifies the base URL of the vendor collaboration portal.';
                 }
                 field(PortalSupportEmail; this.PortalSupportEmail)
@@ -108,6 +109,7 @@ page 50101 "AMC Assisted Setup"
                     ApplicationArea = All;
                     Caption = 'Portal Support E-Mail';
                     ExtendedDatatype = EMail;
+                    ShowMandatory = this.Enabled;
                     ToolTip = 'Specifies the e-mail address that vendors can use to request support.';
                 }
                 field(AttachOrderPdf; this.AttachOrderPdf)

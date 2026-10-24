@@ -99,7 +99,7 @@ page 50110 "AMC Vendor Access Links"
             action(AMCRevokeLink)
             {
                 ApplicationArea = All;
-                Caption = 'Revoke Link';
+                Caption = 'Revoke link';
                 Enabled = Rec.Status = Rec.Status::Active;
                 Image = Cancel;
                 ToolTip = 'Revokes the selected vendor access link.';
