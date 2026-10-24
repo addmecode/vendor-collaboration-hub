@@ -1,6 +1,7 @@
 namespace Addmecode.VendorCollaborationHub;
 
 using Microsoft.CRM.Team;
+using Microsoft.Foundation.Reporting;
 using Microsoft.Purchases.Document;
 using Microsoft.Purchases.Vendor;
 using System.Email;
@@ -148,21 +149,43 @@ codeunit 50118 "AMC Vendor Notification"
   local procedure AddPurchaseOrderPdf(VendorRequest: Record "AMC Vendor Request"; var EmailMessage: Codeunit "Email Message")
   var
     PurchaseHeader: Record "Purchase Header";
-    PurchaseHeaderRef: RecordRef;
+    ReportSelections: Record "Report Selections";
+    TempReportSelections: Record "Report Selections" temporary;
+    DesignTimeReportSelection: Codeunit "Design-time Report Selection";
     TempBlob: Codeunit "Temp Blob";
     AttachmentInStream: InStream;
-    AttachmentOutStream: OutStream;
-    PdfGenerationFailedErr: Label 'The purchase order PDF could not be generated.';
+    LastErrorText: Text;
+    PdfGenerationFailedErr: Label 'The purchase order PDF could not be generated: %1', Comment = '%1 = original error detail';
     PurchaseOrderPdfFileNameLbl: Label 'Purchase Order %1.pdf', Comment = '%1 = purchase order number';
   begin
+    if not ReportSelections.FindEmailAttachmentUsageForVend("Report Selection Usage"::"P.Order", VendorRequest."Vendor No.", TempReportSelections) then
+      exit;
+    TempReportSelections.SetFilter("Report ID", '<>0');
+    if not TempReportSelections.FindSet() then
+      exit;
+
     PurchaseHeader.Get(PurchaseHeader."Document Type"::Order, VendorRequest."Purchase Order No.");
     PurchaseHeader.SetRecFilter();
-    PurchaseHeaderRef.GetTable(PurchaseHeader);
-    TempBlob.CreateOutStream(AttachmentOutStream);
-    if not Report.SaveAs(Report::Order, '', ReportFormat::Pdf, AttachmentOutStream, PurchaseHeaderRef) then
-      Error(PdfGenerationFailedErr);
-    TempBlob.CreateInStream(AttachmentInStream);
-    EmailMessage.AddAttachment(StrSubstNo(PurchaseOrderPdfFileNameLbl, PurchaseHeader."No."), 'application/pdf', AttachmentInStream);
+    repeat
+      Clear(TempBlob);
+      if not this.TrySavePurchaseOrderPdf(TempReportSelections, PurchaseHeader, TempBlob) then begin
+        LastErrorText := GetLastErrorText();
+        DesignTimeReportSelection.ClearLayoutSelection();
+        Error(PdfGenerationFailedErr, LastErrorText);
+      end;
+      DesignTimeReportSelection.ClearLayoutSelection();
+      TempBlob.CreateInStream(AttachmentInStream);
+      EmailMessage.AddAttachment(StrSubstNo(PurchaseOrderPdfFileNameLbl, PurchaseHeader."No."), 'application/pdf', AttachmentInStream);
+    until TempReportSelections.Next() = 0;
+  end;
+
+  [TryFunction]
+  [CommitBehavior(CommitBehavior::Ignore)]
+  local procedure TrySavePurchaseOrderPdf(var TempReportSelections: Record "Report Selections" temporary; PurchaseHeader: Record "Purchase Header"; var TempBlob: Codeunit "Temp Blob")
+  begin
+    // The standard helper clears its layout on success, but explicitly commits.
+    // Suppress only that rendering scope so issuing/superseding tokens stays atomic.
+    TempReportSelections.SaveReportAsPDFInTempBlob(TempBlob, TempReportSelections."Report ID", PurchaseHeader, TempReportSelections."Custom Report Layout Code", "Report Selection Usage"::"P.Order");
   end;
 
   [TryFunction]

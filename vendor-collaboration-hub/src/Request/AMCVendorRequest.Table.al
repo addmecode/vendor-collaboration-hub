@@ -139,4 +139,9 @@ table 50101 "AMC Vendor Request"
             (this."Currency Code" <> PersistedVendorRequest."Currency Code")) then
             Error(RequestSnapshotCannotBeChangedErr);
     end;
+
+  procedure InitRecord()
+  begin
+    Rec.Status := Rec.Status::Draft;
+  end;
 }

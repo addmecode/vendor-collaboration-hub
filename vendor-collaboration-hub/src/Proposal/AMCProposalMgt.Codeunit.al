@@ -34,6 +34,7 @@ codeunit 50101 "AMC Proposal Mgt"
     VendorProposal."No." := NoSeries.GetNextNo(CollaborationSetup."Proposal Nos.", WorkDate(), true);
     if VendorProposal."No." = '' then
       Error(NumberSeriesRequiredErr);
+    VendorProposal.InitRecord();
     VendorProposal."Idempotency Key" := Format(CreateGuid(), 0, 4);
     VendorProposal.Status := VendorProposal.Status::Submitted;
     VendorProposal."API Submission Pending" := true;
@@ -217,15 +218,28 @@ codeunit 50101 "AMC Proposal Mgt"
         ProposalNo := NoSeries.GetNextNo(CollaborationSetup."Proposal Nos.");
         VendorProposal.Init();
         VendorProposal."No." := ProposalNo;
+        VendorProposal.InitRecord();
         VendorProposal."Request No." := VendorRequest."No.";
         VendorProposal."Vendor No." := VendorRequest."Vendor No.";
         VendorProposal."Purchase Order No." := VendorRequest."Purchase Order No.";
         VendorProposal."Idempotency Key" := CopyStr(StrSubstNo(ManualIdempotencyKeyLbl, ProposalNo), 1, MaxStrLen(VendorProposal."Idempotency Key"));
-        VendorProposal.Status := VendorProposal.Status::Draft;
         VendorProposal.Insert(true);
 
         exit(ProposalNo);
     end;
+
+  [EventSubscriber(ObjectType::Table, Database::Vendor, 'OnAfterRenameEvent', '', false, false)]
+  local procedure UpdateProposalVendorOnVendorRename(var Rec: Record Vendor; var xRec: Record Vendor; RunTrigger: Boolean)
+  var
+    VendorProposal: Record "AMC Vendor Proposal";
+  begin
+    if Rec.IsTemporary() or (Rec."No." = xRec."No.") then
+      exit;
+
+    // Keep ValidateTableRelation=false so API identity failures retain their VCH errors.
+    VendorProposal.SetRange("Vendor No.", xRec."No.");
+    VendorProposal.ModifyAll("Vendor No.", Rec."No.", false);
+  end;
 
   procedure SetStatus(var VendorProposal: Record "AMC Vendor Proposal"; NewStatus: Enum "AMC Proposal Status")
   var

@@ -160,4 +160,9 @@ table 50103 "AMC Vendor Proposal"
         if not ExistingVendorProposal.IsEmpty() then
             Error(DuplicateIdempotencyKeyErr, Rec."Idempotency Key", Rec."Vendor No.");
     end;
+
+  procedure InitRecord()
+  begin
+    Rec.Status := Rec.Status::Draft;
+  end;
 }

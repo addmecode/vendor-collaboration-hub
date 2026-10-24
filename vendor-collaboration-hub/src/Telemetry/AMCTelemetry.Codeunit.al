@@ -3,9 +3,14 @@ namespace Addmecode.VendorCollaborationHub;
 codeunit 50106 "AMC Telemetry"
 {
     procedure LogMessage(EventId: Text; Message: Text; MessageVerbosity: Verbosity; var CustomDimensions: Dictionary of [Text, Text])
+    var
+        Scope: TelemetryScope;
     begin
         CustomDimensions.Set(this.VCHEventIdLbl, EventId);
-        Session.LogMessage(EventId, Message, MessageVerbosity, DataClassification::EndUserPseudonymousIdentifiers, TelemetryScope::ExtensionPublisher, CustomDimensions);
+        Scope := TelemetryScope::ExtensionPublisher;
+        if (EventId = this.VCH0122Lbl) or (EventId = this.VCH0221Lbl) then
+            Scope := TelemetryScope::All;
+        Session.LogMessage(EventId, Message, MessageVerbosity, DataClassification::EndUserPseudonymousIdentifiers, Scope, CustomDimensions);
     end;
 
     procedure LogRequestCreated(RequestNo: Code[20]; VendorNo: Code[20]; OrderNo: Code[20]; LineCount: Integer)

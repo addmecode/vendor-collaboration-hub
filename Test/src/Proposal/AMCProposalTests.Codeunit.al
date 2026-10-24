@@ -3,6 +3,7 @@ namespace Addmecode.VendorCollaborationHub.Tests;
 using Addmecode.VendorCollaborationHub;
 using Microsoft.Foundation.NoSeries;
 using Microsoft.Purchases.Document;
+using Microsoft.Purchases.Vendor;
 using System.TestLibraries.Utilities;
 
 codeunit 50133 "AMC Proposal Tests"
@@ -42,6 +43,40 @@ codeunit 50133 "AMC Proposal Tests"
         SecondVendorProposal.Get(SecondProposalNo);
         this.Assert.AreNotEqual(VendorProposal."Idempotency Key", SecondVendorProposal."Idempotency Key", 'Each manually created draft must have a distinct internal idempotency key.');
     end;
+
+  [Test]
+  procedure GivenRequestAndProposal_WhenVendorIsRenamed_ThenVendorIdentityRemainsConsistent()
+  var
+    Vendor: Record Vendor;
+    VendorProposal: Record "AMC Vendor Proposal";
+    VendorRequest: Record "AMC Vendor Request";
+    OtherVendorProposal: Record "AMC Vendor Proposal";
+    NewVendorNo: Code[20];
+    OtherVendorNo: Code[20];
+    ProposalNo: Code[20];
+    RequestNo: Code[20];
+  begin
+    // Given
+    Vendor.Init();
+    Vendor."No." := this.CreateIdentifier();
+    Vendor.Insert(false);
+    RequestNo := this.CreateRequest(Vendor."No.", 'RENAME-ORDER');
+    ProposalNo := this.CreateDraft(RequestNo);
+    OtherVendorNo := this.CreateIdentifier();
+    this.InsertProposal(OtherVendorProposal, this.CreateIdentifier(), this.CreateIdentifier(), OtherVendorNo, 'OTHER-ORDER', this.CreateIdentifier(), OtherVendorProposal.Status::Draft);
+    NewVendorNo := this.CreateIdentifier();
+
+    // When
+    Vendor.Rename(NewVendorNo);
+
+    // Then
+    VendorRequest.Get(RequestNo);
+    VendorProposal.Get(ProposalNo);
+    this.Assert.AreEqual(NewVendorNo, VendorRequest."Vendor No.", 'Vendor rename must propagate to the request relation.');
+    this.Assert.AreEqual(VendorRequest."Vendor No.", VendorProposal."Vendor No.", 'Vendor rename must preserve request/proposal ownership consistency.');
+    OtherVendorProposal.Get(OtherVendorProposal."No.");
+    this.Assert.AreEqual(OtherVendorNo, OtherVendorProposal."Vendor No.", 'Vendor rename must not change another vendor proposal.');
+  end;
 
     [Test]
     procedure GivenSameVendorAndIdempotencyKey_WhenSecondProposalIsInserted_ThenItIsRejectedButAnotherVendorIsAllowed()

@@ -273,6 +273,7 @@ codeunit 50100 "AMC Request Mgt"
     begin
         VendorRequest.Init();
         VendorRequest."No." := RequestNo;
+        VendorRequest.InitRecord();
         VendorRequest."Vendor No." := PurchaseHeader."Buy-from Vendor No.";
         VendorRequest."Purchase Order No." := PurchaseHeader."No.";
         VendorRequest."Purchaser Code" := PurchaseHeader."Purchaser Code";
@@ -280,7 +281,6 @@ codeunit 50100 "AMC Request Mgt"
         VendorRequest."Currency Code" := PurchaseHeader."Currency Code";
         VendorRequest."Language Code" := this.GetRequestLanguageCode(Vendor);
         VendorRequest."Response Deadline" := WorkDate() + this.GetResponseDays(Vendor, CollaborationSetup);
-        VendorRequest.Status := VendorRequest.Status::Draft;
         VendorRequest.Insert(true);
     end;
 
