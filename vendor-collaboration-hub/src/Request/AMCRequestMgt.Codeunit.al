@@ -228,18 +228,34 @@ codeunit 50100 "AMC Request Mgt"
 
     local procedure VerifyCollaborationEnabled(CollaborationSetup: Record "AMC Collaboration Setup")
     var
+        CollaborationSetupPage: Page "AMC Collaboration Setup";
+        CollaborationDisabledError: ErrorInfo;
         VCHAut0001Err: Label 'Vendor collaboration is not enabled in Vendor Collaboration Setup.';
+        OpenCollaborationSetupLbl: Label 'Open %1', Comment = '%1 = page caption';
     begin
-        if not CollaborationSetup.Enabled then
-            Error(VCHAut0001Err);
+        if not CollaborationSetup.Enabled then begin
+            CollaborationDisabledError.Message(VCHAut0001Err);
+            CollaborationDisabledError.PageNo(Page::"AMC Collaboration Setup");
+            CollaborationDisabledError.RecordId(CollaborationSetup.RecordId());
+            CollaborationDisabledError.AddNavigationAction(StrSubstNo(OpenCollaborationSetupLbl, CollaborationSetupPage.Caption()));
+            Error(CollaborationDisabledError);
+        end;
     end;
 
     local procedure VerifyVendorCollaborationEnabled(Vendor: Record Vendor)
     var
+        VendorCard: Page "Vendor Card";
+        VendorCollaborationDisabledError: ErrorInfo;
         VCHAut0002Err: Label 'Vendor %1 is not enabled for vendor collaboration.', Comment = '%1 = vendor number';
+        OpenVendorCardLbl: Label 'Open %1', Comment = '%1 = page caption';
     begin
-        if not Vendor."AMC Collaboration Enabled" then
-            Error(VCHAut0002Err, Vendor."No.");
+        if not Vendor."AMC Collaboration Enabled" then begin
+            VendorCollaborationDisabledError.Message(StrSubstNo(VCHAut0002Err, Vendor."No."));
+            VendorCollaborationDisabledError.PageNo(Page::"Vendor Card");
+            VendorCollaborationDisabledError.RecordId(Vendor.RecordId());
+            VendorCollaborationDisabledError.AddNavigationAction(StrSubstNo(OpenVendorCardLbl, VendorCard.Caption()));
+            Error(VendorCollaborationDisabledError);
+        end;
     end;
 
     local procedure VerifyNoActiveRequest(PurchaseOrderNo: Code[20])

@@ -98,6 +98,9 @@ codeunit 50118 "AMC Vendor Notification"
   local procedure GetRecipient(VendorRequest: Record "AMC Vendor Request"): Text
   var
     Vendor: Record Vendor;
+    VendorCard: Page "Vendor Card";
+    MissingRecipientError: ErrorInfo;
+    OpenVendorCardLbl: Label 'Open %1', Comment = '%1 = page caption';
   begin
     Vendor.Get(VendorRequest."Vendor No.");
     if Vendor."AMC Portal Contact E-Mail" <> '' then
@@ -105,7 +108,11 @@ codeunit 50118 "AMC Vendor Notification"
     if Vendor."E-Mail" <> '' then
       exit(Vendor."E-Mail");
 
-    Error(this.VCHReq0003Err, Vendor."No.");
+    MissingRecipientError.Message(StrSubstNo(this.VCHReq0003Err, Vendor."No."));
+    MissingRecipientError.PageNo(Page::"Vendor Card");
+    MissingRecipientError.RecordId(Vendor.RecordId());
+    MissingRecipientError.AddNavigationAction(StrSubstNo(OpenVendorCardLbl, VendorCard.Caption()));
+    Error(MissingRecipientError);
   end;
 
   local procedure GetBuyerEmail(VendorRequest: Record "AMC Vendor Request"): Text
