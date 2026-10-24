@@ -12,12 +12,13 @@ codeunit 50119 "AMC Vendor Email Builder"
   var
     OriginalLanguageId: Integer;
     LastErrorText: Text;
+    EmailBuildFailedErr: Label 'The vendor email could not be built: %1', Comment = '%1 = original error detail';
   begin
     OriginalLanguageId := GlobalLanguage();
     if not this.TryBuild(VendorRequest, AccessLink, Subject, HtmlBody, PlainTextBody) then begin
       LastErrorText := GetLastErrorText();
       GlobalLanguage(OriginalLanguageId);
-      Error(LastErrorText);
+      Error(EmailBuildFailedErr, LastErrorText);
     end;
     GlobalLanguage(OriginalLanguageId);
   end;

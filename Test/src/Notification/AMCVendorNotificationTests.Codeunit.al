@@ -167,10 +167,13 @@ codeunit 50144 "AMC Vendor Notification Tests"
     TempVendorRequest: Record "AMC Vendor Request" temporary;
     VendorEmailBuilder: Codeunit "AMC Vendor Email Builder";
     HtmlBody: Text;
+    LastErrorText: Text;
     OriginalLanguageId: Integer;
+    RestoredLanguageId: Integer;
     PlainTextBody: Text;
     Subject: Text;
     InvalidAccessLinkErr: Label 'The vendor access link must be an absolute HTTPS URL.';
+    EmailBuildFailedErr: Label 'The vendor email could not be built: %1', Comment = '%1 = original error detail';
   begin
     // Given
     TempVendorRequest.Init();
@@ -181,10 +184,14 @@ codeunit 50144 "AMC Vendor Notification Tests"
 
     // When
     asserterror VendorEmailBuilder.Build(TempVendorRequest, 'javascript:alert(1)', Subject, HtmlBody, PlainTextBody);
+    LastErrorText := GetLastErrorText();
+    RestoredLanguageId := GlobalLanguage();
+    GlobalLanguage(OriginalLanguageId);
+    ClearLastError();
 
     // Then
-    this.Assert.ExpectedError(InvalidAccessLinkErr);
-    this.Assert.AreEqual(OriginalLanguageId, GlobalLanguage(), 'The email builder must restore GlobalLanguage after an error.');
+    this.Assert.AreEqual(StrSubstNo(EmailBuildFailedErr, InvalidAccessLinkErr), LastErrorText, 'The builder must retain the exact wrapper and original error detail.');
+    this.Assert.AreEqual(OriginalLanguageId, RestoredLanguageId, 'The email builder must restore GlobalLanguage after an error.');
   end;
 
   local procedure CreateVendorRequest(PortalContactEmail: Text[80]; VendorEmail: Text[80]; BuyerEmail: Text[80]; VendorLanguageCode: Code[10]): Code[20]

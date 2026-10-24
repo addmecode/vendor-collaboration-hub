@@ -79,6 +79,7 @@ codeunit 50100 "AMC Request Mgt"
         PurchaseOrderOnlyErr: Label 'Only purchase orders can be unlocked.';
         RequestCancelledDescriptionLbl: Label 'Vendor request cancelled and purchase order unlocked.';
         LinkRevokedOnCancellationDescriptionLbl: Label 'Vendor request was cancelled.';
+        RequestCancellationFailedErr: Label 'The vendor request could not be cancelled: %1', Comment = '%1 = original error detail';
     begin
         if PurchaseHeader."Document Type" <> PurchaseHeader."Document Type"::Order then
             Error(PurchaseOrderOnlyErr);
@@ -100,7 +101,7 @@ codeunit 50100 "AMC Request Mgt"
         if not this.TryClearPurchaseOrderRequest(PurchaseHeader, VendorRequest.Status) then begin
             LastErrorText := GetLastErrorText();
             OrderLockMgt.RestoreSuppressionContext(PreviousPurchaseOrderNo, PreviousRequestNo);
-            Error(LastErrorText);
+            Error(RequestCancellationFailedErr, LastErrorText);
         end;
         OrderLockMgt.RestoreSuppressionContext(PreviousPurchaseOrderNo, PreviousRequestNo);
 
@@ -135,6 +136,7 @@ codeunit 50100 "AMC Request Mgt"
         LastErrorText: Text;
         InvalidSendStatusErr: Label 'Vendor request %1 must be Draft or Awaiting Vendor before a link can be sent.', Comment = '%1 = vendor request number';
         RequestSentDescriptionLbl: Label 'Vendor request sent to vendor.';
+        RequestSendFailedErr: Label 'The vendor request send status could not be updated: %1', Comment = '%1 = original error detail';
     begin
         RequestNo := VendorRequest."No.";
         VendorRequest.LockTable();
@@ -156,7 +158,7 @@ codeunit 50100 "AMC Request Mgt"
         if not this.TryUpdatePurchaseOrderCollaborationStatus(PurchaseHeader, VendorRequest.Status) then begin
             LastErrorText := GetLastErrorText();
             OrderLockMgt.RestoreSuppressionContext(PreviousPurchaseOrderNo, PreviousRequestNo);
-            Error(LastErrorText);
+            Error(RequestSendFailedErr, LastErrorText);
         end;
         OrderLockMgt.RestoreSuppressionContext(PreviousPurchaseOrderNo, PreviousRequestNo);
     end;

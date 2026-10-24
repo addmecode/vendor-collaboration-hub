@@ -29,6 +29,7 @@ codeunit 50118 "AMC Vendor Notification"
     RawToken: Text;
     EmailWasSent: Boolean;
     IsHandled: Boolean;
+    LinkSendFailedErr: Label 'The vendor access link email could not be sent: %1', Comment = '%1 = original error detail';
   begin
     VendorRequest.Get(RequestNo);
     Recipient := this.GetRecipient(VendorRequest);
@@ -45,7 +46,7 @@ codeunit 50118 "AMC Vendor Notification"
         LastErrorText := this.EmailNotSentErr;
       CollabLog.LogEvent("AMC Source Type"::Request, VendorRequest."No.", 0, "AMC Collab Entry Type"::LinkSendFailed, "AMC Actor Type"::Buyer, '', UserId(), CopyStr(LastErrorText, 1, 250), CreateGuid());
       Telemetry.LogLinkSendFailed(VendorRequest."No.", VendorRequest."Vendor No.", VendorRequest."Purchase Order No.");
-      Error(LastErrorText);
+      Error(LinkSendFailedErr, LastErrorText);
     end;
 
     this.StampTokenSent(AccessTokenMgt.HashToken(RawToken), Recipient);

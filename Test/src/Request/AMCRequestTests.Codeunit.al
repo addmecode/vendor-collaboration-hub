@@ -427,6 +427,7 @@ codeunit 50131 "AMC Request Tests"
         this.BindEmailSendHandler(EmailSendHandler, false);
 
         // When
+        ClearLastError();
         asserterror RequestMgt.Send(VendorRequest);
         this.UnbindEmailSendHandler(EmailSendHandler);
 
