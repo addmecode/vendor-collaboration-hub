@@ -7,6 +7,7 @@ codeunit 50119 "AMC Vendor Email Builder"
 {
   Permissions = tabledata "AMC Vendor Request Line" = r;
 
+  [NonDebuggable]
   procedure Build(VendorRequest: Record "AMC Vendor Request"; AccessLink: Text; var Subject: Text; var HtmlBody: Text; var PlainTextBody: Text)
   var
     OriginalLanguageId: Integer;
@@ -22,6 +23,7 @@ codeunit 50119 "AMC Vendor Email Builder"
   end;
 
   [TryFunction]
+  [NonDebuggable]
   local procedure TryBuild(VendorRequest: Record "AMC Vendor Request"; AccessLink: Text; var Subject: Text; var HtmlBody: Text; var PlainTextBody: Text)
   var
     Language: Codeunit Language;
@@ -38,6 +40,7 @@ codeunit 50119 "AMC Vendor Email Builder"
     exit(Language.GetLanguageId(VendorRequest."Language Code"));
   end;
 
+  [NonDebuggable]
   local procedure BuildContent(VendorRequest: Record "AMC Vendor Request"; AccessLink: Text; var Subject: Text; var HtmlBody: Text; var PlainTextBody: Text)
   var
     LineCount: Integer;
@@ -109,6 +112,7 @@ codeunit 50119 "AMC Vendor Email Builder"
     exit('<tr><th>' + this.HtmlEncode(Caption) + '</th><td>' + this.HtmlEncode(Value) + '</td></tr>');
   end;
 
+  [NonDebuggable]
   local procedure HtmlEncode(Value: Text): Text
   begin
     Value := Value.Replace('&', '&amp;');

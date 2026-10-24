@@ -14,6 +14,7 @@ codeunit 50118 "AMC Vendor Notification"
                 tabledata "Salesperson/Purchaser" = r,
                 tabledata Vendor = r;
 
+  [NonDebuggable]
   procedure Send(RequestNo: Code[20])
   var
     VendorRequest: Record "AMC Vendor Request";
@@ -35,7 +36,7 @@ codeunit 50118 "AMC Vendor Notification"
     RawToken := AccessTokenMgt.Issue(RequestNo);
     AccessLink := this.CreateAccessLink(VendorRequest, RawToken);
     this.Prepare(VendorRequest, AccessLink, EmailMessage);
-    this.OnBeforeEmailSend(EmailMessage, Enum::"Email Scenario"::"Vendor Collaboration", IsHandled, EmailWasSent);
+    this.OnBeforeEmailSend(RequestNo, Enum::"Email Scenario"::"Vendor Collaboration", IsHandled, EmailWasSent);
     if not IsHandled then
       EmailWasSent := this.TrySend(Email, EmailMessage);
     if not EmailWasSent then begin
@@ -52,12 +53,14 @@ codeunit 50118 "AMC Vendor Notification"
     Telemetry.LogLinkSent(VendorRequest."No.", VendorRequest."Vendor No.", VendorRequest."Purchase Order No.");
   end;
 
+  [NonDebuggable]
   procedure Prepare(RequestNo: Code[20]; AccessLink: Text; var EmailMessage: Codeunit "Email Message"; var EmailScenario: Enum "Email Scenario")
   begin
     this.Prepare(RequestNo, AccessLink, EmailMessage);
     EmailScenario := Enum::"Email Scenario"::"Vendor Collaboration";
   end;
 
+  [NonDebuggable]
   procedure Prepare(RequestNo: Code[20]; AccessLink: Text; var EmailMessage: Codeunit "Email Message")
   var
     VendorRequest: Record "AMC Vendor Request";
@@ -66,6 +69,7 @@ codeunit 50118 "AMC Vendor Notification"
     this.Prepare(VendorRequest, AccessLink, EmailMessage);
   end;
 
+  [NonDebuggable]
   procedure Prepare(VendorRequest: Record "AMC Vendor Request"; AccessLink: Text; var EmailMessage: Codeunit "Email Message")
   var
     CollaborationSetup: Record "AMC Collaboration Setup";
@@ -111,12 +115,14 @@ codeunit 50118 "AMC Vendor Notification"
       exit(SalespersonPurchaser."E-Mail");
   end;
 
+  [NonDebuggable]
   local procedure CreateAccessLink(VendorRequest: Record "AMC Vendor Request"; RawToken: Text): Text
   var
     CollaborationSetup: Record "AMC Collaboration Setup";
+    AccessLinkPatternLbl: Label '%1/request/%2?token=%3', Locked = true, Comment = '%1 = portal base URL, %2 = request number, %3 = secret token';
   begin
     CollaborationSetup.GetSetup();
-    exit(CollaborationSetup."Portal Base URL" + '/request/' + VendorRequest."No." + '?token=' + RawToken);
+    exit(StrSubstNo(AccessLinkPatternLbl, CollaborationSetup."Portal Base URL", VendorRequest."No.", RawToken));
   end;
 
   local procedure StampTokenSent(TokenHash: Text[64]; Recipient: Text)
@@ -130,6 +136,7 @@ codeunit 50118 "AMC Vendor Notification"
     VendorAccessToken.Modify(true);
   end;
 
+  [NonDebuggable]
   local procedure AddPurchaseOrderPdf(VendorRequest: Record "AMC Vendor Request"; var EmailMessage: Codeunit "Email Message")
   var
     PurchaseHeader: Record "Purchase Header";
@@ -151,14 +158,16 @@ codeunit 50118 "AMC Vendor Notification"
   end;
 
   [TryFunction]
+  [NonDebuggable]
   local procedure TrySend(Email: Codeunit Email; EmailMessage: Codeunit "Email Message")
   begin
     if not Email.Send(EmailMessage, Enum::"Email Scenario"::"Vendor Collaboration") then
       Error(this.EmailNotSentErr);
   end;
 
+  // Existing bypass retained with metadata only; see Docs/email-send-transaction-and-test-seam.md.
   [IntegrationEvent(false, false)]
-  procedure OnBeforeEmailSend(var EmailMessage: Codeunit "Email Message"; EmailScenario: Enum "Email Scenario"; var IsHandled: Boolean; var EmailWasSent: Boolean)
+  procedure OnBeforeEmailSend(RequestNo: Code[20]; EmailScenario: Enum "Email Scenario"; var IsHandled: Boolean; var EmailWasSent: Boolean)
   begin
   end;
 

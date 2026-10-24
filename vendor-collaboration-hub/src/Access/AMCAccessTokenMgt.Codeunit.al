@@ -2,8 +2,6 @@ namespace Addmecode.VendorCollaborationHub;
 
 using Microsoft.Purchases.Vendor;
 using System.Security.Encryption;
-using System.Text;
-using System.Utilities;
 
 codeunit 50117 "AMC Access Token Mgt"
 {
@@ -11,6 +9,7 @@ codeunit 50117 "AMC Access Token Mgt"
                   tabledata "AMC Vendor Request" = r,
                   tabledata Vendor = r;
 
+    [NonDebuggable]
     procedure Issue(RequestNo: Code[20]): Text
     var
         CollaborationSetup: Record "AMC Collaboration Setup";
@@ -129,6 +128,7 @@ codeunit 50117 "AMC Access Token Mgt"
         end;
     end;
 
+    [NonDebuggable]
     procedure HashToken(RawToken: Text): Text[64]
     var
         CryptographyManagement: Codeunit "Cryptography Management";
@@ -160,6 +160,7 @@ codeunit 50117 "AMC Access Token Mgt"
         exit(CollaborationSetup."Default Response Days");
     end;
 
+    [NonDebuggable]
     local procedure CreateRawToken(): Text
     var
         CryptographyManagement: Codeunit "Cryptography Management";
@@ -167,30 +168,13 @@ codeunit 50117 "AMC Access Token Mgt"
         HashAlgorithmType: Option MD5,SHA1,SHA256,SHA384,SHA512;
     begin
         EntropySource := Format(CreateGuid()) + Format(CreateGuid()) + Format(CreateGuid());
-        exit(this.HashToBase64Url(CryptographyManagement.GenerateHash(EntropySource, HashAlgorithmType::SHA256)));
+        exit(this.NormalizeBase64Url(CryptographyManagement.GenerateHashAsBase64String(EntropySource, HashAlgorithmType::SHA256)));
     end;
 
-    local procedure HashToBase64Url(Hash: Text): Text
-    var
-        Base64Convert: Codeunit "Base64 Convert";
-        TempBlob: Codeunit "Temp Blob";
-        InStream: InStream;
-        OutStream: OutStream;
-        ByteValue: Byte;
-        Index: Integer;
+    [NonDebuggable]
+    local procedure NormalizeBase64Url(Base64Token: Text): Text
     begin
-        TempBlob.CreateOutStream(OutStream);
-        for Index := 1 to 32 do begin
-            ByteValue := this.HexDigitValue(Hash[(Index * 2) - 1]) * 16 + this.HexDigitValue(Hash[Index * 2]);
-            OutStream.Write(ByteValue);
-        end;
-        TempBlob.CreateInStream(InStream);
-        exit(Base64Convert.ToBase64Url(InStream));
-    end;
-
-    local procedure HexDigitValue(HexDigit: Char): Integer
-    begin
-        exit(StrPos('0123456789ABCDEF', UpperCase(Format(HexDigit))) - 1);
+        exit(DelChr(Base64Token.Replace('+', '-').Replace('/', '_'), '=', '='));
     end;
 
     local procedure GetTokenLifetime(LinkValidityDays: Integer): Duration
