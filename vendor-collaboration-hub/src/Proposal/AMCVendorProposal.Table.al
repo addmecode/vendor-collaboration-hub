@@ -17,52 +17,43 @@ table 50103 "AMC Vendor Proposal"
         field(1; "No."; Code[20])
         {
             Caption = 'No.';
-            DataClassification = CustomerContent;
         }
         field(2; "Request No."; Code[20])
         {
             Caption = 'Request No.';
-            DataClassification = CustomerContent;
             TableRelation = "AMC Vendor Request";
             ValidateTableRelation = false;
         }
         field(3; "Vendor No."; Code[20])
         {
             Caption = 'Vendor No.';
-            DataClassification = CustomerContent;
             TableRelation = Vendor;
             ValidateTableRelation = false;
         }
         field(4; "Purchase Order No."; Code[20])
         {
             Caption = 'Purchase Order No.';
-            DataClassification = CustomerContent;
             TableRelation = "Purchase Header"."No." where("Document Type" = const(Order));
         }
         field(5; Status; Enum "AMC Proposal Status")
         {
             Caption = 'Status';
-            DataClassification = CustomerContent;
         }
         field(6; "Idempotency Key"; Text[64])
         {
             Caption = 'Idempotency Key';
-            DataClassification = CustomerContent;
         }
         field(7; "Submitted Date Time"; DateTime)
         {
             Caption = 'Submitted Date Time';
-            DataClassification = CustomerContent;
         }
         field(8; "Submitted By"; Text[100])
         {
             Caption = 'Submitted By';
-            DataClassification = CustomerContent;
         }
         field(9; "Decision Date Time"; DateTime)
         {
             Caption = 'Decision Date Time';
-            DataClassification = CustomerContent;
         }
         field(10; "Decision User ID"; Code[50])
         {
@@ -72,37 +63,30 @@ table 50103 "AMC Vendor Proposal"
         field(11; "Decision Reason"; Text[250])
         {
             Caption = 'Decision Reason';
-            DataClassification = CustomerContent;
         }
         field(12; "Applied Date Time"; DateTime)
         {
             Caption = 'Applied Date Time';
-            DataClassification = CustomerContent;
         }
         field(13; "Apply Attempt Count"; Integer)
         {
             Caption = 'Apply Attempt Count';
-            DataClassification = CustomerContent;
         }
         field(14; "Last Error Code"; Code[20])
         {
             Caption = 'Last Error Code';
-            DataClassification = CustomerContent;
         }
         field(15; "Last Error Message"; Text[250])
         {
             Caption = 'Last Error Message';
-            DataClassification = CustomerContent;
         }
         field(16; "Correlation Id"; Guid)
         {
             Caption = 'Correlation Id';
-            DataClassification = CustomerContent;
         }
         field(17; "Superseded By"; Code[20])
         {
             Caption = 'Superseded By';
-            DataClassification = CustomerContent;
             TableRelation = "AMC Vendor Proposal";
         }
         field(18; "Payload Hash"; Text[64])
@@ -114,7 +98,6 @@ table 50103 "AMC Vendor Proposal"
         field(19; "External Reference"; Text[100])
         {
             Caption = 'External Reference';
-            DataClassification = CustomerContent;
         }
         field(20; "API Submission Pending"; Boolean)
         {

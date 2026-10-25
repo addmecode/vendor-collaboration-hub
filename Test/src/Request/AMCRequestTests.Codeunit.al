@@ -249,10 +249,10 @@ codeunit 50131 "AMC Request Tests"
     [Test]
     procedure GivenVendorLanguageOrNoLanguage_WhenCreatingRequest_ThenVendorOrCompanyLanguageIsSnapshotted()
     var
-        Language: Codeunit Language;
         PurchaseHeader: Record "Purchase Header";
-        RequestMgt: Codeunit "AMC Request Mgt";
         VendorRequest: Record "AMC Vendor Request";
+        Language: Codeunit Language;
+        RequestMgt: Codeunit "AMC Request Mgt";
         CompanyLanguageCode: Code[10];
         RequestNo: Code[20];
         VendorLanguageCode: Code[10];
@@ -789,14 +789,6 @@ codeunit 50131 "AMC Request Tests"
     begin
         VendorRequest.Init();
         VendorRequest."No." := RequestNo;
-        VendorRequest.Insert();
-    end;
-
-    local procedure InsertVendorRequest(var VendorRequestLine: Record "AMC Vendor Request Line"; RequestNo: Code[20])
-    begin
-        VendorRequestLine.Init();
-        VendorRequestLine."Request No." := RequestNo;
-        VendorRequestLine."Line No." := 10000;
-        VendorRequestLine.Insert();
+        VendorRequest.Insert(false);
     end;
 }

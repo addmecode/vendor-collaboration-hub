@@ -81,7 +81,7 @@ codeunit 50105 "AMC Collab Log"
         CollaborationEntry.Description := Description;
         CollaborationEntry."Correlation Id" := CorrelationId;
         CollaborationEntry."Date Time" := CurrentDateTime();
-        CollaborationEntry.Insert();
+        CollaborationEntry.Insert(false);
         exit(CollaborationEntry.SystemId);
     end;
 }

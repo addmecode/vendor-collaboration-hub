@@ -7,10 +7,10 @@ codeunit 50103 "AMC Proposal Decision Svc"
 
   procedure Approve(var VendorProposal: Record "AMC Vendor Proposal"; DecisionReason: Text[250]): Boolean
   var
-    ApplySucceeded: Boolean;
     TempDecisionContext: Record "AMC Vendor Proposal" temporary;
     OrderLockMgt: Codeunit "AMC Order Lock Mgt";
     Telemetry: Codeunit "AMC Telemetry";
+    ApplySucceeded: Boolean;
     ErrorCode: Code[20];
     ErrorMessage: Text;
     PreviousPurchaseOrderNo: Code[20];

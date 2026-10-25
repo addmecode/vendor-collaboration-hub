@@ -177,6 +177,8 @@ codeunit 50101 "AMC Proposal Mgt"
       Result.AddError(PayloadCodeLbl, 0, 0, LinesRequiredErr);
       exit;
     end;
+    PreviousRequestLineNo := 0;
+    PreviousSequenceNo := 0;
     repeat
       if (ProposalLine."Request Line No." <= 0) or (ProposalLine."Sequence No." <= 0) or
          (HasPreviousLine and (PreviousRequestLineNo = ProposalLine."Request Line No.") and (PreviousSequenceNo = ProposalLine."Sequence No.")) then
@@ -228,7 +230,7 @@ codeunit 50101 "AMC Proposal Mgt"
         exit(ProposalNo);
     end;
 
-  [EventSubscriber(ObjectType::Table, Database::Vendor, 'OnAfterRenameEvent', '', false, false)]
+  [EventSubscriber(ObjectType::Table, Database::Vendor, OnAfterRenameEvent, '', false, false)]
   local procedure UpdateProposalVendorOnVendorRename(var Rec: Record Vendor; var xRec: Record Vendor; RunTrigger: Boolean)
   var
     VendorProposal: Record "AMC Vendor Proposal";

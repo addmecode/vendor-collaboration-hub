@@ -18,12 +18,10 @@ table 50101 "AMC Vendor Request"
         field(1; "No."; Code[20])
         {
             Caption = 'No.';
-            DataClassification = CustomerContent;
         }
         field(2; "Vendor No."; Code[20])
         {
             Caption = 'Vendor No.';
-            DataClassification = CustomerContent;
             TableRelation = Vendor;
         }
         field(3; "Vendor Name"; Text[100])
@@ -35,18 +33,15 @@ table 50101 "AMC Vendor Request"
         field(4; "Purchase Order No."; Code[20])
         {
             Caption = 'Purchase Order No.';
-            DataClassification = CustomerContent;
             TableRelation = "Purchase Header"."No." where("Document Type" = const(Order));
         }
         field(5; Status; Enum "AMC Request Status")
         {
             Caption = 'Status';
-            DataClassification = CustomerContent;
         }
         field(6; "Purchaser Code"; Code[20])
         {
             Caption = 'Purchaser Code';
-            DataClassification = CustomerContent;
             TableRelation = "Salesperson/Purchaser";
         }
         field(7; "Assigned User ID"; Code[50])
@@ -58,32 +53,26 @@ table 50101 "AMC Vendor Request"
         field(8; "Sent Date Time"; DateTime)
         {
             Caption = 'Sent Date Time';
-            DataClassification = CustomerContent;
         }
         field(9; "Response Deadline"; Date)
         {
             Caption = 'Response Deadline';
-            DataClassification = CustomerContent;
         }
         field(10; "Closed Date Time"; DateTime)
         {
             Caption = 'Closed Date Time';
-            DataClassification = CustomerContent;
         }
         field(11; "External Reference"; Text[50])
         {
             Caption = 'External Reference';
-            DataClassification = CustomerContent;
         }
         field(12; "Currency Code"; Code[10])
         {
             Caption = 'Currency Code';
-            DataClassification = CustomerContent;
         }
         field(13; "Language Code"; Code[10])
         {
             Caption = 'Language Code';
-            DataClassification = CustomerContent;
         }
         field(14; "Open Proposal Count"; Integer)
         {

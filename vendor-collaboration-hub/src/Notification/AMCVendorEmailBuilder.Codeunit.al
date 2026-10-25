@@ -44,6 +44,7 @@ codeunit 50119 "AMC Vendor Email Builder"
   [NonDebuggable]
   local procedure BuildContent(VendorRequest: Record "AMC Vendor Request"; AccessLink: Text; var Subject: Text; var HtmlBody: Text; var PlainTextBody: Text)
   var
+    WebRequestHelper: Codeunit "Web Request Helper";
     LineCount: Integer;
     LineExcerpt: Text;
     SubjectLbl: Label 'Action requested for purchase order %1', Comment = '%1 = purchase order number';
@@ -55,7 +56,6 @@ codeunit 50119 "AMC Vendor Email Builder"
     ItemsLbl: Label 'Items';
     OpenRequestLbl: Label 'Open vendor request';
     InvalidAccessLinkErr: Label 'The vendor access link must be an absolute HTTPS URL.';
-    WebRequestHelper: Codeunit "Web Request Helper";
   begin
     if not WebRequestHelper.IsSecureHttpUrl(AccessLink) then
       Error(InvalidAccessLinkErr);

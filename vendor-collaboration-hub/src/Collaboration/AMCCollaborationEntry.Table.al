@@ -11,37 +11,30 @@ table 50105 "AMC Collaboration Entry"
         {
             AutoIncrement = true;
             Caption = 'Entry No.';
-            DataClassification = CustomerContent;
         }
         field(2; "Source Type"; Enum "AMC Source Type")
         {
             Caption = 'Source Type';
-            DataClassification = CustomerContent;
         }
         field(3; "Source No."; Code[20])
         {
             Caption = 'Source No.';
-            DataClassification = CustomerContent;
         }
         field(4; "Source Line No."; Integer)
         {
             Caption = 'Source Line No.';
-            DataClassification = CustomerContent;
         }
         field(5; "Entry Type"; Enum "AMC Collab Entry Type")
         {
             Caption = 'Entry Type';
-            DataClassification = CustomerContent;
         }
         field(6; "Actor Type"; Enum "AMC Actor Type")
         {
             Caption = 'Actor Type';
-            DataClassification = CustomerContent;
         }
         field(7; "Actor Name"; Text[100])
         {
             Caption = 'Actor Name';
-            DataClassification = CustomerContent;
         }
         field(8; "User ID"; Code[50])
         {
@@ -51,32 +44,26 @@ table 50105 "AMC Collaboration Entry"
         field(10; "Field Name"; Text[80])
         {
             Caption = 'Field Name';
-            DataClassification = CustomerContent;
         }
         field(11; "Old Value"; Text[250])
         {
             Caption = 'Old Value';
-            DataClassification = CustomerContent;
         }
         field(12; "New Value"; Text[250])
         {
             Caption = 'New Value';
-            DataClassification = CustomerContent;
         }
         field(13; Description; Text[250])
         {
             Caption = 'Description';
-            DataClassification = CustomerContent;
         }
         field(14; "Correlation Id"; Guid)
         {
             Caption = 'Correlation Id';
-            DataClassification = CustomerContent;
         }
         field(15; "Date Time"; DateTime)
         {
             Caption = 'Date Time';
-            DataClassification = CustomerContent;
         }
     }
 

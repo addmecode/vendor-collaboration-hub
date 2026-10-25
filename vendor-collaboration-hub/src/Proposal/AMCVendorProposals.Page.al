@@ -22,38 +22,31 @@ page 50105 "AMC Vendor Proposals"
             {
                 field("No."; Rec."No.")
                 {
-                    ApplicationArea = All;
                     ToolTip = 'Specifies the vendor proposal number.';
                 }
                 field("Request No."; Rec."Request No.")
                 {
-                    ApplicationArea = All;
                     ToolTip = 'Specifies the vendor request answered by this proposal.';
                 }
                 field("Vendor No."; Rec."Vendor No.")
                 {
-                    ApplicationArea = All;
                     ToolTip = 'Specifies the vendor that made this proposal.';
                 }
                 field("Purchase Order No."; Rec."Purchase Order No.")
                 {
-                    ApplicationArea = All;
                     ToolTip = 'Specifies the purchase order answered by this proposal.';
                 }
                 field(Status; Rec.Status)
                 {
-                    ApplicationArea = All;
                     Editable = false;
                     ToolTip = 'Specifies the current status of the vendor proposal.';
                 }
                 field("Submitted Date Time"; Rec."Submitted Date Time")
                 {
-                    ApplicationArea = All;
                     ToolTip = 'Specifies when the vendor submitted this proposal.';
                 }
                 field("Submitted By"; Rec."Submitted By")
                 {
-                    ApplicationArea = All;
                     ToolTip = 'Specifies the vendor contact that submitted this proposal.';
                 }
             }

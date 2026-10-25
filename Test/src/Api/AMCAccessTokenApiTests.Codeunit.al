@@ -13,10 +13,10 @@ codeunit 50146 "AMC Access Token API Tests"
   [Test]
   procedure GivenExactTokenHash_WhenReadingApi_ThenOnlyMatchingReadOnlyProjectionIsReturned()
   var
-    ApiTokenScope: Codeunit "AMC API Token Scope";
     OtherVendorAccessToken: Record "AMC Vendor Access Token";
     VendorAccessToken: Record "AMC Vendor Access Token";
     VendorAccessTokenView: Record "AMC Vendor Access Token";
+    ApiTokenScope: Codeunit "AMC API Token Scope";
   begin
     // Given
     this.CreateAccessToken(VendorAccessToken);
@@ -59,10 +59,10 @@ codeunit 50146 "AMC Access Token API Tests"
   [Test]
   procedure GivenExactSystemId_WhenReadingApiWithoutTokenHash_ThenTokenIsReturnedAndConflictsAreRejected()
   var
-    ApiTokenScope: Codeunit "AMC API Token Scope";
     OtherVendorAccessToken: Record "AMC Vendor Access Token";
     VendorAccessToken: Record "AMC Vendor Access Token";
     VendorAccessTokenView: Record "AMC Vendor Access Token";
+    ApiTokenScope: Codeunit "AMC API Token Scope";
     TokenScopeMismatchErr: Label 'VCH-API-0004: id and Token Hash do not identify the same vendor access token.';
   begin
     // Given
@@ -88,10 +88,10 @@ codeunit 50146 "AMC Access Token API Tests"
   [Test]
   procedure GivenExactTokenHashAndBroadAdditionalFilters_WhenReadingApi_ThenAnotherTokenCannotLeak()
   var
-    ApiTokenScope: Codeunit "AMC API Token Scope";
     OtherVendorAccessToken: Record "AMC Vendor Access Token";
     VendorAccessToken: Record "AMC Vendor Access Token";
     VendorAccessTokenView: Record "AMC Vendor Access Token";
+    ApiTokenScope: Codeunit "AMC API Token Scope";
   begin
     // Given
     this.CreateAccessToken(VendorAccessToken);
@@ -111,8 +111,8 @@ codeunit 50146 "AMC Access Token API Tests"
 
   local procedure AssertUnscopedTokenScopeIsRejected(ExpectedError: Text)
   var
-    ApiTokenScope: Codeunit "AMC API Token Scope";
     VendorAccessTokenView: Record "AMC Vendor Access Token";
+    ApiTokenScope: Codeunit "AMC API Token Scope";
   begin
     asserterror ApiTokenScope.ApplyTokenScope(VendorAccessTokenView, false);
     this.Assert.ExpectedError(ExpectedError);
@@ -121,8 +121,8 @@ codeunit 50146 "AMC Access Token API Tests"
 
   local procedure AssertTokenHashScopeIsRejected(TokenHashFilter: Text)
   var
-    ApiTokenScope: Codeunit "AMC API Token Scope";
     VendorAccessTokenView: Record "AMC Vendor Access Token";
+    ApiTokenScope: Codeunit "AMC API Token Scope";
     InvalidTokenHashScopeErr: Label 'VCH-API-0001: Token Hash must be exactly 64 uppercase hexadecimal characters.';
   begin
     VendorAccessTokenView.SetFilter("Token Hash", TokenHashFilter);

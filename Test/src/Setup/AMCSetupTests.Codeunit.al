@@ -24,14 +24,14 @@ codeunit 50130 "AMC Setup Tests"
 
 
         // Then
-        Assert.IsFalse(TempCollaborationSetup.Enabled, 'Vendor collaboration must be disabled by default.');
-        Assert.AreEqual(7, TempCollaborationSetup."Default Response Days", 'The default response period must be seven days.');
-        Assert.IsFalse(TempCollaborationSetup."Allow Item Substitution", 'Item substitution must be disabled by default.');
-        Assert.IsFalse(TempCollaborationSetup."Allow Quantity Increase", 'Quantity increase must be disabled by default.');
-        Assert.AreEqual(3, TempCollaborationSetup."Max Splits per Line", 'The default split limit must be three.');
-        Assert.IsTrue(TempCollaborationSetup."Require Reason Code", 'A reason code must be required by default.');
-        Assert.AreEqual(14, TempCollaborationSetup."Link Validity Days", 'The default link validity must be fourteen days.');
-        Assert.AreEqual(TempCollaborationSetup."Telemetry Verbosity"::Normal, TempCollaborationSetup."Telemetry Verbosity", 'The default telemetry verbosity must be Normal.');
+        this.Assert.IsFalse(TempCollaborationSetup.Enabled, 'Vendor collaboration must be disabled by default.');
+        this.Assert.AreEqual(7, TempCollaborationSetup."Default Response Days", 'The default response period must be seven days.');
+        this.Assert.IsFalse(TempCollaborationSetup."Allow Item Substitution", 'Item substitution must be disabled by default.');
+        this.Assert.IsFalse(TempCollaborationSetup."Allow Quantity Increase", 'Quantity increase must be disabled by default.');
+        this.Assert.AreEqual(3, TempCollaborationSetup."Max Splits per Line", 'The default split limit must be three.');
+        this.Assert.IsTrue(TempCollaborationSetup."Require Reason Code", 'A reason code must be required by default.');
+        this.Assert.AreEqual(14, TempCollaborationSetup."Link Validity Days", 'The default link validity must be fourteen days.');
+        this.Assert.AreEqual(TempCollaborationSetup."Telemetry Verbosity"::Normal, TempCollaborationSetup."Telemetry Verbosity", 'The default telemetry verbosity must be Normal.');
     end;
 
     [Test]
@@ -112,7 +112,7 @@ codeunit 50130 "AMC Setup Tests"
         asserterror TempCollaborationSetup.Validate(Enabled, true);
 
         // Then
-        Assert.ExpectedError(InvalidUriErr);
+        this.Assert.ExpectedError(InvalidUriErr);
     end;
 
     [Test]
@@ -129,7 +129,7 @@ codeunit 50130 "AMC Setup Tests"
         asserterror TempCollaborationSetup.Validate(Enabled, true);
 
         // Then
-        Assert.ExpectedError(StrSubstNo(InvalidEmailAddressErr, TempCollaborationSetup."Portal Support E-Mail"));
+        this.Assert.ExpectedError(StrSubstNo(InvalidEmailAddressErr, TempCollaborationSetup."Portal Support E-Mail"));
     end;
 
     [Test]
@@ -208,14 +208,14 @@ codeunit 50130 "AMC Setup Tests"
         TempCollaborationSetup.Validate(Enabled, true);
 
         // Then
-        Assert.IsTrue(TempCollaborationSetup.Enabled, 'Vendor collaboration must be enabled.');
+        this.Assert.IsTrue(TempCollaborationSetup.Enabled, 'Vendor collaboration must be enabled.');
     end;
 
     [Test]
     procedure GivenAssistedSetup_WhenFinishing_ThenOneTokenExpiryJobIsScheduled()
     var
-        AssistedSetup: TestPage "AMC Assisted Setup";
         JobQueueEntry: Record "Job Queue Entry";
+        AssistedSetup: TestPage "AMC Assisted Setup";
     begin
         // Given
         this.PrepareAssistedSetupPrerequisites();
@@ -228,16 +228,16 @@ codeunit 50130 "AMC Setup Tests"
         // Then
         JobQueueEntry.SetRange("Object Type to Run", JobQueueEntry."Object Type to Run"::Codeunit);
         JobQueueEntry.SetRange("Object ID to Run", Codeunit::"AMC Token Expiry Job");
-        Assert.AreEqual(1, JobQueueEntry.Count(), 'Finishing assisted setup must schedule one token expiry job.');
+        this.Assert.AreEqual(1, JobQueueEntry.Count(), 'Finishing assisted setup must schedule one token expiry job.');
     end;
 
     [Test]
     procedure GivenAssistedSetup_WhenClosingWithoutFinishing_ThenNoTokenExpiryJobIsScheduled()
     var
-        AssistedSetup: TestPage "AMC Assisted Setup";
         CollaborationSetup: Record "AMC Collaboration Setup";
         InitialCollaborationSetup: Record "AMC Collaboration Setup";
         JobQueueEntry: Record "Job Queue Entry";
+        AssistedSetup: TestPage "AMC Assisted Setup";
     begin
         // Given
         this.PrepareAssistedSetupPrerequisites();
@@ -253,7 +253,41 @@ codeunit 50130 "AMC Setup Tests"
         this.AssertCollaborationSetupIsUnchanged(InitialCollaborationSetup, CollaborationSetup);
         JobQueueEntry.SetRange("Object Type to Run", JobQueueEntry."Object Type to Run"::Codeunit);
         JobQueueEntry.SetRange("Object ID to Run", Codeunit::"AMC Token Expiry Job");
-        Assert.AreEqual(0, JobQueueEntry.Count(), 'Closing assisted setup must not schedule a token expiry job.');
+        this.Assert.AreEqual(0, JobQueueEntry.Count(), 'Closing assisted setup must not schedule a token expiry job.');
+    end;
+
+    [Test]
+    procedure GivenEnabledSetup_WhenOpeningAssistedSetup_ThenOpeningIsRejectedWithoutMutation()
+    var
+        CollaborationSetup: Record "AMC Collaboration Setup";
+        InitialCollaborationSetup: Record "AMC Collaboration Setup";
+        JobQueueEntry: Record "Job Queue Entry";
+        TempCollaborationSetup: Record "AMC Collaboration Setup" temporary;
+        CollaborationSetupPage: Page "AMC Collaboration Setup";
+        AssistedSetup: TestPage "AMC Assisted Setup";
+        AssistedSetupNotAvailableErr: Label 'Vendor Collaboration is already enabled. Use the %1 page to change the configuration.', Comment = '%1 = page caption';
+    begin
+        // Given
+        this.PrepareAssistedSetupPrerequisites();
+        this.PrepareCompleteSetup(TempCollaborationSetup);
+        CollaborationSetup := TempCollaborationSetup;
+        CollaborationSetup.Validate(Enabled, true);
+        CollaborationSetup.Modify(true);
+        Commit(); // Keep the enabled fixture outside the expected page-opening error's rollback.
+        CollaborationSetup.Get();
+        InitialCollaborationSetup := CollaborationSetup;
+
+        // When
+        asserterror AssistedSetup.OpenEdit();
+
+        // Then
+        this.Assert.ExpectedError(StrSubstNo(AssistedSetupNotAvailableErr, CollaborationSetupPage.Caption()));
+        CollaborationSetup.Get();
+        this.AssertCollaborationSetupIsUnchanged(InitialCollaborationSetup, CollaborationSetup);
+        this.Assert.AreEqual(InitialCollaborationSetup.SystemModifiedAt, CollaborationSetup.SystemModifiedAt, 'Rejecting assisted setup must not write the enabled setup record.');
+        JobQueueEntry.SetRange("Object Type to Run", JobQueueEntry."Object Type to Run"::Codeunit);
+        JobQueueEntry.SetRange("Object ID to Run", Codeunit::"AMC Token Expiry Job");
+        this.Assert.AreEqual(0, JobQueueEntry.Count(), 'Rejecting assisted setup must not schedule a token expiry job.');
     end;
 
     local procedure GoToAssistedSetupFinishStep(var AssistedSetup: TestPage "AMC Assisted Setup")
@@ -278,25 +312,25 @@ codeunit 50130 "AMC Setup Tests"
 
         JobQueueEntry.SetRange("Object Type to Run", JobQueueEntry."Object Type to Run"::Codeunit);
         JobQueueEntry.SetRange("Object ID to Run", Codeunit::"AMC Token Expiry Job");
-        JobQueueEntry.DeleteAll();
+        JobQueueEntry.DeleteAll(false);
     end;
 
     local procedure AssertCollaborationSetupIsUnchanged(InitialCollaborationSetup: Record "AMC Collaboration Setup"; CollaborationSetup: Record "AMC Collaboration Setup")
     begin
-        Assert.AreEqual(InitialCollaborationSetup."Primary Key", CollaborationSetup."Primary Key", 'Closing assisted setup must not change the setup key.');
-        Assert.AreEqual(InitialCollaborationSetup.Enabled, CollaborationSetup.Enabled, 'Closing assisted setup must not change whether vendor collaboration is enabled.');
-        Assert.AreEqual(InitialCollaborationSetup."Request Nos.", CollaborationSetup."Request Nos.", 'Closing assisted setup must not change the request number series.');
-        Assert.AreEqual(InitialCollaborationSetup."Proposal Nos.", CollaborationSetup."Proposal Nos.", 'Closing assisted setup must not change the proposal number series.');
-        Assert.AreEqual(InitialCollaborationSetup."Default Response Days", CollaborationSetup."Default Response Days", 'Closing assisted setup must not change the default response days.');
-        Assert.AreEqual(InitialCollaborationSetup."Allow Item Substitution", CollaborationSetup."Allow Item Substitution", 'Closing assisted setup must not change item substitution.');
-        Assert.AreEqual(InitialCollaborationSetup."Allow Quantity Increase", CollaborationSetup."Allow Quantity Increase", 'Closing assisted setup must not change quantity increase.');
-        Assert.AreEqual(InitialCollaborationSetup."Max Splits per Line", CollaborationSetup."Max Splits per Line", 'Closing assisted setup must not change the maximum splits per line.');
-        Assert.AreEqual(InitialCollaborationSetup."Require Reason Code", CollaborationSetup."Require Reason Code", 'Closing assisted setup must not change the reason code requirement.');
-        Assert.AreEqual(InitialCollaborationSetup."Portal Base URL", CollaborationSetup."Portal Base URL", 'Closing assisted setup must not change the portal base URL.');
-        Assert.AreEqual(InitialCollaborationSetup."Portal Support E-Mail", CollaborationSetup."Portal Support E-Mail", 'Closing assisted setup must not change the portal support email.');
-        Assert.AreEqual(InitialCollaborationSetup."Link Validity Days", CollaborationSetup."Link Validity Days", 'Closing assisted setup must not change link validity days.');
-        Assert.AreEqual(InitialCollaborationSetup."Attach Order PDF", CollaborationSetup."Attach Order PDF", 'Closing assisted setup must not change the attach order PDF setting.');
-        Assert.AreEqual(InitialCollaborationSetup."Telemetry Verbosity", CollaborationSetup."Telemetry Verbosity", 'Closing assisted setup must not change telemetry verbosity.');
+        this.Assert.AreEqual(InitialCollaborationSetup."Primary Key", CollaborationSetup."Primary Key", 'Closing assisted setup must not change the setup key.');
+        this.Assert.AreEqual(InitialCollaborationSetup.Enabled, CollaborationSetup.Enabled, 'Closing assisted setup must not change whether vendor collaboration is enabled.');
+        this.Assert.AreEqual(InitialCollaborationSetup."Request Nos.", CollaborationSetup."Request Nos.", 'Closing assisted setup must not change the request number series.');
+        this.Assert.AreEqual(InitialCollaborationSetup."Proposal Nos.", CollaborationSetup."Proposal Nos.", 'Closing assisted setup must not change the proposal number series.');
+        this.Assert.AreEqual(InitialCollaborationSetup."Default Response Days", CollaborationSetup."Default Response Days", 'Closing assisted setup must not change the default response days.');
+        this.Assert.AreEqual(InitialCollaborationSetup."Allow Item Substitution", CollaborationSetup."Allow Item Substitution", 'Closing assisted setup must not change item substitution.');
+        this.Assert.AreEqual(InitialCollaborationSetup."Allow Quantity Increase", CollaborationSetup."Allow Quantity Increase", 'Closing assisted setup must not change quantity increase.');
+        this.Assert.AreEqual(InitialCollaborationSetup."Max Splits per Line", CollaborationSetup."Max Splits per Line", 'Closing assisted setup must not change the maximum splits per line.');
+        this.Assert.AreEqual(InitialCollaborationSetup."Require Reason Code", CollaborationSetup."Require Reason Code", 'Closing assisted setup must not change the reason code requirement.');
+        this.Assert.AreEqual(InitialCollaborationSetup."Portal Base URL", CollaborationSetup."Portal Base URL", 'Closing assisted setup must not change the portal base URL.');
+        this.Assert.AreEqual(InitialCollaborationSetup."Portal Support E-Mail", CollaborationSetup."Portal Support E-Mail", 'Closing assisted setup must not change the portal support email.');
+        this.Assert.AreEqual(InitialCollaborationSetup."Link Validity Days", CollaborationSetup."Link Validity Days", 'Closing assisted setup must not change link validity days.');
+        this.Assert.AreEqual(InitialCollaborationSetup."Attach Order PDF", CollaborationSetup."Attach Order PDF", 'Closing assisted setup must not change the attach order PDF setting.');
+        this.Assert.AreEqual(InitialCollaborationSetup."Telemetry Verbosity", CollaborationSetup."Telemetry Verbosity", 'Closing assisted setup must not change telemetry verbosity.');
     end;
 
     local procedure PrepareCompleteSetup(var TempCollaborationSetup: Record "AMC Collaboration Setup" temporary)
@@ -312,20 +346,20 @@ codeunit 50130 "AMC Setup Tests"
     var
         FieldMustBeGreaterThanZeroErr: Label '%1 must be greater than zero.', Comment = '%1 = field caption';
     begin
-        Assert.ExpectedError(StrSubstNo(FieldMustBeGreaterThanZeroErr, FieldCaption));
+        this.Assert.ExpectedError(StrSubstNo(FieldMustBeGreaterThanZeroErr, FieldCaption));
     end;
 
     local procedure AssertFieldMustHaveValueError(FieldCaption: Text)
     var
         FieldMustHaveValueErr: Label '%1 must have a value', Comment = '%1 = field caption';
     begin
-        Assert.ExpectedError(StrSubstNo(FieldMustHaveValueErr, FieldCaption));
+        this.Assert.ExpectedError(StrSubstNo(FieldMustHaveValueErr, FieldCaption));
     end;
 
     local procedure AssertFieldMustBeGreaterThanOrEqualToError(FieldCaption: Text; OtherFieldCaption: Text)
     var
         FieldMustBeGreaterThanOrEqualToErr: Label '%1 must be greater than or equal to %2.', Comment = '%1 = field caption, %2 = field caption';
     begin
-        Assert.ExpectedError(StrSubstNo(FieldMustBeGreaterThanOrEqualToErr, FieldCaption, OtherFieldCaption));
+        this.Assert.ExpectedError(StrSubstNo(FieldMustBeGreaterThanOrEqualToErr, FieldCaption, OtherFieldCaption));
     end;
 }

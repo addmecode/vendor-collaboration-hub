@@ -109,7 +109,7 @@ codeunit 50134 "AMC Apply Orchestration Tests"
     [Test]
     procedure GivenNonApprovedContext_WhenApplyWorkerRuns_ThenApplyIsRejected()
     var
-        DecisionContext: Record "AMC Vendor Proposal" temporary;
+        TempDecisionContext: Record "AMC Vendor Proposal" temporary;
         PurchaseHeader: Record "Purchase Header";
         VendorProposal: Record "AMC Vendor Proposal";
         ApplySucceeded: Boolean;
@@ -117,14 +117,14 @@ codeunit 50134 "AMC Apply Orchestration Tests"
     begin
         // Given
         this.CreateProposalForApply(PurchaseHeader, VendorProposal, ProposalNo);
-        DecisionContext.Init();
-        DecisionContext."No." := ProposalNo;
-        DecisionContext.Status := DecisionContext.Status::"In Review";
-        DecisionContext."Decision User ID" := UserId();
+        TempDecisionContext.Init();
+        TempDecisionContext."No." := ProposalNo;
+        TempDecisionContext.Status := TempDecisionContext.Status::"In Review";
+        TempDecisionContext."Decision User ID" := UserId();
         Commit(); //todo: why commit?
 
         // When
-        ApplySucceeded := Codeunit.Run(Codeunit::"AMC Apply Proposal Svc", DecisionContext);
+        ApplySucceeded := Codeunit.Run(Codeunit::"AMC Apply Proposal Svc", TempDecisionContext);
 
         // Then
         this.Assert.IsFalse(ApplySucceeded, 'The apply worker must reject a context that does not represent an approval.');

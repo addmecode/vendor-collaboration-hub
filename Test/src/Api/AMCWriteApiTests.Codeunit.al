@@ -80,9 +80,9 @@ codeunit 50147 "AMC Write API Tests"
     VendorRequest: Record "AMC Vendor Request";
     AccessToken: Record "AMC Vendor Access Token";
     Proposal: Record "AMC Vendor Proposal";
-    IdempotencyKey: Text[64];
     ProposalLine: Record "AMC Vendor Proposal Line";
     Entry: Record "AMC Collaboration Entry";
+    IdempotencyKey: Text[64];
     BeforeLineCount: Integer;
     BeforeEntryCount: Integer;
   begin

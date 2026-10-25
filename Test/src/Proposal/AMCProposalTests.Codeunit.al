@@ -273,13 +273,13 @@ codeunit 50133 "AMC Proposal Tests"
     [Test]
     procedure GivenUnknownPersistedLineType_WhenHandlerValidatesAndApplies_ThenUnknownErrorsAreReturnedWithoutChangingPurchaseLine()
     var
-        LineHandler: Interface "AMC IProposalLineHandler";
         PurchaseHeader: Record "Purchase Header";
         PurchaseLine: Record "Purchase Line";
-        ValidationResult: Codeunit "AMC Validation Result";
         VendorProposal: Record "AMC Vendor Proposal";
         VendorProposalLine: Record "AMC Vendor Proposal Line";
         VendorRequestLine: Record "AMC Vendor Request Line";
+        ValidationResult: Codeunit "AMC Validation Result";
+        LineHandler: Interface "AMC IProposalLineHandler";
         ApplySucceeded: Boolean;
         ErrorText: Text;
         PurchaseOrderNo: Code[20];

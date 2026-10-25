@@ -97,18 +97,22 @@ codeunit 50122 "AMC Validation Result"
     end;
 
     local procedure FormatError(Index: Integer): Text
+    var
+        LineErrorFormatLbl: Label '%1 [line %2/%3]: %4', Locked = true, Comment = '%1 = error code, %2 = sequence number, %3 = request line number, %4 = error text';
     begin
         if (this.RequestLineNos.Get(Index) = 0) and (this.SequenceNos.Get(Index) = 0) then
             exit(StrSubstNo('%1: %2', this.ErrorCodes.Get(Index), this.ErrorTexts.Get(Index)));
 
-        exit(StrSubstNo('%1 [line %2/%3]: %4', this.ErrorCodes.Get(Index), this.SequenceNos.Get(Index), this.RequestLineNos.Get(Index), this.ErrorTexts.Get(Index)));
+        exit(StrSubstNo(LineErrorFormatLbl, this.ErrorCodes.Get(Index), this.SequenceNos.Get(Index), this.RequestLineNos.Get(Index), this.ErrorTexts.Get(Index)));
     end;
 
     local procedure FormatDisplayError(Index: Integer): Text
+    var
+        LineErrorFormatLbl: Label 'Line %1/%2: %3', Comment = '%1 = sequence number, %2 = request line number, %3 = error text';
     begin
         if (this.RequestLineNos.Get(Index) = 0) and (this.SequenceNos.Get(Index) = 0) then
             exit(this.ErrorTexts.Get(Index));
 
-        exit(StrSubstNo('Line %1/%2: %3', this.SequenceNos.Get(Index), this.RequestLineNos.Get(Index), this.ErrorTexts.Get(Index)));
+        exit(StrSubstNo(LineErrorFormatLbl, this.SequenceNos.Get(Index), this.RequestLineNos.Get(Index), this.ErrorTexts.Get(Index)));
     end;
 }

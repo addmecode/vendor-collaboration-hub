@@ -94,8 +94,8 @@ codeunit 50104 "AMC Apply Proposal Svc"
 
   local procedure ApplyLine(VendorProposal: Record "AMC Vendor Proposal"; var VendorProposalLine: Record "AMC Vendor Proposal Line"; var PurchaseHeader: Record "Purchase Header"; CollabLog: Codeunit "AMC Collab Log")
   var
-    LineHandler: Interface "AMC IProposalLineHandler";
     OriginalPurchaseLine: Record "Purchase Line";
+    LineHandler: Interface "AMC IProposalLineHandler";
   begin
     this.GetOriginPurchaseLine(VendorProposal, VendorProposalLine, OriginalPurchaseLine);
     LineHandler := VendorProposalLine."Line Type";

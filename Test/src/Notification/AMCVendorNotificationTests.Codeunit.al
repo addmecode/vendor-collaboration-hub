@@ -55,9 +55,9 @@ codeunit 50144 "AMC Vendor Notification Tests"
   [Test]
   procedure GivenVendorRequest_WhenPreparingNotification_ThenCollaborationScenarioAndBuyerReplyToAreUsed()
   var
-    Body: Text;
     EmailMessage: Codeunit "Email Message";
     VendorNotification: Codeunit "AMC Vendor Notification";
+    Body: Text;
     EmailScenario: Enum "Email Scenario";
     ReplyTo: Text;
     RequestNo: Code[20];
@@ -120,10 +120,10 @@ codeunit 50144 "AMC Vendor Notification Tests"
   procedure GivenVendorWithoutEmailAddresses_WhenSendingNotification_ThenNoTokenIsIssued()
   var
     VendorAccessToken: Record "AMC Vendor Access Token";
+    VendorRequest: Record "AMC Vendor Request";
     VendorNotification: Codeunit "AMC Vendor Notification";
     RequestNo: Code[20];
     VCHReq0003Err: Label 'VCH-REQ-0003: Vendor %1 does not have a portal contact email address or email address.', Comment = '%1 = vendor number';
-    VendorRequest: Record "AMC Vendor Request";
   begin
     // Given
     RequestNo := this.CreateVendorRequest('', '', 'buyer@contoso.com', '');
@@ -142,11 +142,11 @@ codeunit 50144 "AMC Vendor Notification Tests"
   [Test]
   procedure GivenVendorWithoutEmailAddresses_WhenPreparingNotification_ThenVCHReq0003IsRaised()
   var
+    VendorRequest: Record "AMC Vendor Request";
     EmailMessage: Codeunit "Email Message";
     VendorNotification: Codeunit "AMC Vendor Notification";
     RequestNo: Code[20];
     VCHReq0003Err: Label 'VCH-REQ-0003: Vendor %1 does not have a portal contact email address or email address.', Comment = '%1 = vendor number';
-    VendorRequest: Record "AMC Vendor Request";
   begin
     // Given
     RequestNo := this.CreateVendorRequest('', '', 'buyer@contoso.com', '');
@@ -163,8 +163,8 @@ codeunit 50144 "AMC Vendor Notification Tests"
   [Test]
   procedure GivenBuilderError_WhenBuildingEmail_ThenGlobalLanguageIsRestored()
   var
-    Language: Codeunit Language;
     TempVendorRequest: Record "AMC Vendor Request" temporary;
+    Language: Codeunit Language;
     VendorEmailBuilder: Codeunit "AMC Vendor Email Builder";
     HtmlBody: Text;
     LastErrorText: Text;
@@ -197,8 +197,8 @@ codeunit 50144 "AMC Vendor Notification Tests"
   local procedure CreateVendorRequest(PortalContactEmail: Text[80]; VendorEmail: Text[80]; BuyerEmail: Text[80]; VendorLanguageCode: Code[10]): Code[20]
   var
     PurchaseHeader: Record "Purchase Header";
-    RequestMgt: Codeunit "AMC Request Mgt";
     Vendor: Record Vendor;
+    RequestMgt: Codeunit "AMC Request Mgt";
     BuyerCode: Code[20];
     VendorNo: Code[20];
   begin

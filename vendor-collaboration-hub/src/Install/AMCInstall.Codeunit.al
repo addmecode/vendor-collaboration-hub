@@ -7,7 +7,7 @@ codeunit 50109 "AMC Install"
 {
   Subtype = Install;
 
-  [EventSubscriber(ObjectType::Codeunit, Codeunit::"Guided Experience", 'OnRegisterAssistedSetup', '', false, false)]
+  [EventSubscriber(ObjectType::Codeunit, Codeunit::"Guided Experience", OnRegisterAssistedSetup, '', false, false)]
   local procedure RegisterAssistedSetup()
   var
     GuidedExperience: Codeunit "Guided Experience";

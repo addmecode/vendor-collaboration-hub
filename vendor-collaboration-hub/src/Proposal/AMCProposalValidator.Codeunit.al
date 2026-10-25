@@ -51,8 +51,8 @@ codeunit 50102 "AMC Proposal Validator"
 
   local procedure ValidateLine(VendorProposal: Record "AMC Vendor Proposal"; VendorProposalLine: Record "AMC Vendor Proposal Line"; CollaborationSetup: Record "AMC Collaboration Setup"; var SplitCounts: Dictionary of [Integer, Integer]; var SplitQuantities: Dictionary of [Integer, Decimal]; var Result: Codeunit "AMC Validation Result")
   var
-    LineHandler: Interface "AMC IProposalLineHandler";
     VendorRequestLine: Record "AMC Vendor Request Line";
+    LineHandler: Interface "AMC IProposalLineHandler";
   begin
     if not VendorRequestLine.Get(VendorProposal."Request No.", VendorProposalLine."Request Line No.") then begin
       this.AddLineError(Result, this.RequestLineNotFoundCodeLbl, VendorProposalLine, this.RequestLineNotFoundErr);

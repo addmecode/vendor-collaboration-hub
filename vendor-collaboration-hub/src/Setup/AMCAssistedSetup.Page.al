@@ -30,7 +30,6 @@ page 50101 "AMC Assisted Setup"
 
                 field("Request Nos."; this.RequestNoSeriesCode)
                 {
-                    ApplicationArea = All;
                     Editable = true;
                     ShowMandatory = true;
                     TableRelation = "No. Series";
@@ -39,7 +38,6 @@ page 50101 "AMC Assisted Setup"
                 }
                 field("Proposal Nos."; this.ProposalNoSeriesCode)
                 {
-                    ApplicationArea = All;
                     Editable = true;
                     ShowMandatory = true;
                     TableRelation = "No. Series";
@@ -55,37 +53,31 @@ page 50101 "AMC Assisted Setup"
 
                 field(DefaultResponseDays; this.DefaultResponseDays)
                 {
-                    ApplicationArea = All;
                     Caption = 'Default Response Days';
                     ToolTip = 'Specifies the default number of days that a vendor has to respond.';
                 }
                 field(LinkValidityDays; this.LinkValidityDays)
                 {
-                    ApplicationArea = All;
                     Caption = 'Link Validity Days';
                     ToolTip = 'Specifies the number of days that a vendor collaboration link remains valid.';
                 }
                 field(AllowItemSubstitution; this.AllowItemSubstitution)
                 {
-                    ApplicationArea = All;
                     Caption = 'Allow Item Substitution';
                     ToolTip = 'Specifies whether vendors can propose substitute items.';
                 }
                 field(AllowQuantityIncrease; this.AllowQuantityIncrease)
                 {
-                    ApplicationArea = All;
                     Caption = 'Allow Quantity Increase';
                     ToolTip = 'Specifies whether vendors can propose a higher quantity.';
                 }
                 field(MaxSplitsPerLine; this.MaxSplitsPerLine)
                 {
-                    ApplicationArea = All;
                     Caption = 'Max Splits per Line';
                     ToolTip = 'Specifies the maximum number of vendor proposals that can split one request line.';
                 }
                 field(RequireReasonCode; this.RequireReasonCode)
                 {
-                    ApplicationArea = All;
                     Caption = 'Require Reason Code';
                     ToolTip = 'Specifies whether a reason code is required for vendor responses.';
                 }
@@ -98,7 +90,6 @@ page 50101 "AMC Assisted Setup"
 
                 field(PortalBaseUrl; this.PortalBaseUrl)
                 {
-                    ApplicationArea = All;
                     Caption = 'Portal Base URL';
                     ExtendedDatatype = URL;
                     ShowMandatory = this.Enabled;
@@ -106,7 +97,6 @@ page 50101 "AMC Assisted Setup"
                 }
                 field(PortalSupportEmail; this.PortalSupportEmail)
                 {
-                    ApplicationArea = All;
                     Caption = 'Portal Support E-Mail';
                     ExtendedDatatype = EMail;
                     ShowMandatory = this.Enabled;
@@ -114,7 +104,6 @@ page 50101 "AMC Assisted Setup"
                 }
                 field(AttachOrderPdf; this.AttachOrderPdf)
                 {
-                    ApplicationArea = All;
                     Caption = 'Attach Order PDF';
                     ToolTip = 'Specifies whether to attach the purchase order PDF to vendor communications.';
                 }
@@ -127,7 +116,6 @@ page 50101 "AMC Assisted Setup"
 
                 field(Enabled; this.Enabled)
                 {
-                    ApplicationArea = All;
                     Caption = 'Enable Vendor Collaboration';
                     ToolTip = 'Specifies whether Vendor Collaboration is enabled when the setup is completed.';
                 }
@@ -200,8 +188,8 @@ page 50101 "AMC Assisted Setup"
     begin
         if CollaborationSetup.Get() then begin
             if CollaborationSetup.Enabled then begin
-                AssistedSetupNotAvailableError.Message := StrSubstNo(AssistedSetupNotAvailableErr, CollaborationSetupPage.Caption());
-                AssistedSetupNotAvailableError.PageNo := Page::"AMC Collaboration Setup";
+                AssistedSetupNotAvailableError.Message(StrSubstNo(AssistedSetupNotAvailableErr, CollaborationSetupPage.Caption()));
+                AssistedSetupNotAvailableError.PageNo(Page::"AMC Collaboration Setup");
                 AssistedSetupNotAvailableError.AddNavigationAction(StrSubstNo(OpenCollaborationSetupLbl, CollaborationSetupPage.Caption()));
                 Error(AssistedSetupNotAvailableError);
             end;

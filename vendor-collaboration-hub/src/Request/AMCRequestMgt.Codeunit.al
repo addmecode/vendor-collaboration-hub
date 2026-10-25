@@ -125,10 +125,10 @@ codeunit 50100 "AMC Request Mgt"
 
     procedure Send(var VendorRequest: Record "AMC Vendor Request")
     var
+        PurchaseHeader: Record "Purchase Header";
         AccessTokenMgt: Codeunit "AMC Access Token Mgt";
         CollabLog: Codeunit "AMC Collab Log";
         OrderLockMgt: Codeunit "AMC Order Lock Mgt";
-        PurchaseHeader: Record "Purchase Header";
         VendorNotification: Codeunit "AMC Vendor Notification";
         PreviousPurchaseOrderNo: Code[20];
         PreviousRequestNo: Code[20];
