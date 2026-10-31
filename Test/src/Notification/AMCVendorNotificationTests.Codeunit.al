@@ -7,6 +7,7 @@ using Microsoft.Purchases.Document;
 using Microsoft.Purchases.Vendor;
 using System.Email;
 using System.Globalization;
+using System.IO;
 using System.TestLibraries.Utilities;
 
 codeunit 50144 "AMC Vendor Notification Tests"
@@ -166,6 +167,7 @@ codeunit 50144 "AMC Vendor Notification Tests"
   var
     TempVendorRequest: Record "AMC Vendor Request" temporary;
     Language: Codeunit Language;
+    TranslationHelper: Codeunit "Translation Helper";
     VendorEmailBuilder: Codeunit "AMC Vendor Email Builder";
     HtmlBody: Text;
     LastErrorText: Text;
@@ -187,7 +189,7 @@ codeunit 50144 "AMC Vendor Notification Tests"
     asserterror VendorEmailBuilder.Build(TempVendorRequest, 'javascript:alert(1)', Subject, HtmlBody, PlainTextBody);
     LastErrorText := GetLastErrorText();
     RestoredLanguageId := GlobalLanguage();
-    GlobalLanguage(OriginalLanguageId);
+    TranslationHelper.SetGlobalLanguageById(OriginalLanguageId);
     ClearLastError();
 
     // Then

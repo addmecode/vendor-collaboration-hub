@@ -29,6 +29,7 @@ table 50101 "AMC Vendor Request"
         {
             CalcFormula = lookup(Vendor.Name where("No." = field("Vendor No.")));
             Caption = 'Vendor Name';
+            Editable = false;
             FieldClass = FlowField;
         }
         field(4; "Purchase Order No."; Code[20])
@@ -81,12 +82,14 @@ table 50101 "AMC Vendor Request"
                 "Request No." = field("No."),
                 Status = filter(Submitted | "In Review")));
             Caption = 'Open Proposal Count';
+            Editable = false;
             FieldClass = FlowField;
         }
         field(15; "Line Count"; Integer)
         {
             CalcFormula = count("AMC Vendor Request Line" where("Request No." = field("No.")));
             Caption = 'Line Count';
+            Editable = false;
             FieldClass = FlowField;
         }
     }

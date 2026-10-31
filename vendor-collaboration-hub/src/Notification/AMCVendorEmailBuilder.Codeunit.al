@@ -2,6 +2,7 @@ namespace Addmecode.VendorCollaborationHub;
 
 using System.Globalization;
 using System.Integration;
+using System.IO;
 
 codeunit 50119 "AMC Vendor Email Builder"
 {
@@ -10,26 +11,25 @@ codeunit 50119 "AMC Vendor Email Builder"
   [NonDebuggable]
   procedure Build(VendorRequest: Record "AMC Vendor Request"; AccessLink: Text; var Subject: Text; var HtmlBody: Text; var PlainTextBody: Text)
   var
-    OriginalLanguageId: Integer;
+    TranslationHelper: Codeunit "Translation Helper";
     LastErrorText: Text;
     EmailBuildFailedErr: Label 'The vendor email could not be built: %1', Comment = '%1 = original error detail';
   begin
-    OriginalLanguageId := GlobalLanguage();
-    if not this.TryBuild(VendorRequest, AccessLink, Subject, HtmlBody, PlainTextBody) then begin
+    if not this.TryBuild(VendorRequest, AccessLink, Subject, HtmlBody, PlainTextBody, TranslationHelper) then begin
       LastErrorText := GetLastErrorText();
-      GlobalLanguage(OriginalLanguageId);
+      TranslationHelper.RestoreGlobalLanguage();
       Error(EmailBuildFailedErr, LastErrorText);
     end;
-    GlobalLanguage(OriginalLanguageId);
+    TranslationHelper.RestoreGlobalLanguage();
   end;
 
   [TryFunction]
   [NonDebuggable]
-  local procedure TryBuild(VendorRequest: Record "AMC Vendor Request"; AccessLink: Text; var Subject: Text; var HtmlBody: Text; var PlainTextBody: Text)
+  local procedure TryBuild(VendorRequest: Record "AMC Vendor Request"; AccessLink: Text; var Subject: Text; var HtmlBody: Text; var PlainTextBody: Text; var TranslationHelper: Codeunit "Translation Helper")
   var
     Language: Codeunit Language;
   begin
-    GlobalLanguage(this.GetLanguageId(VendorRequest, Language));
+    TranslationHelper.SetGlobalLanguageById(this.GetLanguageId(VendorRequest, Language));
     this.BuildContent(VendorRequest, AccessLink, Subject, HtmlBody, PlainTextBody);
   end;
 

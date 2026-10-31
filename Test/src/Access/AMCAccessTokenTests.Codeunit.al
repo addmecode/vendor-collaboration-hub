@@ -2,8 +2,8 @@ namespace Addmecode.VendorCollaborationHub.Tests;
 
 using Addmecode.VendorCollaborationHub;
 using Microsoft.Purchases.Vendor;
-using System.Threading;
 using System.TestLibraries.Utilities;
+using System.Threading;
 
 codeunit 50143 "AMC Access Token Tests"
 {

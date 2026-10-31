@@ -2,7 +2,7 @@
 
 Stan: 2026-10-31. Wyniki kompilacji z analizatorami skonfigurowanymi w projektach `vendor-collaboration-hub` (App) i `Test`.
 
-Łącznie: **0 błędów, 113 ostrzeżeń i 1106 informacji**. Liczby w tabelach oznaczają wystąpienia komunikatów. **PC0037: 0 wystąpień.**
+Łącznie: **0 błędów, 110 ostrzeżeń i 1083 informacje**. Liczby w tabelach oznaczają wystąpienia komunikatów. **PC0037: 0 wystąpień.**
 
 Weryfikacja po poprawkach: oba projekty skompilowane z analizatorami z konfiguracji VS Code (App: 71 plików AL, Test: 19), po odświeżeniu zależności App w Test. Usunięto z zestawienia rozwiązane zgłoszenia; nie wyłączano reguł. Nie publikowano aplikacji ani nie uruchamiano testów w sandboxie.
 
@@ -17,25 +17,19 @@ Weryfikacja po poprawkach: oba projekty skompilowane z analizatorami z konfigura
 | `AS0092` | Brak konfiguracji Application Insights | 1 | 1 | 2 |
 | `LC0010` | Zbyt wysoka złożoność cyklomatyczna | 5 | 0 | 5 |
 | `LC0090` | Zbyt wysoka złożoność poznawcza | 1 | 0 | 1 |
-| `PC0001` | Edytowalny FlowField | 3 | 0 | 3 |
 | `PC0027` | Walidacja lub triggery na rekordzie tymczasowym | 5 | 32 | 37 |
 
-\* `AL1025` pochodzi z **kompilatora**, nie analizatora. Zatem 113 ostrzeżeń obejmuje **95 z analizatorów i 18 z kompilatora**.
+\* `AL1025` pochodzi z **kompilatora**, nie analizatora. Zatem 110 ostrzeżeń obejmuje **92 z analizatorów i 18 z kompilatora**.
 
 ## Info — według kodu reguły
 
 | Kod | Opis | App | Test | Razem |
 |---|---|---:|---:|---:|
-| `AA0210` | Filtrowane pole nie ma odpowiedniego klucza | 0 | 2 | 2 |
-| `AA0477` | Nieposortowane instrukcje `using` | 1 | 4 | 5 |
-| `AC0001` | Brak `DrillDownPageId` / `LookupPageId` | 1 | 0 | 1 |
-| `AC0005` | `GlobalLanguage()` zamiast Translation Helper | 3 | 1 | 4 |
 | `AC0019` | Wartość enum o numerze 0 powinna mieć pustą nazwę i caption | 7 | 0 | 7 |
-| `AC0026` | Pole niewystawione na stronie bez jawnego `AllowInCustomizations` | 10 | 0 | 10 |
 | `AC0027` | Etykieta tokenu nie ma sufiksu `Tok` | 18 | 0 | 18 |
 | `AC0028` | Brak ToolTip na polu tabeli | 142 | 0 | 142 |
 | `AC0030` | Niewykorzystany wynik operacji na rekordzie | 50 | 127 | 177 |
-| `AC0031` | Brak jawnej deklaracji uprawnienia do operacji na tabeli | 0 | 415 | 415 |
+| `AC0031` | Brak jawnej deklaracji uprawnienia do operacji na tabeli | 0 | 414 | 414 |
 | `AW0005` | Akcja nie ma właściwości `Image` | 2 | 0 | 2 |
 | `AW0006` | Brak właściwości umożliwiających wyszukiwanie strony | 2 | 0 | 2 |
 | `DC0001` | `Commit()` bez komentarza uzasadniającego | 0 | 41 | 41 |
@@ -51,3 +45,19 @@ Weryfikacja po poprawkach: oba projekty skompilowane z analizatorami z konfigura
 | `PC0029` | Zalecane `CreateSequentialGuid()` dla klucza GUID | 1 | 1 | 2 |
 | `PC0030` | Brak `SetLoadFields` przed odczytem | 22 | 38 | 60 |
 | `PC0038` | Nie wszystkie ścieżki procedury zwracają wartość | 5 | 1 | 6 |
+
+## Pozostawione świadomie — AC0019
+
+Wszystkie 7 zgłoszeń pozostaje aktywnych. Wartości o numerze 0 mają znaczenie biznesowe zgodne z `Docs/project-doc.md` §4.4 oraz maszynami stanów §5:
+
+| Enum | Wartość 0 |
+|---|---|
+| `AMC Request Status` | `Draft` |
+| `AMC Request Line Status` | `Open` |
+| `AMC Proposal Status` | `Draft` |
+| `AMC Collab Entry Type` | `Comment` |
+| `AMC Actor Type` | `Buyer` |
+| `AMC Source Type` | `Request` |
+| `AMC Access Token Status` | `Active` |
+
+Zastąpienie tych wartości pustą nazwą i caption zmieniłoby prezentację oraz kontrakt istniejących danych. Przenumerowanie wartości biznesowych i dodanie pustej wartości 0 wymagałoby osobnej decyzji projektowej, migracji danych i przeglądu wartości domyślnych. Nie zastosowano wyciszeń ani zmian reguł.

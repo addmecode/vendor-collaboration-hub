@@ -4,6 +4,8 @@ table 50105 "AMC Collaboration Entry"
 {
     Caption = 'Collaboration Entry';
     DataClassification = CustomerContent;
+    DrillDownPageId = "AMC Collaboration Entries";
+    LookupPageId = "AMC Collaboration Entries";
 
     fields
     {

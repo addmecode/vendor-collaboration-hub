@@ -27,6 +27,7 @@ table 50106 "AMC Vendor Access Token"
         }
         field(4; "Token Hash"; Text[64])
         {
+            AllowInCustomizations = Never;
             Caption = 'Token Hash';
             DataClassification = SystemMetadata;
         }
@@ -93,6 +94,9 @@ table 50106 "AMC Vendor Access Token"
         {
         }
         key(StatusExpiresAt; Status, "Expires At")
+        {
+        }
+        key(VendorNo; "Vendor No.")
         {
         }
     }

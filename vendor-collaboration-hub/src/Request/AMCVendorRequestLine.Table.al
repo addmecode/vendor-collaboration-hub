@@ -10,6 +10,7 @@ table 50102 "AMC Vendor Request Line"
     {
         field(1; "Request No."; Code[20])
         {
+            AllowInCustomizations = Never;
             Caption = 'Request No.';
             TableRelation = "AMC Vendor Request";
         }

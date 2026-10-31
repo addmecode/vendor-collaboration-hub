@@ -911,6 +911,7 @@ that can be taken away again.
 | **`Token Hash`** | **unique** — the only lookup path the Function has |
 | `Request No., Status` | the active link of a request; used when re-sending |
 | `Status, Expires At` | the job that expires stale links |
+| `Vendor No.` | filter access links by vendor |
 
 Rules the table exists to enforce:
 

@@ -1,8 +1,8 @@
 namespace Addmecode.VendorCollaborationHub.Tests;
 
 using Addmecode.VendorCollaborationHub;
-using Microsoft.Foundation.NoSeries;
 using Microsoft.Finance.Currency;
+using Microsoft.Foundation.NoSeries;
 using Microsoft.Purchases.Document;
 using Microsoft.Purchases.Vendor;
 using System.Globalization;

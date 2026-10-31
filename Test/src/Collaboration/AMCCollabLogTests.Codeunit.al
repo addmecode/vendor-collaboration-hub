@@ -96,10 +96,9 @@ codeunit 50132 "AMC Collab Log Tests"
     Entry.SetRange("Source Type", "AMC Source Type"::Request);
     Entry.SetRange("Source No.", SourceNo);
     this.Assert.AreEqual(3, Entry.Count(), 'Every wrapper appends one entry to the same mixed history.');
-    Entry.SetRange("Correlation Id", CorrelationId);
-    this.Assert.AreEqual(3, Entry.Count(), 'All wrappers preserve the correlation ID.');
     Entry.SetRange("Entry Type", "AMC Collab Entry Type"::Comment);
     Entry.FindFirst();
+    this.Assert.AreEqual(CorrelationId, Entry."Correlation Id", 'The comment wrapper must preserve the correlation ID.');
     this.Assert.AreEqual('Vendor-facing comment.', Entry.Description, 'Keep the comment text.');
     this.Assert.AreEqual("AMC Actor Type"::Buyer, Entry."Actor Type", 'Keep the comment author type.');
     this.Assert.AreEqual('Buyer', Entry."Actor Name", 'Keep the comment author name.');
@@ -107,11 +106,13 @@ codeunit 50132 "AMC Collab Log Tests"
     this.Assert.IsTrue(Entry."Date Time" <> 0DT, 'Stamp the comment time.');
     Entry.SetRange("Entry Type", "AMC Collab Entry Type"::RequestCreated);
     Entry.FindFirst();
+    this.Assert.AreEqual(CorrelationId, Entry."Correlation Id", 'The event wrapper must preserve the correlation ID.');
     this.Assert.AreEqual('Request created.', Entry.Description, 'Keep the internal event description.');
     this.Assert.AreEqual("AMC Actor Type"::System, Entry."Actor Type", 'Keep the event actor type.');
     this.Assert.IsTrue(Entry."Date Time" <> 0DT, 'Stamp the event time.');
     Entry.SetRange("Entry Type", "AMC Collab Entry Type"::ProposalApplied);
     Entry.FindFirst();
+    this.Assert.AreEqual(CorrelationId, Entry."Correlation Id", 'The field-change wrapper must preserve the correlation ID.');
     this.Assert.AreEqual(10000, Entry."Source Line No.", 'Keep the field-change source line.');
     this.Assert.AreEqual('Quantity', Entry."Field Name", 'Keep the changed field.');
     this.Assert.AreEqual('400', Entry."Old Value", 'Keep the previous value.');

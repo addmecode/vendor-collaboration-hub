@@ -12,6 +12,7 @@ table 50104 "AMC Vendor Proposal Line"
     {
         field(1; "Proposal No."; Code[20])
         {
+            AllowInCustomizations = Never;
             Caption = 'Proposal No.';
             TableRelation = "AMC Vendor Proposal";
         }

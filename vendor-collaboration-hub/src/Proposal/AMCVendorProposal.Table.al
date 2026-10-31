@@ -92,16 +92,19 @@ table 50103 "AMC Vendor Proposal"
         }
         field(18; "Payload Hash"; Text[64])
         {
+            AllowInCustomizations = Never;
             Caption = 'Payload Hash';
             DataClassification = SystemMetadata;
             Editable = false;
         }
         field(19; "External Reference"; Text[100])
         {
+            AllowInCustomizations = AsReadOnly;
             Caption = 'External Reference';
         }
         field(20; "API Submission Pending"; Boolean)
         {
+            AllowInCustomizations = Never;
             Caption = 'API Submission Pending';
             DataClassification = SystemMetadata;
             Editable = false;

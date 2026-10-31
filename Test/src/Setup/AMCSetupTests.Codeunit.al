@@ -1,8 +1,8 @@
 namespace Addmecode.VendorCollaborationHub.Tests;
 
 using Addmecode.VendorCollaborationHub;
-using System.Threading;
 using System.TestLibraries.Utilities;
+using System.Threading;
 
 codeunit 50130 "AMC Setup Tests"
 {

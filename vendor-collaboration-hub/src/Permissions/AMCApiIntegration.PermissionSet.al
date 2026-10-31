@@ -1,11 +1,11 @@
 namespace Addmecode.VendorCollaborationHub;
 
-using Microsoft.Purchases.Document;
-using Microsoft.Purchases.Vendor;
-using Microsoft.Inventory.Item;
-using Microsoft.Inventory.Item.Substitution;
 using Microsoft.Foundation.AuditCodes;
 using Microsoft.Foundation.NoSeries;
+using Microsoft.Inventory.Item;
+using Microsoft.Inventory.Item.Substitution;
+using Microsoft.Purchases.Document;
+using Microsoft.Purchases.Vendor;
 
 permissionset 50103 "AMC API Integration"
 {
