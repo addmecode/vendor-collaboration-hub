@@ -13,6 +13,7 @@ codeunit 50141 "AMC Order Lock Tests"
 
     var
         Assert: Codeunit "Library Assert";
+        TestLibrary: Codeunit "AMC Test Library";
         PurchaseOrderLockedErr: Label 'Purchase order %1 is locked by active vendor request %2.', Comment = '%1 = purchase order number, %2 = vendor request number';
 
     [Test]
@@ -23,7 +24,7 @@ codeunit 50141 "AMC Order Lock Tests"
     begin
         // Given
         this.CreateLockedPurchaseOrder(PurchaseHeader, RequestNo);
-        PurchaseHeader."Your Reference" := 'Changed reference';
+        PurchaseHeader.Validate("Your Reference", 'Changed reference');
 
         // When
         asserterror PurchaseHeader.Modify(true);
@@ -62,12 +63,12 @@ codeunit 50141 "AMC Order Lock Tests"
         NewPurchaseLine.Init();
         NewPurchaseLine.Validate("Document Type", PurchaseHeader."Document Type");
         NewPurchaseLine.Validate("Document No.", PurchaseHeader."No.");
-        NewPurchaseLine."Line No." := 20000;
-        NewPurchaseLine.Description := 'New line';
+        NewPurchaseLine.Validate("Line No.", 20000);
+        NewPurchaseLine.Validate(Description, 'New line');
         this.LockPurchaseOrder(PurchaseHeader, RequestNo);
         Commit();
         PurchaseLine.Get(PurchaseHeader."Document Type", PurchaseHeader."No.", 10000);
-        PurchaseLine.Description := 'Changed description';
+        PurchaseLine.Validate(Description, 'Changed description');
 
         // When
         asserterror PurchaseLine.Modify(true);
@@ -139,7 +140,7 @@ codeunit 50141 "AMC Order Lock Tests"
     begin
         // Given
         this.CreatePurchaseOrder(PurchaseHeader);
-        PurchaseHeader."Your Reference" := 'Changed reference';
+        PurchaseHeader.Validate("Your Reference", 'Changed reference');
 
         // When
         PurchaseHeader.Modify(true);
@@ -185,7 +186,7 @@ codeunit 50141 "AMC Order Lock Tests"
 
         // When
         OrderLockMgt.SetSuppressionContext(PurchaseOrderNo, RequestNo, PreviousPurchaseOrderNo, PreviousRequestNo);
-        PurchaseHeader."Your Reference" := 'Suppressed reference';
+        PurchaseHeader.Validate("Your Reference", 'Suppressed reference');
         PurchaseHeader.Modify(true);
         PersistedPurchaseHeader.Get(PersistedPurchaseHeader."Document Type"::Order, PurchaseOrderNo);
         OrderLockMgt.VerifyPurchaseOrderCanBeReleased(PersistedPurchaseHeader);
@@ -250,16 +251,15 @@ codeunit 50141 "AMC Order Lock Tests"
         VendorNo: Code[20];
     begin
         this.EnsureCurrency('USD');
+        this.TestLibrary.EnsureCurrencyExchangeRate('USD');
         VendorNo := this.CreateVendor();
-        PurchaseHeader.Init();
-        PurchaseHeader."Document Type" := PurchaseHeader."Document Type"::Order;
-        PurchaseHeader."No." := this.CreateRequestNo();
-        PurchaseHeader."Buy-from Vendor No." := VendorNo;
-        PurchaseHeader."Purchaser Code" := 'BUYER';
-        PurchaseHeader."Assigned User ID" := 'REQUESTOR';
-        PurchaseHeader."Currency Code" := 'USD';
-        PurchaseHeader.Status := PurchaseHeader.Status::Open;
-        PurchaseHeader.Insert(false);
+        this.TestLibrary.CreatePurchaseOrder(PurchaseHeader, this.CreateRequestNo(), VendorNo);
+        this.TestLibrary.EnsurePurchaser('BUYER');
+        PurchaseHeader.Validate("Purchaser Code", 'BUYER');
+        PurchaseHeader.Validate("Assigned User ID", UserId());
+        PurchaseHeader.Validate("Currency Code", 'USD');
+        PurchaseHeader.Validate(Status, PurchaseHeader.Status::Open);
+        PurchaseHeader.Modify(false);
     end;
 
     local procedure CreateVendor(): Code[20]
@@ -268,10 +268,11 @@ codeunit 50141 "AMC Order Lock Tests"
         VendorNo: Code[20];
     begin
         VendorNo := this.CreateRequestNo();
+        this.TestLibrary.PrepareManualNumbering();
         Vendor.Init();
-        Vendor."No." := VendorNo;
-        Vendor.Name := VendorNo;
-        Vendor."AMC Collaboration Enabled" := true;
+        Vendor.Validate("No.", VendorNo);
+        Vendor.Validate(Name, VendorNo);
+        Vendor.Validate("AMC Collaboration Enabled", true);
         Vendor.Insert(false);
         exit(VendorNo);
     end;
@@ -284,10 +285,10 @@ codeunit 50141 "AMC Order Lock Tests"
             exit;
 
         Currency.Init();
-        Currency.Code := CurrencyCode;
-        Currency.Description := CurrencyCode;
-        Currency."Amount Rounding Precision" := 0.01;
-        Currency."Unit-Amount Rounding Precision" := 0.00001;
+        Currency.Validate(Code, CurrencyCode);
+        Currency.Validate(Description, CurrencyCode);
+        Currency.Validate("Amount Rounding Precision", 0.01);
+        Currency.Validate("Unit-Amount Rounding Precision", 0.00001);
         Currency.Insert(false);
     end;
 
@@ -296,10 +297,10 @@ codeunit 50141 "AMC Order Lock Tests"
         PurchaseLine: Record "Purchase Line";
     begin
         PurchaseLine.Init();
-        PurchaseLine."Document Type" := PurchaseHeader."Document Type";
-        PurchaseLine."Document No." := PurchaseHeader."No.";
-        PurchaseLine."Line No." := LineNo;
-        PurchaseLine.Description := 'Purchase line';
+        PurchaseLine.Validate("Document Type", PurchaseHeader."Document Type");
+        PurchaseLine.Validate("Document No.", PurchaseHeader."No.");
+        PurchaseLine.Validate("Line No.", LineNo);
+        PurchaseLine.Validate(Description, 'Purchase line');
         PurchaseLine.Insert(false);
     end;
 
@@ -309,13 +310,13 @@ codeunit 50141 "AMC Order Lock Tests"
     begin
         RequestNo := this.CreateRequestNo();
         VendorRequest.Init();
-        VendorRequest."No." := RequestNo;
-        VendorRequest."Purchase Order No." := PurchaseHeader."No.";
-        VendorRequest.Status := VendorRequest.Status::"Awaiting Vendor";
+        VendorRequest.Validate("No.", RequestNo);
+        VendorRequest.Validate("Purchase Order No.", PurchaseHeader."No.");
+        VendorRequest.Validate(Status, VendorRequest.Status::"Awaiting Vendor");
         VendorRequest.Insert(false);
 
-        PurchaseHeader."AMC Active Request No." := RequestNo;
-        PurchaseHeader."AMC Collaboration Status" := VendorRequest.Status;
+        PurchaseHeader.Validate("AMC Active Request No.", RequestNo);
+        PurchaseHeader.Validate("AMC Collaboration Status", VendorRequest.Status);
         PurchaseHeader.Modify(true);
     end;
 

@@ -18,13 +18,13 @@ codeunit 50148 "AMC Comment API Tests"
     // Given
     this.TestLibrary.CreateWriteContext(VendorRequest, AccessToken);
     this.InitializeComment(Entry, "AMC Source Type"::Request, VendorRequest."No.");
-    Entry."Entry Type" := Entry."Entry Type"::ProposalReceived;
-    Entry."Actor Type" := Entry."Actor Type"::Buyer;
-    Entry."User ID" := 'SPOOFED';
-    Entry."Source Line No." := 10000;
-    Entry."Field Name" := 'SPOOFED';
-    Entry."Old Value" := 'SPOOFED';
-    Entry."New Value" := 'SPOOFED';
+    Entry.Validate("Entry Type", Entry."Entry Type"::ProposalReceived);
+    Entry.Validate("Actor Type", Entry."Actor Type"::Buyer);
+    Entry.Validate("User ID", 'SPOOFED');
+    Entry.Validate("Source Line No.", 10000);
+    Entry.Validate("Field Name", 'SPOOFED');
+    Entry.Validate("Old Value", 'SPOOFED');
+    Entry.Validate("New Value", 'SPOOFED');
     // When
     CollabLog.WriteVendorComment(Entry, AccessToken.SystemId);
     // Then
@@ -109,9 +109,9 @@ codeunit 50148 "AMC Comment API Tests"
     this.TestLibrary.CreateWriteContext(VendorRequest, AccessToken);
     this.TestLibrary.CreateWriteContext(ForeignRequest, ForeignToken);
     Commit();
-    ForeignRequest."Vendor No." := VendorRequest."Vendor No.";
+    ForeignRequest.Validate("Vendor No.", VendorRequest."Vendor No.");
     ForeignRequest.Modify(false);
-    ForeignToken."Vendor No." := VendorRequest."Vendor No.";
+    ForeignToken.Validate("Vendor No.", VendorRequest."Vendor No.");
     ForeignToken.Modify(false);
     Commit();
     this.TestLibrary.SubmitAnswer(ForeignRequest, ForeignToken.SystemId, Format(CreateGuid()), 400, false, ForeignProposal);
@@ -138,7 +138,7 @@ codeunit 50148 "AMC Comment API Tests"
     this.TestLibrary.CreateWriteContext(VendorRequest, AccessToken);
     Commit();
     this.TestLibrary.SubmitAnswer(VendorRequest, AccessToken.SystemId, Format(CreateGuid()), 400, false, ForeignProposal);
-    ForeignProposal."Vendor No." := this.TestLibrary.NewCode();
+    ForeignProposal.Validate("Vendor No.", this.TestLibrary.NewCode());
     ForeignProposal.Modify(false);
     Commit();
     BeforeCount := EntryView.Count();
@@ -169,15 +169,15 @@ codeunit 50148 "AMC Comment API Tests"
     asserterror CollabLog.WriteVendorComment(Entry, AccessToken.SystemId);
     this.Assert.ExpectedError('VCH-VAL-0001');
     this.InitializeComment(Entry, "AMC Source Type"::Request, VendorRequest."No.");
-    Entry.Description := '';
+    Entry.Validate(Description, '');
     asserterror CollabLog.WriteVendorComment(Entry, AccessToken.SystemId);
     this.Assert.ExpectedError('VCH-VAL-0001');
     this.InitializeComment(Entry, "AMC Source Type"::Request, VendorRequest."No.");
-    Entry."Source Type" := "AMC Source Type".FromInteger(999999);
+    Entry.Validate("Source Type", "AMC Source Type".FromInteger(999999));
     asserterror CollabLog.WriteVendorComment(Entry, AccessToken.SystemId);
     this.Assert.ExpectedError('VCH-VAL-0001');
     this.InitializeComment(Entry, "AMC Source Type"::Request, VendorRequest."No.");
-    AccessToken.Status := AccessToken.Status::Revoked;
+    AccessToken.Validate(Status, AccessToken.Status::Revoked);
     AccessToken.Modify(false);
     Commit();
     asserterror CollabLog.WriteVendorComment(Entry, AccessToken.SystemId);
@@ -190,10 +190,10 @@ codeunit 50148 "AMC Comment API Tests"
   begin
     Clear(Entry);
     Entry.Init();
-    Entry."Source Type" := SourceType;
-    Entry."Source No." := SourceNo;
-    Entry."Actor Name" := 'anna.k@example.com';
-    Entry.Description := 'We can pull 400 pcs forward.';
+    Entry.Validate("Source Type", SourceType);
+    Entry.Validate("Source No.", SourceNo);
+    Entry.Validate("Actor Name", 'anna.k@example.com');
+    Entry.Validate(Description, 'We can pull 400 pcs forward.');
   end;
 
   var

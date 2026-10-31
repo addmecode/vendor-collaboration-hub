@@ -15,6 +15,7 @@ codeunit 50144 "AMC Vendor Notification Tests"
 
   var
     Assert: Codeunit "Library Assert";
+    TestLibrary: Codeunit "AMC Test Library";
 
   [Test]
   procedure GivenVendorRequest_WhenBuildingEmail_ThenSubjectAndSafeBodiesContainTheAccessLink()
@@ -177,8 +178,8 @@ codeunit 50144 "AMC Vendor Notification Tests"
   begin
     // Given
     TempVendorRequest.Init();
-    TempVendorRequest."No." := this.CreateUniqueCode();
-    TempVendorRequest."Language Code" := Language.GetLanguageCode(Language.GetDefaultApplicationLanguageId());
+    TempVendorRequest.Validate("No.", this.CreateUniqueCode());
+    TempVendorRequest.Validate("Language Code", Language.GetLanguageCode(Language.GetDefaultApplicationLanguageId()));
     OriginalLanguageId := GlobalLanguage();
     Commit();
 
@@ -225,13 +226,13 @@ codeunit 50144 "AMC Vendor Notification Tests"
     this.CreateNoSeries(ProposalNoSeriesCode);
 
     CollaborationSetup.GetSetup();
-    CollaborationSetup.Enabled := false;
+    CollaborationSetup.Validate(Enabled, false);
     CollaborationSetup.Modify(true);
-    CollaborationSetup."Request Nos." := RequestNoSeriesCode;
-    CollaborationSetup."Proposal Nos." := ProposalNoSeriesCode;
-    CollaborationSetup."Portal Base URL" := 'https://portal.contoso.com';
-    CollaborationSetup."Portal Support E-Mail" := 'support@contoso.com';
-    CollaborationSetup."Attach Order PDF" := false;
+    CollaborationSetup.Validate("Request Nos.", RequestNoSeriesCode);
+    CollaborationSetup.Validate("Proposal Nos.", ProposalNoSeriesCode);
+    CollaborationSetup.Validate("Portal Base URL", 'https://portal.contoso.com');
+    CollaborationSetup.Validate("Portal Support E-Mail", 'support@contoso.com');
+    CollaborationSetup.Validate("Attach Order PDF", false);
     CollaborationSetup.Validate(Enabled, true);
     CollaborationSetup.Modify(true);
   end;
@@ -244,29 +245,30 @@ codeunit 50144 "AMC Vendor Notification Tests"
   begin
     StartingNo := CopyStr('R' + DelChr(Format(CreateGuid()), '=', '{}-') + '1', 1, 20);
     NoSeries.Init();
-    NoSeries.Code := NoSeriesCode;
-    NoSeries.Description := NoSeriesCode;
-    NoSeries."Default Nos." := true;
+    NoSeries.Validate(Code, NoSeriesCode);
+    NoSeries.Validate(Description, NoSeriesCode);
+    NoSeries.Validate("Default Nos.", true);
     NoSeries.Insert(false);
 
     NoSeriesLine.Init();
-    NoSeriesLine."Series Code" := NoSeriesCode;
-    NoSeriesLine."Line No." := 10000;
-    NoSeriesLine."Starting No." := StartingNo;
-    NoSeriesLine."Increment-by No." := 1;
-    NoSeriesLine.Open := true;
+    NoSeriesLine.Validate("Series Code", NoSeriesCode);
+    NoSeriesLine.Validate("Line No.", 10000);
+    NoSeriesLine.Validate("Starting No.", StartingNo);
+    NoSeriesLine.Validate("Increment-by No.", 1);
+    NoSeriesLine.Validate(Open, true);
     NoSeriesLine.Insert(false);
   end;
 
   local procedure CreateVendor(var Vendor: Record Vendor; VendorNo: Code[20]; PortalContactEmail: Text[80]; VendorEmail: Text[80]; VendorLanguageCode: Code[10])
   begin
+    this.TestLibrary.PrepareManualNumbering();
     Vendor.Init();
-    Vendor."No." := VendorNo;
-    Vendor.Name := VendorNo;
-    Vendor."E-Mail" := VendorEmail;
-    Vendor."Language Code" := VendorLanguageCode;
-    Vendor."AMC Collaboration Enabled" := true;
-    Vendor."AMC Portal Contact E-Mail" := PortalContactEmail;
+    Vendor.Validate("No.", VendorNo);
+    Vendor.Validate(Name, VendorNo);
+    Vendor.Validate("E-Mail", VendorEmail);
+    Vendor.Validate("Language Code", VendorLanguageCode);
+    Vendor.Validate("AMC Collaboration Enabled", true);
+    Vendor.Validate("AMC Portal Contact E-Mail", PortalContactEmail);
     Vendor.Insert(false);
   end;
 
@@ -275,34 +277,35 @@ codeunit 50144 "AMC Vendor Notification Tests"
     SalespersonPurchaser: Record "Salesperson/Purchaser";
   begin
     SalespersonPurchaser.Init();
-    SalespersonPurchaser.Code := BuyerCode;
-    SalespersonPurchaser.Name := BuyerCode;
-    SalespersonPurchaser."E-Mail" := BuyerEmail;
+    SalespersonPurchaser.Validate(Code, BuyerCode);
+    SalespersonPurchaser.Validate(Name, BuyerCode);
+    SalespersonPurchaser.Validate("E-Mail", BuyerEmail);
     SalespersonPurchaser.Insert(false);
   end;
 
   local procedure CreatePurchaseOrder(var PurchaseHeader: Record "Purchase Header"; VendorNo: Code[20]; BuyerCode: Code[20])
   begin
-    PurchaseHeader.Init();
-    PurchaseHeader."Document Type" := PurchaseHeader."Document Type"::Order;
-    PurchaseHeader."No." := this.CreateUniqueCode();
-    PurchaseHeader."Buy-from Vendor No." := VendorNo;
-    PurchaseHeader."Purchaser Code" := BuyerCode;
-    PurchaseHeader.Status := PurchaseHeader.Status::Open;
-    PurchaseHeader.Insert(false);
+    this.TestLibrary.CreatePurchaseOrder(PurchaseHeader, this.CreateUniqueCode(), VendorNo);
+    PurchaseHeader.Validate("Purchaser Code", BuyerCode);
+    PurchaseHeader.Validate(Status, PurchaseHeader.Status::Open);
+    PurchaseHeader.Modify(false);
   end;
 
   local procedure CreatePurchaseLine(PurchaseHeader: Record "Purchase Header"; LineNo: Integer; Description: Text[100])
   var
     PurchaseLine: Record "Purchase Line";
+    ItemNo: Code[20];
   begin
+    ItemNo := this.CreateUniqueCode();
+    this.TestLibrary.EnsureItem(ItemNo, 'PCS');
     PurchaseLine.Init();
-    PurchaseLine."Document Type" := PurchaseHeader."Document Type";
-    PurchaseLine."Document No." := PurchaseHeader."No.";
-    PurchaseLine."Line No." := LineNo;
-    PurchaseLine."No." := this.CreateUniqueCode();
-    PurchaseLine.Description := Description;
-    PurchaseLine.Quantity := 1;
+    PurchaseLine.Validate("Document Type", PurchaseHeader."Document Type");
+    PurchaseLine.Validate("Document No.", PurchaseHeader."No.");
+    PurchaseLine.Validate("Line No.", LineNo);
+    PurchaseLine.Validate(Type, PurchaseLine.Type::Item);
+    PurchaseLine.Validate("No.", ItemNo);
+    PurchaseLine.Validate(Description, Description);
+    PurchaseLine.Validate(Quantity, 1);
     PurchaseLine.Insert(false);
   end;
 

@@ -28,8 +28,8 @@ codeunit 50121 "AMC Idempotency Mgt"
       Error(DifferentPayloadErr);
     end;
 
-    VendorProposal."Idempotency Key" := IdempotencyKey;
-    VendorProposal."Payload Hash" := PayloadHash;
+    VendorProposal.Validate("Idempotency Key", IdempotencyKey);
+    VendorProposal.Validate("Payload Hash", PayloadHash);
   end;
 
   procedure HashPayload(VendorProposal: Record "AMC Vendor Proposal"; AccessTokenId: Guid): Text[64]

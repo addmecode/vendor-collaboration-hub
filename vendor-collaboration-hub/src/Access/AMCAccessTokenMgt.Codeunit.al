@@ -29,13 +29,13 @@ codeunit 50117 "AMC Access Token Mgt"
         IssuedAt := CurrentDateTime();
 
         VendorAccessToken.Init();
-        VendorAccessToken."Token Id" := CreateGuid();
-        VendorAccessToken."Request No." := VendorRequest."No.";
-        VendorAccessToken."Vendor No." := VendorRequest."Vendor No.";
-        VendorAccessToken."Token Hash" := this.HashToken(RawToken);
-        VendorAccessToken.Status := VendorAccessToken.Status::Active;
-        VendorAccessToken."Issued At" := IssuedAt;
-        VendorAccessToken."Expires At" := IssuedAt + this.GetTokenLifetime(CollaborationSetup."Link Validity Days");
+        VendorAccessToken.Validate("Token Id", CreateGuid());
+        VendorAccessToken.Validate("Request No.", VendorRequest."No.");
+        VendorAccessToken.Validate("Vendor No.", VendorRequest."Vendor No.");
+        VendorAccessToken.Validate("Token Hash", this.HashToken(RawToken));
+        VendorAccessToken.Validate(Status, VendorAccessToken.Status::Active);
+        VendorAccessToken.Validate("Issued At", IssuedAt);
+        VendorAccessToken.Validate("Expires At", IssuedAt + this.GetTokenLifetime(CollaborationSetup."Link Validity Days"));
         VendorAccessToken.Insert(true);
 
         CollabLog.LogEvent("AMC Source Type"::Request, VendorRequest."No.", 0, "AMC Collab Entry Type"::LinkIssued, "AMC Actor Type"::Buyer, '', UserId(), this.LinkIssuedDescriptionLbl, CreateGuid());
@@ -66,9 +66,9 @@ codeunit 50117 "AMC Access Token Mgt"
         this.AssertActive(VendorAccessToken);
         AccessedAt := CurrentDateTime();
         if VendorAccessToken."First Accessed At" = 0DT then
-            VendorAccessToken."First Accessed At" := AccessedAt;
-        VendorAccessToken."Last Accessed At" := AccessedAt;
-        VendorAccessToken."Access Count" += 1;
+            VendorAccessToken.Validate("First Accessed At", AccessedAt);
+        VendorAccessToken.Validate("Last Accessed At", AccessedAt);
+        VendorAccessToken.Validate("Access Count", VendorAccessToken."Access Count" + 1);
         VendorAccessToken.Modify(true);
 
         CollabLog.LogEvent("AMC Source Type"::Request, VendorAccessToken."Request No.", 0, "AMC Collab Entry Type"::LinkOpened, "AMC Actor Type"::Vendor, '', '', this.LinkOpenedDescriptionLbl, CreateGuid());
@@ -84,10 +84,10 @@ codeunit 50117 "AMC Access Token Mgt"
         if VendorAccessToken.Status <> VendorAccessToken.Status::Active then
             exit;
 
-        VendorAccessToken.Status := VendorAccessToken.Status::Revoked;
-        VendorAccessToken."Revoked At" := CurrentDateTime();
-        VendorAccessToken."Revoked By" := CopyStr(UserId(), 1, MaxStrLen(VendorAccessToken."Revoked By"));
-        VendorAccessToken."Revocation Reason" := RevocationReason;
+        VendorAccessToken.Validate(Status, VendorAccessToken.Status::Revoked);
+        VendorAccessToken.Validate("Revoked At", CurrentDateTime());
+        VendorAccessToken.Validate("Revoked By", CopyStr(UserId(), 1, MaxStrLen(VendorAccessToken."Revoked By")));
+        VendorAccessToken.Validate("Revocation Reason", RevocationReason);
         VendorAccessToken.Modify(false);
         this.LogTokenLifecycle(VendorAccessToken, "AMC Collab Entry Type"::LinkRevoked, "AMC Actor Type"::Buyer, this.LinkRevokedDescriptionLbl);
     end;
@@ -109,7 +109,7 @@ codeunit 50117 "AMC Access Token Mgt"
         VendorAccessToken.SetRange("Request No.", RequestNo);
         VendorAccessToken.SetRange(Status, VendorAccessToken.Status::Active);
         while VendorAccessToken.FindFirst() do begin //todo: findset
-            VendorAccessToken.Status := VendorAccessToken.Status::Superseded;
+            VendorAccessToken.Validate(Status, VendorAccessToken.Status::Superseded);
             VendorAccessToken.Modify(false);
             this.LogTokenLifecycle(VendorAccessToken, "AMC Collab Entry Type"::LinkRevoked, "AMC Actor Type"::Buyer, this.LinkSupersededDescriptionLbl);
         end;
@@ -122,7 +122,7 @@ codeunit 50117 "AMC Access Token Mgt"
         VendorAccessToken.SetRange(Status, VendorAccessToken.Status::Active);
         VendorAccessToken.SetFilter("Expires At", '<%1', CurrentDateTime());
         while VendorAccessToken.FindFirst() do begin //todo: findset
-            VendorAccessToken.Status := VendorAccessToken.Status::Expired;
+            VendorAccessToken.Validate(Status, VendorAccessToken.Status::Expired);
             VendorAccessToken.Modify(false);
             this.LogTokenLifecycle(VendorAccessToken, "AMC Collab Entry Type"::LinkExpired, "AMC Actor Type"::System, this.LinkExpiredDescriptionLbl);
         end;

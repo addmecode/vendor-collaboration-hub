@@ -1,7 +1,6 @@
 namespace Addmecode.VendorCollaborationHub.Tests;
 
 using Addmecode.VendorCollaborationHub;
-using Microsoft.Inventory.Item;
 using Microsoft.Purchases.Document;
 using Microsoft.Purchases.Vendor;
 using System.TestLibraries.Utilities;
@@ -29,7 +28,7 @@ codeunit 50134 "AMC Apply Orchestration Tests"
         // Given
         this.CreateProposalForApply(PurchaseHeader, VendorProposal, ProposalNo);
         VendorProposalLine.Get(ProposalNo, 10000);
-        VendorProposalLine."Line Type" := VendorProposalLine."Line Type"::"Change Date";
+        VendorProposalLine.Validate("Line Type", VendorProposalLine."Line Type"::"Change Date");
         VendorProposalLine.Modify(false);
         Commit();
 
@@ -95,7 +94,7 @@ codeunit 50134 "AMC Apply Orchestration Tests"
     begin
         // Given
         this.CreateProposalForApply(PurchaseHeader, VendorProposal, ProposalNo);
-        VendorProposal.Status := VendorProposal.Status::Draft;
+        VendorProposal.Validate(Status, VendorProposal.Status::Draft);
         VendorProposal.Modify(false);
         Commit();
 
@@ -118,9 +117,9 @@ codeunit 50134 "AMC Apply Orchestration Tests"
         // Given
         this.CreateProposalForApply(PurchaseHeader, VendorProposal, ProposalNo);
         TempDecisionContext.Init();
-        TempDecisionContext."No." := ProposalNo;
-        TempDecisionContext.Status := TempDecisionContext.Status::"In Review";
-        TempDecisionContext."Decision User ID" := UserId();
+        TempDecisionContext.Validate("No.", ProposalNo);
+        TempDecisionContext.Validate(Status, TempDecisionContext.Status::"In Review");
+        TempDecisionContext.Validate("Decision User ID", UserId());
         Commit(); //todo: why commit?
 
         // When
@@ -147,8 +146,8 @@ codeunit 50134 "AMC Apply Orchestration Tests"
         PurchaseLine.Get(PurchaseHeader."Document Type", PurchaseHeader."No.", 10000);
         OriginalPromisedReceiptDate := PurchaseLine."Promised Receipt Date";
         VendorProposalLine.Get(ProposalNo, 10000);
-        VendorProposalLine."Line Type" := VendorProposalLine."Line Type"::"Change Date";
-        VendorProposalLine."Proposed Delivery Date" := WorkDate() + 10;
+        VendorProposalLine.Validate("Line Type", VendorProposalLine."Line Type"::"Change Date");
+        VendorProposalLine.Validate("Proposed Delivery Date", WorkDate() + 10);
         VendorProposalLine.Modify(false);
         this.InsertUnknownProposalLine(ProposalNo, 20000, 2);
         Commit();
@@ -189,9 +188,9 @@ codeunit 50134 "AMC Apply Orchestration Tests"
         Commit();
         this.Assert.IsFalse(DecisionSvc.Approve(VendorProposal, 'First attempt fails.'), 'The first attempt must fail on the unknown handler.');
         VendorProposalLine.Get(ProposalNo, 20000);
-        VendorProposalLine."Line Type" := VendorProposalLine."Line Type"::Confirm;
-        VendorProposalLine."Proposed Quantity" := 10;
-        VendorProposalLine."Proposed Delivery Date" := WorkDate() + 1;
+        VendorProposalLine.Validate("Line Type", VendorProposalLine."Line Type"::Confirm);
+        VendorProposalLine.Validate("Proposed Quantity", 10);
+        VendorProposalLine.Validate("Proposed Delivery Date", WorkDate() + 1);
         VendorProposalLine.Modify(false);
         Commit();
 
@@ -209,11 +208,11 @@ codeunit 50134 "AMC Apply Orchestration Tests"
 
     local procedure CreateProposalForApply(var PurchaseHeader: Record "Purchase Header"; var VendorProposal: Record "AMC Vendor Proposal"; var ProposalNo: Code[20])
     var
-        Item: Record Item;
         PurchaseLine: Record "Purchase Line";
         Vendor: Record Vendor;
         VendorRequest: Record "AMC Vendor Request";
         VendorRequestLine: Record "AMC Vendor Request Line";
+        TestLibrary: Codeunit "AMC Test Library";
         ItemNo: Code[20];
         RequestNo: Code[20];
         VendorNo: Code[20];
@@ -224,58 +223,49 @@ codeunit 50134 "AMC Apply Orchestration Tests"
         ProposalNo := this.CreateIdentifier();
 
         //todo: can use standard libraries?
+        TestLibrary.PrepareManualNumbering();
         Vendor.Init();
-        Vendor."No." := VendorNo;
-        Vendor.Name := VendorNo;
+        Vendor.Validate("No.", VendorNo);
+        Vendor.Validate(Name, VendorNo);
         Vendor.Insert(false);
-        Item.Init();
-        Item."No." := ItemNo;
-        Item.Description := ItemNo;
-        Item."Base Unit of Measure" := 'PCS';
-        Item.Insert(false);
-        PurchaseHeader.Init();
-        PurchaseHeader."Document Type" := PurchaseHeader."Document Type"::Order;
-        PurchaseHeader."No." := this.CreateIdentifier();
-        PurchaseHeader."Buy-from Vendor No." := VendorNo;
-        PurchaseHeader."Pay-to Vendor No." := VendorNo;
-        PurchaseHeader.Status := PurchaseHeader.Status::Open;
-        PurchaseHeader.Insert(false);
+        TestLibrary.EnsureItem(ItemNo, 'PCS');
+        TestLibrary.CreatePurchaseOrder(PurchaseHeader, this.CreateIdentifier(), VendorNo);
         PurchaseLine.Init();
-        PurchaseLine."Document Type" := PurchaseHeader."Document Type";
-        PurchaseLine."Document No." := PurchaseHeader."No.";
-        PurchaseLine."Line No." := 10000;
-        PurchaseLine.Type := PurchaseLine.Type::Item;
-        PurchaseLine."No." := ItemNo;
-        PurchaseLine."Unit of Measure Code" := Item."Base Unit of Measure";
-        PurchaseLine.Quantity := 10;
-        PurchaseLine."Requested Receipt Date" := WorkDate() + 1;
-        PurchaseLine."Promised Receipt Date" := WorkDate() + 1;
+        PurchaseLine.Validate("Document Type", PurchaseHeader."Document Type");
+        PurchaseLine.Validate("Document No.", PurchaseHeader."No.");
+        PurchaseLine.Validate("Line No.", 10000);
+        PurchaseLine.Validate(Type, PurchaseLine.Type::Item);
+        PurchaseLine.Validate("No.", ItemNo);
+        PurchaseLine.Validate("Unit of Measure Code", 'PCS');
+        PurchaseLine.Validate(Quantity, 10);
+        PurchaseLine.Validate("Requested Receipt Date", WorkDate() + 1);
+        PurchaseLine.Validate("Promised Receipt Date", WorkDate() + 1);
         PurchaseLine.Insert(false);
         VendorRequest.Init();
-        VendorRequest."No." := RequestNo;
-        VendorRequest."Vendor No." := VendorNo;
-        VendorRequest."Purchase Order No." := PurchaseHeader."No.";
-        VendorRequest.Status := VendorRequest.Status::"In Review";
+        VendorRequest.Validate("No.", RequestNo);
+        VendorRequest.Validate("Vendor No.", VendorNo);
+        VendorRequest.Validate("Purchase Order No.", PurchaseHeader."No.");
+        VendorRequest.Validate(Status, VendorRequest.Status::"In Review");
         VendorRequest.Insert(false);
         VendorRequestLine.Init();
-        VendorRequestLine."Request No." := RequestNo;
-        VendorRequestLine."Line No." := 10000;
-        VendorRequestLine."Purchase Line No." := PurchaseLine."Line No.";
-        VendorRequestLine."Requested Quantity" := PurchaseLine.Quantity;
-        VendorRequestLine."Outstanding Quantity" := PurchaseLine.Quantity;
-        VendorRequestLine."Requested Delivery Date" := PurchaseLine."Requested Receipt Date";
-        VendorRequestLine.Status := VendorRequestLine.Status::Open;
+        VendorRequestLine.Validate("Request No.", RequestNo);
+        VendorRequestLine.Validate("Line No.", 10000);
+        VendorRequestLine.Validate("Purchase Line No.", PurchaseLine."Line No.");
+        VendorRequestLine.Validate("Requested Quantity", PurchaseLine.Quantity);
+        VendorRequestLine.Validate("Outstanding Quantity", PurchaseLine.Quantity);
+        VendorRequestLine.Validate("Requested Delivery Date", PurchaseLine."Requested Receipt Date");
+        VendorRequestLine.Validate(Status, VendorRequestLine.Status::Open);
         VendorRequestLine.Insert(false);
-        PurchaseHeader."AMC Active Request No." := RequestNo;
-        PurchaseHeader."AMC Collaboration Status" := VendorRequest.Status;
+        PurchaseHeader.Validate("AMC Active Request No.", RequestNo);
+        PurchaseHeader.Validate("AMC Collaboration Status", VendorRequest.Status);
         PurchaseHeader.Modify(false);
         VendorProposal.Init();
-        VendorProposal."No." := ProposalNo;
-        VendorProposal."Request No." := RequestNo;
-        VendorProposal."Vendor No." := VendorNo;
-        VendorProposal."Purchase Order No." := PurchaseHeader."No.";
-        VendorProposal."Idempotency Key" := ProposalNo;
-        VendorProposal.Status := VendorProposal.Status::"In Review";
+        VendorProposal.Validate("No.", ProposalNo);
+        VendorProposal.Validate("Request No.", RequestNo);
+        VendorProposal.Validate("Vendor No.", VendorNo);
+        VendorProposal.Validate("Purchase Order No.", PurchaseHeader."No.");
+        VendorProposal.Validate("Idempotency Key", ProposalNo);
+        VendorProposal.Validate(Status, VendorProposal.Status::"In Review");
         VendorProposal.Insert(false);
         this.InsertProposalLine(ProposalNo, 10000, "AMC Proposal Line Type"::Confirm, 1);
     end;
@@ -285,13 +275,13 @@ codeunit 50134 "AMC Apply Orchestration Tests"
         VendorProposalLine: Record "AMC Vendor Proposal Line";
     begin
         VendorProposalLine.Init();
-        VendorProposalLine."Proposal No." := ProposalNo;
-        VendorProposalLine."Line No." := LineNo;
-        VendorProposalLine."Request Line No." := 10000;
-        VendorProposalLine."Line Type" := Enum::"AMC Proposal Line Type".FromInteger(99);
-        VendorProposalLine."Sequence No." := SequenceNo;
-        VendorProposalLine."Proposed Quantity" := 10;
-        VendorProposalLine."Proposed Delivery Date" := WorkDate() + 1;
+        VendorProposalLine.Validate("Proposal No.", ProposalNo);
+        VendorProposalLine.Validate("Line No.", LineNo);
+        VendorProposalLine.Validate("Request Line No.", 10000);
+        VendorProposalLine.Validate("Line Type", Enum::"AMC Proposal Line Type".FromInteger(99));
+        VendorProposalLine.Validate("Sequence No.", SequenceNo);
+        VendorProposalLine.Validate("Proposed Quantity", 10);
+        VendorProposalLine.Validate("Proposed Delivery Date", WorkDate() + 1);
         VendorProposalLine.Insert(false);
     end;
 
@@ -300,13 +290,13 @@ codeunit 50134 "AMC Apply Orchestration Tests"
         VendorProposalLine: Record "AMC Vendor Proposal Line";
     begin
         VendorProposalLine.Init();
-        VendorProposalLine."Proposal No." := ProposalNo;
-        VendorProposalLine."Line No." := LineNo;
-        VendorProposalLine."Request Line No." := 10000;
-        VendorProposalLine."Line Type" := LineType;
-        VendorProposalLine."Sequence No." := SequenceNo;
-        VendorProposalLine."Proposed Quantity" := 10;
-        VendorProposalLine."Proposed Delivery Date" := WorkDate() + 1;
+        VendorProposalLine.Validate("Proposal No.", ProposalNo);
+        VendorProposalLine.Validate("Line No.", LineNo);
+        VendorProposalLine.Validate("Request Line No.", 10000);
+        VendorProposalLine.Validate("Line Type", LineType);
+        VendorProposalLine.Validate("Sequence No.", SequenceNo);
+        VendorProposalLine.Validate("Proposed Quantity", 10);
+        VendorProposalLine.Validate("Proposed Delivery Date", WorkDate() + 1);
         VendorProposalLine.Insert(false);
     end;
 

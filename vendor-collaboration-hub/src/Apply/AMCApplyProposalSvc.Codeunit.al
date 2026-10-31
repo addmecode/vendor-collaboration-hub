@@ -59,7 +59,7 @@ codeunit 50104 "AMC Apply Proposal Svc"
     VendorRequest.Get(VendorProposal."Request No.");
     RequestMgt.CloseAfterApply(VendorRequest, PurchaseHeader);
     this.SupersedeOtherOpenProposals(VendorProposal, ProposalMgt, CollabLog);
-    VendorProposal."Applied Date Time" := CurrentDateTime();
+    VendorProposal.Validate("Applied Date Time", CurrentDateTime());
     ProposalMgt.SetStatus(VendorProposal, VendorProposal.Status::Applied);
   end;
 
@@ -82,12 +82,12 @@ codeunit 50104 "AMC Apply Proposal Svc"
     CollabLog: Codeunit "AMC Collab Log";
     ProposalMgt: Codeunit "AMC Proposal Mgt";
   begin
-    VendorProposal."Decision Date Time" := CurrentDateTime();
-    VendorProposal."Decision User ID" := DecisionContext."Decision User ID";
-    VendorProposal."Decision Reason" := DecisionContext."Decision Reason";
-    VendorProposal."Apply Attempt Count" += 1;
-    VendorProposal."Last Error Code" := '';
-    VendorProposal."Last Error Message" := '';
+    VendorProposal.Validate("Decision Date Time", CurrentDateTime());
+    VendorProposal.Validate("Decision User ID", DecisionContext."Decision User ID");
+    VendorProposal.Validate("Decision Reason", DecisionContext."Decision Reason");
+    VendorProposal.Validate("Apply Attempt Count", VendorProposal."Apply Attempt Count" + 1);
+    VendorProposal.Validate("Last Error Code", '');
+    VendorProposal.Validate("Last Error Message", '');
     ProposalMgt.SetStatus(VendorProposal, VendorProposal.Status::Approved);
     CollabLog.LogEvent("AMC Source Type"::Proposal, VendorProposal."No.", 0, "AMC Collab Entry Type"::ProposalApproved, "AMC Actor Type"::Buyer, '', UserId(), this.ProposalApprovedDescriptionLbl, VendorProposal."Correlation Id");
   end;
@@ -103,8 +103,8 @@ codeunit 50104 "AMC Apply Proposal Svc"
     this.LogPurchaseLineChanges(VendorProposal, VendorProposalLine, OriginalPurchaseLine, CollabLog);
     this.LogInsertedPurchaseLines(VendorProposal, VendorProposalLine, OriginalPurchaseLine, CollabLog);
     this.LogAppliedLine(VendorProposal, VendorProposalLine, CollabLog);
-    VendorProposalLine.Applied := true;
-    VendorProposalLine."Applied Purchase Line No." := OriginalPurchaseLine."Line No.";
+    VendorProposalLine.Validate(Applied, true);
+    VendorProposalLine.Validate("Applied Purchase Line No.", OriginalPurchaseLine."Line No.");
     VendorProposalLine.Modify(false);
   end;
 
@@ -187,15 +187,15 @@ codeunit 50104 "AMC Apply Proposal Svc"
         ConfirmedQuantity := this.GetConfirmedQuantity(ProposalNo, VendorRequestLine."Line No.", VendorProposalLine);
         if ConfirmedQuantity > VendorRequestLine."Requested Quantity" then
           ConfirmedQuantity := VendorRequestLine."Requested Quantity";
-        VendorRequestLine."Confirmed Quantity" := ConfirmedQuantity;
-        VendorRequestLine."Outstanding Quantity" := VendorRequestLine."Requested Quantity" - ConfirmedQuantity;
+        VendorRequestLine.Validate("Confirmed Quantity", ConfirmedQuantity);
+        VendorRequestLine.Validate("Outstanding Quantity", VendorRequestLine."Requested Quantity" - ConfirmedQuantity);
         if VendorRequestLine."Outstanding Quantity" <= 0 then
-          VendorRequestLine.Status := VendorRequestLine.Status::Confirmed
+          VendorRequestLine.Validate(Status, VendorRequestLine.Status::Confirmed)
         else
           if ConfirmedQuantity > 0 then
-            VendorRequestLine.Status := VendorRequestLine.Status::"Partially Confirmed"
+            VendorRequestLine.Validate(Status, VendorRequestLine.Status::"Partially Confirmed")
           else
-            VendorRequestLine.Status := VendorRequestLine.Status::Open;
+            VendorRequestLine.Validate(Status, VendorRequestLine.Status::Open);
         VendorRequestLine.Modify(true);
       until VendorRequestLine.Next() = 0;
   end;

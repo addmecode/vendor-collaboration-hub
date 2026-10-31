@@ -30,12 +30,20 @@ codeunit 50124 "AMC Token Expiry Job"
             exit(false);
 
         JobQueueEntry.Init();
-        JobQueueEntry."Object Type to Run" := JobQueueEntry."Object Type to Run"::Codeunit;
-        JobQueueEntry."Object ID to Run" := Codeunit::"AMC Token Expiry Job";
-        JobQueueEntry."Earliest Start Date/Time" := CurrentDateTime();
-        JobQueueEntry."Recurring Job" := true;
-        JobQueueEntry."No. of Minutes between Runs" := 1440;
-        JobQueueEntry."User ID" := UserId();
+        // Keep field validation from enqueueing the entry before its explicit insert.
+        JobQueueEntry.Validate(Status, JobQueueEntry.Status::"On Hold");
+        JobQueueEntry.Validate("Object Type to Run", JobQueueEntry."Object Type to Run"::Codeunit);
+        JobQueueEntry.Validate("Object ID to Run", Codeunit::"AMC Token Expiry Job");
+        JobQueueEntry.Validate("Earliest Start Date/Time", CurrentDateTime());
+        JobQueueEntry.Validate("Run on Mondays", true);
+        JobQueueEntry.Validate("Run on Tuesdays", true);
+        JobQueueEntry.Validate("Run on Wednesdays", true);
+        JobQueueEntry.Validate("Run on Thursdays", true);
+        JobQueueEntry.Validate("Run on Fridays", true);
+        JobQueueEntry.Validate("Run on Saturdays", true);
+        JobQueueEntry.Validate("Run on Sundays", true);
+        JobQueueEntry.Validate("No. of Minutes between Runs", 1440);
+        JobQueueEntry.Validate("User ID", UserId());
         JobQueueEntry.Insert(true);
         JobQueueEntry.SetStatus(JobQueueEntry.Status::Ready);
         exit(true);

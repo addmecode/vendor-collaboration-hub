@@ -46,8 +46,8 @@ codeunit 50100 "AMC Request Mgt"
         LineCount := this.CreateVendorRequestLines(VendorRequestLine, RequestNo, PurchaseHeader, PurchaseLine);
 
         //todo: move to a separate function?
-        PurchaseHeader."AMC Active Request No." := RequestNo;
-        PurchaseHeader."AMC Collaboration Status" := VendorRequest.Status;
+        PurchaseHeader.Validate("AMC Active Request No.", RequestNo);
+        PurchaseHeader.Validate("AMC Collaboration Status", VendorRequest.Status);
         PurchaseHeader.Modify(true);
 
         CollabLog.LogEvent("AMC Source Type"::Request, RequestNo, 0, "AMC Collab Entry Type"::RequestCreated, "AMC Actor Type"::Buyer, '', UserId(), RequestCreatedDescriptionLbl, CreateGuid());
@@ -115,11 +115,11 @@ codeunit 50100 "AMC Request Mgt"
     begin
         this.SetStatus(VendorRequest, VendorRequest.Status::Closed);
         AccessTokenMgt.RevokeRequestTokens(VendorRequest."No.", LinkRevokedOnCloseDescriptionLbl);
-        VendorRequest."Closed Date Time" := CurrentDateTime();
+        VendorRequest.Validate("Closed Date Time", CurrentDateTime());
         VendorRequest.Modify(true);
 
-        PurchaseHeader."AMC Active Request No." := '';
-        PurchaseHeader."AMC Collaboration Status" := VendorRequest.Status;
+        PurchaseHeader.Validate("AMC Active Request No.", '');
+        PurchaseHeader.Validate("AMC Collaboration Status", VendorRequest.Status);
         PurchaseHeader.Modify(true);
     end;
 
@@ -151,7 +151,7 @@ codeunit 50100 "AMC Request Mgt"
             this.SetStatus(VendorRequest, VendorRequest.Status::"Awaiting Vendor");
             CollabLog.LogEvent("AMC Source Type"::Request, VendorRequest."No.", 0, "AMC Collab Entry Type"::RequestSent, "AMC Actor Type"::Buyer, '', UserId(), RequestSentDescriptionLbl, CreateGuid());
         end;
-        VendorRequest."Sent Date Time" := CurrentDateTime();
+        VendorRequest.Validate("Sent Date Time", CurrentDateTime());
         VendorRequest.Modify(true);
         PurchaseHeader.Get(PurchaseHeader."Document Type"::Order, VendorRequest."Purchase Order No.");
         OrderLockMgt.SetSuppressionContext(PurchaseHeader."No.", VendorRequest."No.", PreviousPurchaseOrderNo, PreviousRequestNo);
@@ -166,15 +166,15 @@ codeunit 50100 "AMC Request Mgt"
     [TryFunction]
     local procedure TryUpdatePurchaseOrderCollaborationStatus(var PurchaseHeader: Record "Purchase Header"; RequestStatus: Enum "AMC Request Status")
     begin
-        PurchaseHeader."AMC Collaboration Status" := RequestStatus;
+        PurchaseHeader.Validate("AMC Collaboration Status", RequestStatus);
         PurchaseHeader.Modify(true);
     end;
 
     [TryFunction]
     local procedure TryClearPurchaseOrderRequest(var PurchaseHeader: Record "Purchase Header"; RequestStatus: Enum "AMC Request Status")
     begin
-        PurchaseHeader."AMC Active Request No." := '';
-        PurchaseHeader."AMC Collaboration Status" := RequestStatus;
+        PurchaseHeader.Validate("AMC Active Request No.", '');
+        PurchaseHeader.Validate("AMC Collaboration Status", RequestStatus);
         PurchaseHeader.Modify(true);
     end;
 
@@ -185,7 +185,7 @@ codeunit 50100 "AMC Request Mgt"
     if not this.IsStatusTransitionAllowed(VendorRequest.Status, NewStatus) then
       Error(VCHReq0005Err, VendorRequest.Status, NewStatus);
 
-    VendorRequest.Status := NewStatus;
+    VendorRequest.Validate(Status, NewStatus);
     VendorRequest.Modify(true);
   end;
 
@@ -272,15 +272,15 @@ codeunit 50100 "AMC Request Mgt"
     local procedure CreateVendorRequest(var VendorRequest: Record "AMC Vendor Request"; RequestNo: Code[20]; PurchaseHeader: Record "Purchase Header"; Vendor: Record Vendor; CollaborationSetup: Record "AMC Collaboration Setup")
     begin
         VendorRequest.Init();
-        VendorRequest."No." := RequestNo;
+        VendorRequest.Validate("No.", RequestNo);
         VendorRequest.InitRecord();
-        VendorRequest."Vendor No." := PurchaseHeader."Buy-from Vendor No.";
-        VendorRequest."Purchase Order No." := PurchaseHeader."No.";
-        VendorRequest."Purchaser Code" := PurchaseHeader."Purchaser Code";
-        VendorRequest."Assigned User ID" := PurchaseHeader."Assigned User ID";
-        VendorRequest."Currency Code" := PurchaseHeader."Currency Code";
-        VendorRequest."Language Code" := this.GetRequestLanguageCode(Vendor);
-        VendorRequest."Response Deadline" := WorkDate() + this.GetResponseDays(Vendor, CollaborationSetup);
+        VendorRequest.Validate("Vendor No.", PurchaseHeader."Buy-from Vendor No.");
+        VendorRequest.Validate("Purchase Order No.", PurchaseHeader."No.");
+        VendorRequest.Validate("Purchaser Code", PurchaseHeader."Purchaser Code");
+        VendorRequest.Validate("Assigned User ID", PurchaseHeader."Assigned User ID");
+        VendorRequest.Validate("Currency Code", PurchaseHeader."Currency Code");
+        VendorRequest.Validate("Language Code", this.GetRequestLanguageCode(Vendor));
+        VendorRequest.Validate("Response Deadline", WorkDate() + this.GetResponseDays(Vendor, CollaborationSetup));
         VendorRequest.Insert(true);
     end;
 
@@ -310,19 +310,19 @@ codeunit 50100 "AMC Request Mgt"
         if PurchaseLine.FindSet() then
             repeat
                 VendorRequestLine.Init();
-                VendorRequestLine."Request No." := RequestNo;
-                VendorRequestLine."Line No." := PurchaseLine."Line No.";
-                VendorRequestLine."Purchase Line No." := PurchaseLine."Line No.";
-                VendorRequestLine."Item No." := PurchaseLine."No.";
-                VendorRequestLine."Variant Code" := PurchaseLine."Variant Code";
-                VendorRequestLine.Description := PurchaseLine.Description;
-                VendorRequestLine."Location Code" := PurchaseLine."Location Code";
-                VendorRequestLine."Unit of Measure Code" := PurchaseLine."Unit of Measure Code";
-                VendorRequestLine."Requested Quantity" := PurchaseLine.Quantity;
-                VendorRequestLine."Requested Delivery Date" := PurchaseLine."Requested Receipt Date";
-                VendorRequestLine."Confirmed Quantity" := 0;
-                VendorRequestLine."Outstanding Quantity" := PurchaseLine.Quantity;
-                VendorRequestLine.Status := VendorRequestLine.Status::Open;
+                VendorRequestLine.Validate("Request No.", RequestNo);
+                VendorRequestLine.Validate("Line No.", PurchaseLine."Line No.");
+                VendorRequestLine.Validate("Purchase Line No.", PurchaseLine."Line No.");
+                VendorRequestLine.Validate("Item No.", PurchaseLine."No.");
+                VendorRequestLine.Validate("Variant Code", PurchaseLine."Variant Code");
+                VendorRequestLine.Validate(Description, PurchaseLine.Description);
+                VendorRequestLine.Validate("Location Code", PurchaseLine."Location Code");
+                VendorRequestLine.Validate("Unit of Measure Code", PurchaseLine."Unit of Measure Code");
+                VendorRequestLine.Validate("Requested Quantity", PurchaseLine.Quantity);
+                VendorRequestLine.Validate("Requested Delivery Date", PurchaseLine."Requested Receipt Date");
+                VendorRequestLine.Validate("Confirmed Quantity", 0);
+                VendorRequestLine.Validate("Outstanding Quantity", PurchaseLine.Quantity);
+                VendorRequestLine.Validate(Status, VendorRequestLine.Status::Open);
                 VendorRequestLine.Insert(false);
                 LineCount += 1;
             until PurchaseLine.Next() = 0;

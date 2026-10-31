@@ -262,17 +262,17 @@ page 50101 "AMC Assisted Setup"
 
     local procedure ApplySetupValues(var CollaborationSetup: Record "AMC Collaboration Setup")
     begin
-        CollaborationSetup."Request Nos." := this.RequestNoSeriesCode;
-        CollaborationSetup."Proposal Nos." := this.ProposalNoSeriesCode;
-        CollaborationSetup."Default Response Days" := this.DefaultResponseDays;
-        CollaborationSetup."Link Validity Days" := this.LinkValidityDays;
-        CollaborationSetup."Allow Item Substitution" := this.AllowItemSubstitution;
-        CollaborationSetup."Allow Quantity Increase" := this.AllowQuantityIncrease;
-        CollaborationSetup."Max Splits per Line" := this.MaxSplitsPerLine;
-        CollaborationSetup."Require Reason Code" := this.RequireReasonCode;
-        CollaborationSetup."Portal Base URL" := this.PortalBaseUrl;
-        CollaborationSetup."Portal Support E-Mail" := this.PortalSupportEmail;
-        CollaborationSetup."Attach Order PDF" := this.AttachOrderPdf;
+        CollaborationSetup.Validate("Request Nos.", this.RequestNoSeriesCode);
+        CollaborationSetup.Validate("Proposal Nos.", this.ProposalNoSeriesCode);
+        CollaborationSetup.Validate("Default Response Days", this.DefaultResponseDays);
+        CollaborationSetup.Validate("Link Validity Days", this.LinkValidityDays);
+        CollaborationSetup.Validate("Allow Item Substitution", this.AllowItemSubstitution);
+        CollaborationSetup.Validate("Allow Quantity Increase", this.AllowQuantityIncrease);
+        CollaborationSetup.Validate("Max Splits per Line", this.MaxSplitsPerLine);
+        CollaborationSetup.Validate("Require Reason Code", this.RequireReasonCode);
+        CollaborationSetup.Validate("Portal Base URL", this.PortalBaseUrl);
+        CollaborationSetup.Validate("Portal Support E-Mail", this.PortalSupportEmail);
+        CollaborationSetup.Validate("Attach Order PDF", this.AttachOrderPdf);
         CollaborationSetup.Validate(Enabled, this.Enabled);
     end;
 

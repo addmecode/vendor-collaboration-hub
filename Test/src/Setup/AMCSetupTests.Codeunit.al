@@ -41,7 +41,7 @@ codeunit 50130 "AMC Setup Tests"
     begin
         // Given
         this.PrepareCompleteSetup(TempCollaborationSetup);
-        TempCollaborationSetup."Request Nos." := '';
+        TempCollaborationSetup.Validate("Request Nos.", '');
 
         // When
         asserterror TempCollaborationSetup.Validate(Enabled, true);
@@ -57,7 +57,7 @@ codeunit 50130 "AMC Setup Tests"
     begin
         // Given
         this.PrepareCompleteSetup(TempCollaborationSetup);
-        TempCollaborationSetup."Proposal Nos." := '';
+        TempCollaborationSetup.Validate("Proposal Nos.", '');
 
         // When
         asserterror TempCollaborationSetup.Validate(Enabled, true);
@@ -73,7 +73,7 @@ codeunit 50130 "AMC Setup Tests"
     begin
         // Given
         this.PrepareCompleteSetup(TempCollaborationSetup);
-        TempCollaborationSetup."Portal Base URL" := '';
+        TempCollaborationSetup.Validate("Portal Base URL", '');
 
         // When
         asserterror TempCollaborationSetup.Validate(Enabled, true);
@@ -89,7 +89,7 @@ codeunit 50130 "AMC Setup Tests"
     begin
         // Given
         this.PrepareCompleteSetup(TempCollaborationSetup);
-        TempCollaborationSetup."Portal Support E-Mail" := '';
+        TempCollaborationSetup.Validate("Portal Support E-Mail", '');
 
         // When
         asserterror TempCollaborationSetup.Validate(Enabled, true);
@@ -106,7 +106,7 @@ codeunit 50130 "AMC Setup Tests"
     begin
         // Given
         this.PrepareCompleteSetup(TempCollaborationSetup);
-        TempCollaborationSetup."Portal Base URL" := 'portal.contoso.com';
+        TempCollaborationSetup.Validate("Portal Base URL", 'portal.contoso.com');
 
         // When
         asserterror TempCollaborationSetup.Validate(Enabled, true);
@@ -123,7 +123,7 @@ codeunit 50130 "AMC Setup Tests"
     begin
         // Given
         this.PrepareCompleteSetup(TempCollaborationSetup);
-        TempCollaborationSetup."Portal Support E-Mail" := 'support.contoso.com';
+        TempCollaborationSetup.Validate("Portal Support E-Mail", 'support.contoso.com');
 
         // When
         asserterror TempCollaborationSetup.Validate(Enabled, true);
@@ -139,7 +139,7 @@ codeunit 50130 "AMC Setup Tests"
     begin
         // Given
         this.PrepareCompleteSetup(TempCollaborationSetup);
-        TempCollaborationSetup."Default Response Days" := 0;
+        TempCollaborationSetup.Validate("Default Response Days", 0);
 
         // When
         asserterror TempCollaborationSetup.Validate(Enabled, true);
@@ -155,7 +155,7 @@ codeunit 50130 "AMC Setup Tests"
     begin
         // Given
         this.PrepareCompleteSetup(TempCollaborationSetup);
-        TempCollaborationSetup."Link Validity Days" := 0;
+        TempCollaborationSetup.Validate("Link Validity Days", 0);
 
         // When
         asserterror TempCollaborationSetup.Validate(Enabled, true);
@@ -171,7 +171,7 @@ codeunit 50130 "AMC Setup Tests"
     begin
         // Given
         this.PrepareCompleteSetup(TempCollaborationSetup);
-        TempCollaborationSetup."Link Validity Days" := TempCollaborationSetup."Default Response Days" - 1;
+        TempCollaborationSetup.Validate("Link Validity Days", TempCollaborationSetup."Default Response Days" - 1);
 
         // When
         asserterror TempCollaborationSetup.Validate(Enabled, true);
@@ -187,7 +187,7 @@ codeunit 50130 "AMC Setup Tests"
     begin
         // Given
         this.PrepareCompleteSetup(TempCollaborationSetup);
-        TempCollaborationSetup."Max Splits per Line" := 0;
+        TempCollaborationSetup.Validate("Max Splits per Line", 0);
 
         // When
         asserterror TempCollaborationSetup.Validate(Enabled, true);
@@ -306,7 +306,7 @@ codeunit 50130 "AMC Setup Tests"
         ClearLastError();
         CollaborationSetup.GetSetup();
         if CollaborationSetup.Enabled then begin
-            CollaborationSetup.Enabled := false;
+            CollaborationSetup.Validate(Enabled, false);
             CollaborationSetup.Modify(true);
         end;
 
@@ -334,12 +334,14 @@ codeunit 50130 "AMC Setup Tests"
     end;
 
     local procedure PrepareCompleteSetup(var TempCollaborationSetup: Record "AMC Collaboration Setup" temporary)
+    var
+        TestLibrary: Codeunit "AMC Test Library";
     begin
         TempCollaborationSetup.GetSetup();
-        TempCollaborationSetup."Request Nos." := 'REQUEST';
-        TempCollaborationSetup."Proposal Nos." := 'PROPOSAL';
-        TempCollaborationSetup."Portal Base URL" := 'https://portal.contoso.com';
-        TempCollaborationSetup."Portal Support E-Mail" := 'support@contoso.com';
+        TempCollaborationSetup.Validate("Request Nos.", TestLibrary.CreateNumberSeries());
+        TempCollaborationSetup.Validate("Proposal Nos.", TestLibrary.CreateNumberSeries());
+        TempCollaborationSetup.Validate("Portal Base URL", 'https://portal.contoso.com');
+        TempCollaborationSetup.Validate("Portal Support E-Mail", 'support@contoso.com');
     end;
 
     local procedure AssertFieldMustBeGreaterThanZeroError(FieldCaption: Text)

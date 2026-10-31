@@ -14,6 +14,7 @@ codeunit 50131 "AMC Request Tests"
 
     var
         Assert: Codeunit "Library Assert";
+        TestLibrary: Codeunit "AMC Test Library";
         OpenCreatedVendorRequest: Boolean;
         VendorRequestPageWasOpened: Boolean;
         ExpectedPurchaseOrderNo: Code[20];
@@ -187,7 +188,7 @@ codeunit 50131 "AMC Request Tests"
     begin
         // Given
         CollaborationSetup.GetSetup();
-        CollaborationSetup.Enabled := false;
+        CollaborationSetup.Validate(Enabled, false);
         CollaborationSetup.Modify(true);
         VendorNo := this.CreateVendor(true);
         this.CreatePurchaseOrder(PurchaseHeader, VendorNo, PurchaseHeader.Status::Open);
@@ -217,7 +218,7 @@ codeunit 50131 "AMC Request Tests"
         this.CreatePurchaseLine(PurchaseHeader, 10000, 'ITEM-ONE', '', 'Original description', 'MAIN', 'PCS', 10, 20260915D);
         RequestNo := RequestMgt.CreateFromOrder(PurchaseHeader);
         PurchaseLine.Get(PurchaseHeader."Document Type", PurchaseHeader."No.", 10000);
-        PurchaseLine.Description := 'Changed description';
+        PurchaseLine.Validate(Description, 'Changed description');
         Commit();
 
         // When
@@ -455,7 +456,7 @@ codeunit 50131 "AMC Request Tests"
         this.ConfigureEnabledSetup();
         VendorNo := this.CreateVendor(true);
         Vendor.Get(VendorNo);
-        Vendor."E-Mail" := '';
+        Vendor.Validate("E-Mail", '');
         Vendor.Modify(true);
         this.CreatePurchaseOrder(PurchaseHeader, VendorNo, PurchaseHeader.Status::Open);
         RequestNo := RequestMgt.CreateFromOrder(PurchaseHeader);
@@ -534,11 +535,11 @@ codeunit 50131 "AMC Request Tests"
         // Given
         this.ConfigureEnabledSetup();
         CollaborationSetup.GetSetup();
-        CollaborationSetup."Link Validity Days" := 14;
+        CollaborationSetup.Validate("Link Validity Days", 14);
         CollaborationSetup.Modify(true);
         VendorNo := this.CreateVendor(true);
         Vendor.Get(VendorNo);
-        Vendor."AMC Response Days" := 15;
+        Vendor.Validate("AMC Response Days", 15);
         Vendor.Modify(true);
         this.CreatePurchaseOrder(PurchaseHeader, VendorNo, PurchaseHeader.Status::Open);
         RequestNo := RequestMgt.CreateFromOrder(PurchaseHeader);
@@ -600,15 +601,15 @@ codeunit 50131 "AMC Request Tests"
         this.CreateNoSeries(ProposalNoSeriesCode);
 
         CollaborationSetup.GetSetup();
-        CollaborationSetup.Enabled := false;
+        CollaborationSetup.Validate(Enabled, false);
         CollaborationSetup.Modify(true);
-        CollaborationSetup."Request Nos." := RequestNoSeriesCode;
-        CollaborationSetup."Proposal Nos." := ProposalNoSeriesCode;
-        CollaborationSetup."Default Response Days" := 7;
-        CollaborationSetup."Portal Base URL" := 'https://portal.contoso.com';
-        CollaborationSetup."Portal Support E-Mail" := 'support@contoso.com';
-        CollaborationSetup."Link Validity Days" := 14;
-        CollaborationSetup."Attach Order PDF" := false;
+        CollaborationSetup.Validate("Request Nos.", RequestNoSeriesCode);
+        CollaborationSetup.Validate("Proposal Nos.", ProposalNoSeriesCode);
+        CollaborationSetup.Validate("Default Response Days", 7);
+        CollaborationSetup.Validate("Portal Base URL", 'https://portal.contoso.com');
+        CollaborationSetup.Validate("Portal Support E-Mail", 'support@contoso.com');
+        CollaborationSetup.Validate("Link Validity Days", 14);
+        CollaborationSetup.Validate("Attach Order PDF", false);
         CollaborationSetup.Validate(Enabled, true);
         CollaborationSetup.Modify(true);
     end;
@@ -628,17 +629,17 @@ codeunit 50131 "AMC Request Tests"
         //todo: there is no function in standard tests libraries for this?
         StartingNo := CopyStr('R' + DelChr(Format(CreateGuid()), '=', '{}-'), 1, MaxStrLen(StartingNo) - 1) + '1';
         NoSeries.Init();
-        NoSeries.Code := NoSeriesCode;
-        NoSeries.Description := NoSeriesCode;
-        NoSeries."Default Nos." := true;
+        NoSeries.Validate(Code, NoSeriesCode);
+        NoSeries.Validate(Description, NoSeriesCode);
+        NoSeries.Validate("Default Nos.", true);
         NoSeries.Insert(false);
 
         NoSeriesLine.Init();
-        NoSeriesLine."Series Code" := NoSeriesCode;
-        NoSeriesLine."Line No." := 10000;
-        NoSeriesLine."Starting No." := StartingNo;
-        NoSeriesLine."Increment-by No." := 1;
-        NoSeriesLine.Open := true;
+        NoSeriesLine.Validate("Series Code", NoSeriesCode);
+        NoSeriesLine.Validate("Line No.", 10000);
+        NoSeriesLine.Validate("Starting No.", StartingNo);
+        NoSeriesLine.Validate("Increment-by No.", 1);
+        NoSeriesLine.Validate(Open, true);
         NoSeriesLine.Insert(false);
     end;
 
@@ -649,11 +650,12 @@ codeunit 50131 "AMC Request Tests"
     begin
         //todo: there is no function in standard tests libraries for this?
         VendorNo := this.CreateRequestNo();
+        this.TestLibrary.PrepareManualNumbering();
         Vendor.Init();
-        Vendor."No." := VendorNo;
-        Vendor.Name := VendorNo;
-        Vendor."E-Mail" := 'vendor@contoso.com';
-        Vendor."AMC Collaboration Enabled" := CollaborationEnabled;
+        Vendor.Validate("No.", VendorNo);
+        Vendor.Validate(Name, VendorNo);
+        Vendor.Validate("E-Mail", 'vendor@contoso.com');
+        Vendor.Validate("AMC Collaboration Enabled", CollaborationEnabled);
         Vendor.Insert(false);
         exit(VendorNo);
     end;
@@ -699,12 +701,13 @@ codeunit 50131 "AMC Request Tests"
         VendorNo: Code[20];
     begin
         VendorNo := this.CreateRequestNo();
+        this.TestLibrary.PrepareManualNumbering();
         Vendor.Init();
-        Vendor."No." := VendorNo;
-        Vendor.Name := VendorNo;
-        Vendor."E-Mail" := 'vendor@contoso.com';
-        Vendor."Language Code" := LanguageCode;
-        Vendor."AMC Collaboration Enabled" := CollaborationEnabled;
+        Vendor.Validate("No.", VendorNo);
+        Vendor.Validate(Name, VendorNo);
+        Vendor.Validate("E-Mail", 'vendor@contoso.com');
+        Vendor.Validate("Language Code", LanguageCode);
+        Vendor.Validate("AMC Collaboration Enabled", CollaborationEnabled);
         Vendor.Insert(false);
         exit(VendorNo);
     end;
@@ -722,15 +725,14 @@ codeunit 50131 "AMC Request Tests"
     begin
         //todo: there is no function in standard tests libraries for this?
         this.EnsureCurrency('USD');
-        PurchaseHeader.Init();
-        PurchaseHeader."Document Type" := PurchaseHeader."Document Type"::Order;
-        PurchaseHeader."No." := this.CreateRequestNo();
-        PurchaseHeader."Buy-from Vendor No." := VendorNo;
-        PurchaseHeader."Purchaser Code" := 'BUYER';
-        PurchaseHeader."Assigned User ID" := 'REQUESTOR';
-        PurchaseHeader."Currency Code" := 'USD';
-        PurchaseHeader.Status := Status;
-        PurchaseHeader.Insert(false);
+        this.TestLibrary.EnsureCurrencyExchangeRate('USD');
+        this.TestLibrary.CreatePurchaseOrder(PurchaseHeader, this.CreateRequestNo(), VendorNo);
+        this.TestLibrary.EnsurePurchaser('BUYER');
+        PurchaseHeader.Validate("Purchaser Code", 'BUYER');
+        PurchaseHeader.Validate("Assigned User ID", UserId());
+        PurchaseHeader.Validate("Currency Code", 'USD');
+        PurchaseHeader.Validate(Status, Status);
+        PurchaseHeader.Modify(false);
     end;
 
     local procedure EnsureCurrency(CurrencyCode: Code[10])
@@ -741,10 +743,10 @@ codeunit 50131 "AMC Request Tests"
             exit;
 
         Currency.Init();
-        Currency.Code := CurrencyCode;
-        Currency.Description := CurrencyCode;
-        Currency."Amount Rounding Precision" := 0.01;
-        Currency."Unit-Amount Rounding Precision" := 0.00001;
+        Currency.Validate(Code, CurrencyCode);
+        Currency.Validate(Description, CurrencyCode);
+        Currency.Validate("Amount Rounding Precision", 0.01);
+        Currency.Validate("Unit-Amount Rounding Precision", 0.00001);
         Currency.Insert(false);
     end;
 
@@ -753,17 +755,21 @@ codeunit 50131 "AMC Request Tests"
         PurchaseLine: Record "Purchase Line";
     begin
         //todo: there is no function in standard tests libraries for this?
+        this.TestLibrary.EnsureItem(ItemNo, UnitOfMeasureCode);
+        this.TestLibrary.EnsureItemVariant(ItemNo, VariantCode);
+        this.TestLibrary.EnsureLocation(LocationCode);
         PurchaseLine.Init();
-        PurchaseLine."Document Type" := PurchaseHeader."Document Type";
-        PurchaseLine."Document No." := PurchaseHeader."No.";
-        PurchaseLine."Line No." := LineNo;
-        PurchaseLine."No." := ItemNo;
-        PurchaseLine."Variant Code" := VariantCode;
-        PurchaseLine.Description := Description;
-        PurchaseLine."Location Code" := LocationCode;
-        PurchaseLine."Unit of Measure Code" := UnitOfMeasureCode;
-        PurchaseLine.Quantity := Quantity;
-        PurchaseLine."Requested Receipt Date" := RequestedReceiptDate;
+        PurchaseLine.Validate("Document Type", PurchaseHeader."Document Type");
+        PurchaseLine.Validate("Document No.", PurchaseHeader."No.");
+        PurchaseLine.Validate("Line No.", LineNo);
+        PurchaseLine.Validate(Type, PurchaseLine.Type::Item);
+        PurchaseLine.Validate("No.", ItemNo);
+        PurchaseLine.Validate("Variant Code", VariantCode);
+        PurchaseLine.Validate("Location Code", LocationCode);
+        PurchaseLine.Validate("Unit of Measure Code", UnitOfMeasureCode);
+        PurchaseLine.Validate(Quantity, Quantity);
+        PurchaseLine.Validate("Requested Receipt Date", RequestedReceiptDate);
+        PurchaseLine.Validate(Description, Description);
         PurchaseLine.Insert(false);
     end;
 
@@ -788,7 +794,7 @@ codeunit 50131 "AMC Request Tests"
     local procedure InsertVendorRequest(var VendorRequest: Record "AMC Vendor Request"; RequestNo: Code[20])
     begin
         VendorRequest.Init();
-        VendorRequest."No." := RequestNo;
+        VendorRequest.Validate("No.", RequestNo);
         VendorRequest.Insert(false);
     end;
 }

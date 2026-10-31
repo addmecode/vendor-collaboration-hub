@@ -56,7 +56,7 @@ codeunit 50105 "AMC Collab Log"
     ProposalMgt.AssertApiIdentity(AccessTokenId, VendorAccessToken."Request No.", VendorAccessToken."Vendor No.");
     ProposalMgt.AssertApiRequest(VendorAccessToken."Request No.", VendorAccessToken."Vendor No.", VendorRequest);
     if IsNullGuid(CollaborationEntry."Correlation Id") then
-      CollaborationEntry."Correlation Id" := CreateGuid();
+      CollaborationEntry.Validate("Correlation Id", CreateGuid());
     EntryId := this.InsertEntry(CollaborationEntry."Source Type", CollaborationEntry."Source No.", 0,
       "AMC Collab Entry Type"::Comment, "AMC Actor Type"::Vendor, CollaborationEntry."Actor Name", '',
       '', '', '', CollaborationEntry.Description, CollaborationEntry."Correlation Id");
@@ -68,19 +68,19 @@ codeunit 50105 "AMC Collab Log"
         CollaborationEntry: Record "AMC Collaboration Entry";
     begin
         CollaborationEntry.Init();
-        CollaborationEntry."Source Type" := SourceType;
-        CollaborationEntry."Source No." := SourceNo;
-        CollaborationEntry."Source Line No." := SourceLineNo;
-        CollaborationEntry."Entry Type" := EntryType;
-        CollaborationEntry."Actor Type" := ActorType;
-        CollaborationEntry."Actor Name" := ActorName;
-        CollaborationEntry."User ID" := UserId;
-        CollaborationEntry."Field Name" := FieldName;
-        CollaborationEntry."Old Value" := OldValue;
-        CollaborationEntry."New Value" := NewValue;
-        CollaborationEntry.Description := Description;
-        CollaborationEntry."Correlation Id" := CorrelationId;
-        CollaborationEntry."Date Time" := CurrentDateTime();
+        CollaborationEntry.Validate("Source Type", SourceType);
+        CollaborationEntry.Validate("Source No.", SourceNo);
+        CollaborationEntry.Validate("Source Line No.", SourceLineNo);
+        CollaborationEntry.Validate("Entry Type", EntryType);
+        CollaborationEntry.Validate("Actor Type", ActorType);
+        CollaborationEntry.Validate("Actor Name", ActorName);
+        CollaborationEntry.Validate("User ID", UserId);
+        CollaborationEntry.Validate("Field Name", FieldName);
+        CollaborationEntry.Validate("Old Value", OldValue);
+        CollaborationEntry.Validate("New Value", NewValue);
+        CollaborationEntry.Validate(Description, Description);
+        CollaborationEntry.Validate("Correlation Id", CorrelationId);
+        CollaborationEntry.Validate("Date Time", CurrentDateTime());
         CollaborationEntry.Insert(false);
         exit(CollaborationEntry.SystemId);
     end;

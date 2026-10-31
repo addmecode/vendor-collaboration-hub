@@ -11,6 +11,7 @@ codeunit 50143 "AMC Access Token Tests"
 
     var
         Assert: Codeunit "Library Assert";
+        TestLibrary: Codeunit "AMC Test Library";
 
         ExistingTokenExpiryJobMessageCount: Integer;
 
@@ -120,20 +121,20 @@ codeunit 50143 "AMC Access Token Tests"
         this.IssueToken(RequestNo, VendorAccessToken);
 
         // When
-        VendorAccessToken."Expires At" := CurrentDateTime();
+        VendorAccessToken.Validate("Expires At", CurrentDateTime());
         VendorAccessToken.Modify(true);
         this.AssertInvalidToken(AccessTokenMgt, VendorAccessToken, RequestNo, VendorNo);
 
-        VendorAccessToken."Expires At" := CurrentDateTime() + 60000;
-        VendorAccessToken.Status := VendorAccessToken.Status::Expired;
+        VendorAccessToken.Validate("Expires At", CurrentDateTime() + 60000);
+        VendorAccessToken.Validate(Status, VendorAccessToken.Status::Expired);
         VendorAccessToken.Modify(true);
         this.AssertInvalidToken(AccessTokenMgt, VendorAccessToken, RequestNo, VendorNo);
 
-        VendorAccessToken.Status := VendorAccessToken.Status::Revoked;
+        VendorAccessToken.Validate(Status, VendorAccessToken.Status::Revoked);
         VendorAccessToken.Modify(true);
         this.AssertInvalidToken(AccessTokenMgt, VendorAccessToken, RequestNo, VendorNo);
 
-        VendorAccessToken.Status := VendorAccessToken.Status::Superseded;
+        VendorAccessToken.Validate(Status, VendorAccessToken.Status::Superseded);
         VendorAccessToken.Modify(true);
         this.AssertInvalidToken(AccessTokenMgt, VendorAccessToken, RequestNo, VendorNo);
 
@@ -217,18 +218,18 @@ codeunit 50143 "AMC Access Token Tests"
         // Given
         OverdueRequestNo := this.CreateVendorRequest(VendorNo);
         this.IssueToken(OverdueRequestNo, OverdueVendorAccessToken);
-        OverdueVendorAccessToken."Expires At" := CurrentDateTime() - 60000;
+        OverdueVendorAccessToken.Validate("Expires At", CurrentDateTime() - 60000);
         OverdueVendorAccessToken.Modify(true);
 
         FutureRequestNo := this.CreateVendorRequest(VendorNo);
         this.IssueToken(FutureRequestNo, FutureVendorAccessToken);
-        FutureVendorAccessToken."Expires At" := CurrentDateTime() + 60000;
+        FutureVendorAccessToken.Validate("Expires At", CurrentDateTime() + 60000);
         FutureVendorAccessToken.Modify(true);
 
         InactiveRequestNo := this.CreateVendorRequest(VendorNo);
         this.IssueToken(InactiveRequestNo, InactiveVendorAccessToken);
-        InactiveVendorAccessToken."Expires At" := CurrentDateTime() - 60000;
-        InactiveVendorAccessToken.Status := InactiveVendorAccessToken.Status::Revoked;
+        InactiveVendorAccessToken.Validate("Expires At", CurrentDateTime() - 60000);
+        InactiveVendorAccessToken.Validate(Status, InactiveVendorAccessToken.Status::Revoked);
         InactiveVendorAccessToken.Modify(true);
 
         // When
@@ -273,6 +274,15 @@ codeunit 50143 "AMC Access Token Tests"
         this.Assert.AreEqual(1, JobQueueEntry.Count(), 'Scheduling the token expiry job must create one job queue entry.');
         this.Assert.IsTrue(JobQueueEntry.FindFirst(), 'The created token expiry job must exist.');
         this.Assert.IsTrue(JobQueueEntry."Recurring Job", 'The token expiry job must recur.');
+        this.Assert.AreEqual(JobQueueEntry.Status::Ready, JobQueueEntry.Status, 'The expiry job must be scheduled Ready.');
+        this.Assert.AreEqual(1440, JobQueueEntry."No. of Minutes between Runs", 'The expiry job must run daily.');
+        this.Assert.IsTrue(JobQueueEntry."Run on Mondays", 'The expiry job must run on Mondays.');
+        this.Assert.IsTrue(JobQueueEntry."Run on Tuesdays", 'The expiry job must run on Tuesdays.');
+        this.Assert.IsTrue(JobQueueEntry."Run on Wednesdays", 'The expiry job must run on Wednesdays.');
+        this.Assert.IsTrue(JobQueueEntry."Run on Thursdays", 'The expiry job must run on Thursdays.');
+        this.Assert.IsTrue(JobQueueEntry."Run on Fridays", 'The expiry job must run on Fridays.');
+        this.Assert.IsTrue(JobQueueEntry."Run on Saturdays", 'The expiry job must run on Saturdays.');
+        this.Assert.IsTrue(JobQueueEntry."Run on Sundays", 'The expiry job must run on Sundays.');
         OriginalJobQueueEntry := JobQueueEntry;
 
         // When
@@ -283,6 +293,16 @@ codeunit 50143 "AMC Access Token Tests"
         this.Assert.AreEqual(1, JobQueueEntry.Count(), 'Scheduling the token expiry job repeatedly must retain one job queue entry.');
         this.Assert.IsTrue(JobQueueEntry.FindFirst(), 'The original token expiry job must still exist.');
         this.Assert.AreEqual(OriginalJobQueueEntry.ID, JobQueueEntry.ID, 'Scheduling again must preserve the original job queue entry.');
+        this.Assert.AreEqual(JobQueueEntry.Status::Ready, JobQueueEntry.Status, 'Repeated scheduling must retain Ready status.');
+        this.Assert.AreEqual(1440, JobQueueEntry."No. of Minutes between Runs", 'Repeated scheduling must retain daily recurrence.');
+        this.Assert.IsTrue(JobQueueEntry."Recurring Job", 'Repeated scheduling must retain recurrence.');
+        this.Assert.IsTrue(JobQueueEntry."Run on Mondays", 'Repeated scheduling must retain Mondays.');
+        this.Assert.IsTrue(JobQueueEntry."Run on Tuesdays", 'Repeated scheduling must retain Tuesdays.');
+        this.Assert.IsTrue(JobQueueEntry."Run on Wednesdays", 'Repeated scheduling must retain Wednesdays.');
+        this.Assert.IsTrue(JobQueueEntry."Run on Thursdays", 'Repeated scheduling must retain Thursdays.');
+        this.Assert.IsTrue(JobQueueEntry."Run on Fridays", 'Repeated scheduling must retain Fridays.');
+        this.Assert.IsTrue(JobQueueEntry."Run on Saturdays", 'Repeated scheduling must retain Saturdays.');
+        this.Assert.IsTrue(JobQueueEntry."Run on Sundays", 'Repeated scheduling must retain Sundays.');
         CollaborationSetupPage.Close();
     end;
 
@@ -314,13 +334,14 @@ codeunit 50143 "AMC Access Token Tests"
     begin
         RequestNo := this.CreateUniqueCode();
         VendorNo := this.CreateUniqueCode();
+        this.TestLibrary.PrepareManualNumbering();
         Vendor.Init();
-        Vendor."No." := VendorNo;
-        Vendor.Name := VendorNo;
+        Vendor.Validate("No.", VendorNo);
+        Vendor.Validate(Name, VendorNo);
         Vendor.Insert(false);
         VendorRequest.Init();
-        VendorRequest."No." := RequestNo;
-        VendorRequest."Vendor No." := VendorNo;
+        VendorRequest.Validate("No.", RequestNo);
+        VendorRequest.Validate("Vendor No.", VendorNo);
         VendorRequest.Insert(false);
         exit(RequestNo);
     end;

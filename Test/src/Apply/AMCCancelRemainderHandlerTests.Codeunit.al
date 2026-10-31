@@ -11,6 +11,7 @@ codeunit 50140 "AMC Cancel Remainder Tests"
 
   var
     Assert: Codeunit "Library Assert";
+    TestLibrary: Codeunit "AMC Test Library";
 
   [Test]
   procedure GivenPartiallyReceivedLine_WhenCancelRemainderIsApplied_ThenQuantityEqualsReceivedQuantity()
@@ -22,7 +23,7 @@ codeunit 50140 "AMC Cancel Remainder Tests"
   begin
     // Given
     this.CreateSourceRecords(PurchaseHeader, PurchaseLine, ProposalLine);
-    PurchaseLine."Quantity Received" := 400;
+    PurchaseLine.Validate("Quantity Received", 400);
     PurchaseLine.Modify(false);
 
     // When
@@ -50,44 +51,41 @@ codeunit 50140 "AMC Cancel Remainder Tests"
     PurchaseOrderNo := this.CreateIdentifier();
     RequestNo := this.CreateIdentifier();
     VendorNo := this.CreateIdentifier();
+    this.TestLibrary.PrepareManualNumbering();
     Vendor.Init();
-    Vendor."No." := VendorNo;
-    Vendor.Name := VendorNo;
+    Vendor.Validate("No.", VendorNo);
+    Vendor.Validate(Name, VendorNo);
     Vendor.Insert(false);
-    PurchaseHeader.Init();
-    PurchaseHeader."Document Type" := PurchaseHeader."Document Type"::Order;
-    PurchaseHeader."No." := PurchaseOrderNo;
-    PurchaseHeader."Buy-from Vendor No." := VendorNo;
-    PurchaseHeader.Insert(false);
+    this.TestLibrary.CreatePurchaseOrder(PurchaseHeader, PurchaseOrderNo, VendorNo);
     PurchaseLine.Init();
-    PurchaseLine."Document Type" := PurchaseHeader."Document Type";
-    PurchaseLine."Document No." := PurchaseHeader."No.";
-    PurchaseLine."Line No." := 10000;
-    PurchaseLine.Quantity := 1000;
+    PurchaseLine.Validate("Document Type", PurchaseHeader."Document Type");
+    PurchaseLine.Validate("Document No.", PurchaseHeader."No.");
+    PurchaseLine.Validate("Line No.", 10000);
+    PurchaseLine.Validate(Quantity, 1000);
     PurchaseLine.Insert(false);
     VendorRequest.Init();
-    VendorRequest."No." := RequestNo;
-    VendorRequest."Vendor No." := VendorNo;
-    VendorRequest."Purchase Order No." := PurchaseOrderNo;
+    VendorRequest.Validate("No.", RequestNo);
+    VendorRequest.Validate("Vendor No.", VendorNo);
+    VendorRequest.Validate("Purchase Order No.", PurchaseOrderNo);
     VendorRequest.Insert(false);
     RequestLine.Init();
-    RequestLine."Request No." := RequestNo;
-    RequestLine."Line No." := 10000;
-    RequestLine."Purchase Line No." := PurchaseLine."Line No.";
+    RequestLine.Validate("Request No.", RequestNo);
+    RequestLine.Validate("Line No.", 10000);
+    RequestLine.Validate("Purchase Line No.", PurchaseLine."Line No.");
     RequestLine.Insert(false);
     VendorProposal.Init();
-    VendorProposal."No." := ProposalNo;
-    VendorProposal."Request No." := RequestNo;
-    VendorProposal."Vendor No." := VendorNo;
-    VendorProposal."Purchase Order No." := PurchaseOrderNo;
-    VendorProposal."Idempotency Key" := ProposalNo;
+    VendorProposal.Validate("No.", ProposalNo);
+    VendorProposal.Validate("Request No.", RequestNo);
+    VendorProposal.Validate("Vendor No.", VendorNo);
+    VendorProposal.Validate("Purchase Order No.", PurchaseOrderNo);
+    VendorProposal.Validate("Idempotency Key", ProposalNo);
     VendorProposal.Insert(false);
     ProposalLine.Init();
-    ProposalLine."Proposal No." := ProposalNo;
-    ProposalLine."Line No." := 10000;
-    ProposalLine."Request Line No." := 10000;
-    ProposalLine."Line Type" := ProposalLine."Line Type"::"Cancel Remainder";
-    ProposalLine."Sequence No." := 1;
+    ProposalLine.Validate("Proposal No.", ProposalNo);
+    ProposalLine.Validate("Line No.", 10000);
+    ProposalLine.Validate("Request Line No.", 10000);
+    ProposalLine.Validate("Line Type", ProposalLine."Line Type"::"Cancel Remainder");
+    ProposalLine.Validate("Sequence No.", 1);
     ProposalLine.Insert(false);
   end;
 

@@ -12,6 +12,7 @@ codeunit 50138 "AMC Split Delivery Tests"
 
   var
     Assert: Codeunit "Library Assert";
+    TestLibrary: Codeunit "AMC Test Library";
 
   [Test]
   procedure GivenTwoSplitProposals_WhenSplitDeliveryIsApplied_ThenLinesHaveQuantitiesDatesDimensionsAndOriginStamps()
@@ -29,11 +30,11 @@ codeunit 50138 "AMC Split Delivery Tests"
     FirstDate := WorkDate() + 7;
     SecondDate := WorkDate() + 14;
     this.CreateSourceRecords(PurchaseHeader, PurchaseLine, FirstProposalLine, SecondProposalLine, false);
-    FirstProposalLine."Proposed Quantity" := 600;
-    FirstProposalLine."Proposed Delivery Date" := FirstDate;
+    FirstProposalLine.Validate("Proposed Quantity", 600);
+    FirstProposalLine.Validate("Proposed Delivery Date", FirstDate);
     FirstProposalLine.Modify(false);
-    SecondProposalLine."Proposed Quantity" := 400;
-    SecondProposalLine."Proposed Delivery Date" := SecondDate;
+    SecondProposalLine.Validate("Proposed Quantity", 400);
+    SecondProposalLine.Validate("Proposed Delivery Date", SecondDate);
     SecondProposalLine.Modify(false);
 
     // When
@@ -68,11 +69,11 @@ codeunit 50138 "AMC Split Delivery Tests"
   begin
     // Given
     this.CreateSourceRecords(PurchaseHeader, PurchaseLine, FirstProposalLine, SecondProposalLine, true);
-    FirstProposalLine."Proposed Quantity" := 600;
-    FirstProposalLine."Proposed Delivery Date" := WorkDate() + 7;
+    FirstProposalLine.Validate("Proposed Quantity", 600);
+    FirstProposalLine.Validate("Proposed Delivery Date", WorkDate() + 7);
     FirstProposalLine.Modify(false);
-    SecondProposalLine."Proposed Quantity" := 400;
-    SecondProposalLine."Proposed Delivery Date" := WorkDate() + 14;
+    SecondProposalLine.Validate("Proposed Quantity", 400);
+    SecondProposalLine.Validate("Proposed Delivery Date", WorkDate() + 14);
     SecondProposalLine.Modify(false);
     SplitDeliveryHandler.Apply(FirstProposalLine, PurchaseHeader);
 
@@ -121,58 +122,55 @@ codeunit 50138 "AMC Split Delivery Tests"
     DimensionCode := this.CreateIdentifier();
     DimensionValueCode := this.CreateIdentifier();
     Dimension.Init();
-    Dimension.Code := DimensionCode;
-    Dimension.Name := DimensionCode;
+    Dimension.Validate(Code, DimensionCode);
+    Dimension.Validate(Name, DimensionCode);
     Dimension.Insert(false);
     DimensionValue.Init();
-    DimensionValue."Dimension Code" := DimensionCode;
-    DimensionValue.Code := DimensionValueCode;
-    DimensionValue.Name := DimensionValueCode;
+    DimensionValue.Validate("Dimension Code", DimensionCode);
+    DimensionValue.Validate(Code, DimensionValueCode);
+    DimensionValue.Validate(Name, DimensionValueCode);
     DimensionValue.Insert(false);
     TempDimensionSetEntry.Init();
     TempDimensionSetEntry.Validate("Dimension Code", DimensionCode);
     TempDimensionSetEntry.Validate("Dimension Value Code", DimensionValueCode);
     TempDimensionSetEntry.Insert(false);
+    this.TestLibrary.PrepareManualNumbering();
     Vendor.Init();
-    Vendor."No." := VendorNo;
-    Vendor.Name := VendorNo;
+    Vendor.Validate("No.", VendorNo);
+    Vendor.Validate(Name, VendorNo);
     Vendor.Insert(false);
-    PurchaseHeader.Init();
-    PurchaseHeader."Document Type" := PurchaseHeader."Document Type"::Order;
-    PurchaseHeader."No." := PurchaseOrderNo;
-    PurchaseHeader."Buy-from Vendor No." := VendorNo;
-    PurchaseHeader.Insert(false);
+    this.TestLibrary.CreatePurchaseOrder(PurchaseHeader, PurchaseOrderNo, VendorNo);
     PurchaseLine.Init();
-    PurchaseLine."Document Type" := PurchaseHeader."Document Type";
-    PurchaseLine."Document No." := PurchaseHeader."No.";
-    PurchaseLine."Line No." := 10000;
-    PurchaseLine.Quantity := 1000;
-    PurchaseLine."Dimension Set ID" := DimensionManagement.GetDimensionSetID(TempDimensionSetEntry);
+    PurchaseLine.Validate("Document Type", PurchaseHeader."Document Type");
+    PurchaseLine.Validate("Document No.", PurchaseHeader."No.");
+    PurchaseLine.Validate("Line No.", 10000);
+    PurchaseLine.Validate(Quantity, 1000);
+    PurchaseLine.Validate("Dimension Set ID", DimensionManagement.GetDimensionSetID(TempDimensionSetEntry));
     PurchaseLine.Insert(false);
     AdjacentPurchaseLine.Init();
-    AdjacentPurchaseLine."Document Type" := PurchaseHeader."Document Type";
-    AdjacentPurchaseLine."Document No." := PurchaseHeader."No.";
+    AdjacentPurchaseLine.Validate("Document Type", PurchaseHeader."Document Type");
+    AdjacentPurchaseLine.Validate("Document No.", PurchaseHeader."No.");
     if CreateAdjacentLine then
-      AdjacentPurchaseLine."Line No." := 10001
+      AdjacentPurchaseLine.Validate("Line No.", 10001)
     else
-      AdjacentPurchaseLine."Line No." := 20000;
+      AdjacentPurchaseLine.Validate("Line No.", 20000);
     AdjacentPurchaseLine.Insert(false);
     VendorRequest.Init();
-    VendorRequest."No." := RequestNo;
-    VendorRequest."Vendor No." := VendorNo;
-    VendorRequest."Purchase Order No." := PurchaseOrderNo;
+    VendorRequest.Validate("No.", RequestNo);
+    VendorRequest.Validate("Vendor No.", VendorNo);
+    VendorRequest.Validate("Purchase Order No.", PurchaseOrderNo);
     VendorRequest.Insert(false);
     RequestLine.Init();
-    RequestLine."Request No." := RequestNo;
-    RequestLine."Line No." := 10000;
-    RequestLine."Purchase Line No." := PurchaseLine."Line No.";
+    RequestLine.Validate("Request No.", RequestNo);
+    RequestLine.Validate("Line No.", 10000);
+    RequestLine.Validate("Purchase Line No.", PurchaseLine."Line No.");
     RequestLine.Insert(false);
     VendorProposal.Init();
-    VendorProposal."No." := ProposalNo;
-    VendorProposal."Request No." := RequestNo;
-    VendorProposal."Vendor No." := VendorNo;
-    VendorProposal."Purchase Order No." := PurchaseOrderNo;
-    VendorProposal."Idempotency Key" := ProposalNo;
+    VendorProposal.Validate("No.", ProposalNo);
+    VendorProposal.Validate("Request No.", RequestNo);
+    VendorProposal.Validate("Vendor No.", VendorNo);
+    VendorProposal.Validate("Purchase Order No.", PurchaseOrderNo);
+    VendorProposal.Validate("Idempotency Key", ProposalNo);
     VendorProposal.Insert(false);
     this.CreateProposalLine(FirstProposalLine, ProposalNo, 10000, 1);
     this.CreateProposalLine(SecondProposalLine, ProposalNo, 20000, 2);
@@ -181,11 +179,11 @@ codeunit 50138 "AMC Split Delivery Tests"
   local procedure CreateProposalLine(var ProposalLine: Record "AMC Vendor Proposal Line"; ProposalNo: Code[20]; LineNo: Integer; SequenceNo: Integer)
   begin
     ProposalLine.Init();
-    ProposalLine."Proposal No." := ProposalNo;
-    ProposalLine."Line No." := LineNo;
-    ProposalLine."Request Line No." := 10000;
-    ProposalLine."Line Type" := ProposalLine."Line Type"::"Split Delivery";
-    ProposalLine."Sequence No." := SequenceNo;
+    ProposalLine.Validate("Proposal No.", ProposalNo);
+    ProposalLine.Validate("Line No.", LineNo);
+    ProposalLine.Validate("Request Line No.", 10000);
+    ProposalLine.Validate("Line Type", ProposalLine."Line Type"::"Split Delivery");
+    ProposalLine.Validate("Sequence No.", SequenceNo);
     ProposalLine.Insert(false);
   end;
 

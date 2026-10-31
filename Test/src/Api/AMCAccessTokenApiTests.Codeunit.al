@@ -133,15 +133,9 @@ codeunit 50146 "AMC Access Token API Tests"
 
   local procedure CreateAccessToken(var VendorAccessToken: Record "AMC Vendor Access Token")
   var
-    AccessTokenMgt: Codeunit "AMC Access Token Mgt";
+    VendorRequest: Record "AMC Vendor Request";
+    TestLibrary: Codeunit "AMC Test Library";
   begin
-    VendorAccessToken.Init();
-    VendorAccessToken."Token Id" := CreateGuid();
-    VendorAccessToken."Request No." := CopyStr(DelChr(Format(CreateGuid()), '=', '{}-'), 1, MaxStrLen(VendorAccessToken."Request No."));
-    VendorAccessToken."Vendor No." := CopyStr(DelChr(Format(CreateGuid()), '=', '{}-'), 1, MaxStrLen(VendorAccessToken."Vendor No."));
-    VendorAccessToken."Token Hash" := AccessTokenMgt.HashToken(Format(CreateGuid()));
-    VendorAccessToken.Status := VendorAccessToken.Status::Active;
-    VendorAccessToken."Expires At" := CurrentDateTime() + 60000;
-    VendorAccessToken.Insert(false);
+    TestLibrary.CreateWriteContext(VendorRequest, VendorAccessToken);
   end;
 }

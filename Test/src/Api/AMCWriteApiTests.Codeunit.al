@@ -53,14 +53,14 @@ codeunit 50147 "AMC Write API Tests"
     Proposal.Get(ProposalMgt.CreateDraftFromRequest(VendorRequest));
     OtherProposal.Get(ProposalMgt.CreateDraftFromRequest(VendorRequest));
     ProposalLine.Init();
-    ProposalLine."Proposal No." := Proposal."No.";
-    ProposalLine."Line No." := 10000;
-    ProposalLine."Request Line No." := 10000;
+    ProposalLine.Validate("Proposal No.", Proposal."No.");
+    ProposalLine.Validate("Line No.", 10000);
+    ProposalLine.Validate("Request Line No.", 10000);
     ProposalLine.Insert(false);
     OtherProposalLine.Init();
-    OtherProposalLine."Proposal No." := OtherProposal."No.";
-    OtherProposalLine."Line No." := ProposalLine."Line No.";
-    OtherProposalLine."Request Line No." := 10000;
+    OtherProposalLine.Validate("Proposal No.", OtherProposal."No.");
+    OtherProposalLine.Validate("Line No.", ProposalLine."Line No.");
+    OtherProposalLine.Validate("Request Line No.", 10000);
     OtherProposalLine.Insert(false);
     // When: this is the record filter used by the API part's SubPageLink.
     LineView.SetRange("Proposal No.", Proposal."No.");
@@ -164,46 +164,56 @@ codeunit 50147 "AMC Write API Tests"
     Proposal: Record "AMC Vendor Proposal";
     Setup: Record "AMC Collaboration Setup";
     Vendor: Record Vendor;
+    ProposalLine: Record "AMC Vendor Proposal Line";
+    Entry: Record "AMC Collaboration Entry";
     IdempotencyKey: Text[64];
+    BeforeLineCount: Integer;
+    BeforeEntryCount: Integer;
   begin
     // Given
     this.TestLibrary.CreateWriteContext(VendorRequest, AccessToken);
     this.TestLibrary.CreateWriteContext(OtherRequest, OtherToken);
     Commit();
+    BeforeLineCount := ProposalLine.Count();
+    BeforeEntryCount := Entry.Count();
     IdempotencyKey := Format(CreateGuid());
     // When / Then
     Setup.Get();
-    Setup.Enabled := false;
+    Setup.Validate(Enabled, false);
     Setup.Modify(false);
     Commit();
     asserterror this.TestLibrary.SubmitAnswer(VendorRequest, AccessToken.SystemId, IdempotencyKey, 400, false, Proposal);
     this.Assert.ExpectedError('VCH-AUT-0001');
-    Setup.Enabled := true;
+    this.AssertNoSubmissionWrites(VendorRequest, BeforeLineCount, BeforeEntryCount);
+    Setup.Validate(Enabled, true);
     Setup.Modify(false);
     Vendor.Get(VendorRequest."Vendor No.");
-    Vendor."AMC Collaboration Enabled" := false;
+    Vendor.Validate("AMC Collaboration Enabled", false);
     Vendor.Modify(false);
     Commit();
     asserterror this.TestLibrary.SubmitAnswer(VendorRequest, AccessToken.SystemId, IdempotencyKey, 400, false, Proposal);
     this.Assert.ExpectedError('VCH-AUT-0002');
-    Vendor."AMC Collaboration Enabled" := true;
+    this.AssertNoSubmissionWrites(VendorRequest, BeforeLineCount, BeforeEntryCount);
+    Vendor.Validate("AMC Collaboration Enabled", true);
     Vendor.Modify(false);
     Commit();
     asserterror this.TestLibrary.SubmitAnswer(VendorRequest, OtherToken.SystemId, IdempotencyKey, 400, false, Proposal);
     this.Assert.ExpectedError('VCH-AUT-0004');
-    AccessToken."Expires At" := CurrentDateTime() - 1000;
+    this.AssertNoSubmissionWrites(VendorRequest, BeforeLineCount, BeforeEntryCount);
+    AccessToken.Validate("Expires At", CurrentDateTime() - 1000);
     AccessToken.Modify(false);
     Commit();
     asserterror this.TestLibrary.SubmitAnswer(VendorRequest, AccessToken.SystemId, IdempotencyKey, 400, false, Proposal);
     this.Assert.ExpectedError('VCH-AUT-0003');
-    AccessToken."Expires At" := CurrentDateTime() + 3600000;
+    this.AssertNoSubmissionWrites(VendorRequest, BeforeLineCount, BeforeEntryCount);
+    AccessToken.Validate("Expires At", CurrentDateTime() + 3600000);
     AccessToken.Modify(false);
-    VendorRequest.Status := VendorRequest.Status::Draft;
+    VendorRequest.Validate(Status, VendorRequest.Status::Draft);
     VendorRequest.Modify(false);
     Commit();
     asserterror this.TestLibrary.SubmitAnswer(VendorRequest, AccessToken.SystemId, IdempotencyKey, 400, false, Proposal);
     this.Assert.ExpectedError('VCH-VAL-0001');
-    this.AssertSingleRequestHasNoProposals(VendorRequest."No.");
+    this.AssertNoSubmissionWrites(VendorRequest, BeforeLineCount, BeforeEntryCount);
     ClearLastError();
   end;
 
@@ -213,16 +223,23 @@ codeunit 50147 "AMC Write API Tests"
     VendorRequest: Record "AMC Vendor Request";
     AccessToken: Record "AMC Vendor Access Token";
     Proposal: Record "AMC Vendor Proposal";
+    ProposalLine: Record "AMC Vendor Proposal Line";
+    Entry: Record "AMC Collaboration Entry";
+    BeforeLineCount: Integer;
+    BeforeEntryCount: Integer;
   begin
     // Given
     this.TestLibrary.CreateWriteContext(VendorRequest, AccessToken);
     Commit();
+    BeforeLineCount := ProposalLine.Count();
+    BeforeEntryCount := Entry.Count();
     // When / Then: only the Task 16 API SystemId is an accepted token claim.
     asserterror this.TestLibrary.SubmitAnswer(VendorRequest, AccessToken."Token Id", Format(CreateGuid()), 400, false, Proposal);
     this.Assert.ExpectedError('VCH-AUT-0003');
+    this.AssertNoSubmissionWrites(VendorRequest, BeforeLineCount, BeforeEntryCount);
     asserterror this.TestLibrary.SubmitAnswer(VendorRequest, AccessToken.SystemId, '', 400, false, Proposal);
     this.Assert.ExpectedError('VCH-IDM-0002');
-    this.AssertSingleRequestHasNoProposals(VendorRequest."No.");
+    this.AssertNoSubmissionWrites(VendorRequest, BeforeLineCount, BeforeEntryCount);
     ClearLastError();
   end;
 
@@ -238,8 +255,8 @@ codeunit 50147 "AMC Write API Tests"
   begin
     // Given
     this.TestLibrary.CreateWriteContext(VendorRequest, AccessToken);
-    Proposal."Request No." := VendorRequest."No.";
-    Proposal."Vendor No." := VendorRequest."Vendor No.";
+    Proposal.Validate("Request No.", VendorRequest."No.");
+    Proposal.Validate("Vendor No.", VendorRequest."Vendor No.");
     ProposalMgt.BeginApiSubmission(Proposal, AccessToken.SystemId, Format(CreateGuid()));
     this.TestLibrary.AddAnswerLine(Proposal, 10000, 1, "AMC Proposal Line Type"::Confirm, 0);
     this.TestLibrary.AddAnswerLine(Proposal, 20000, 2, "AMC Proposal Line Type"::Confirm, 600);
@@ -253,27 +270,77 @@ codeunit 50147 "AMC Write API Tests"
   end;
 
   [Test]
+  procedure GivenInvalidRelatedLineValues_WhenFieldsAreValidated_ThenNativeErrorsLeaveNoWrites()
+  var
+    VendorRequest: Record "AMC Vendor Request";
+    AccessToken: Record "AMC Vendor Access Token";
+    Line: Record "AMC Vendor Proposal Line";
+    Entry: Record "AMC Collaboration Entry";
+    BeforeLineCount: Integer;
+    BeforeEntryCount: Integer;
+  begin
+    // Given: field validation precedes the page's insert/domain guards.
+    this.TestLibrary.CreateWriteContext(VendorRequest, AccessToken);
+    Commit();
+    BeforeLineCount := Line.Count();
+    BeforeEntryCount := Entry.Count();
+
+    // When / Then: native relation failures identify the field and rejected value.
+    asserterror Line.Validate("Proposed Item No.", 'MISSING-ITEM');
+    this.Assert.ExpectedError(Line.FieldCaption("Proposed Item No."));
+    this.Assert.ExpectedError('MISSING-ITEM');
+    this.AssertNoSubmissionWrites(VendorRequest, BeforeLineCount, BeforeEntryCount);
+
+    Clear(Line);
+    Line.Validate("Proposed Item No.", 'ITEM-B2');
+    asserterror Line.Validate("Proposed Variant Code", 'MISSING');
+    this.Assert.ExpectedError(Line.FieldCaption("Proposed Variant Code"));
+    this.Assert.ExpectedError('MISSING');
+    this.AssertNoSubmissionWrites(VendorRequest, BeforeLineCount, BeforeEntryCount);
+
+    Clear(Line);
+    asserterror Line.Validate("Reason Code", 'MISSING');
+    this.Assert.ExpectedError(Line.FieldCaption("Reason Code"));
+    this.Assert.ExpectedError('MISSING');
+    this.AssertNoSubmissionWrites(VendorRequest, BeforeLineCount, BeforeEntryCount);
+    ClearLastError();
+  end;
+
+  [Test]
   procedure GivenSubmittedProposal_WhenMutatingOrPostingStandaloneLine_ThenWriteIsRejected()
   var
     VendorRequest: Record "AMC Vendor Request";
     AccessToken: Record "AMC Vendor Access Token";
     Proposal: Record "AMC Vendor Proposal";
     Line: Record "AMC Vendor Proposal Line";
+    Entry: Record "AMC Collaboration Entry";
     ProposalMgt: Codeunit "AMC Proposal Mgt";
+    BeforeLineCount: Integer;
+    BeforeEntryCount: Integer;
   begin
     // Given
     this.TestLibrary.CreateWriteContext(VendorRequest, AccessToken);
     Commit();
     this.TestLibrary.SubmitAnswer(VendorRequest, AccessToken.SystemId, Format(CreateGuid()), 400, false, Proposal);
     Commit();
+    BeforeLineCount := Line.Count();
+    BeforeEntryCount := Entry.Count();
+    Line.Validate("Proposed Item No.", 'ITEM-B2');
+    Line.Validate("Proposed Variant Code", '');
+    Line.Validate("Reason Code", 'UNAVAIL');
     // When / Then: these are the domain guards called by the page triggers.
     asserterror ProposalMgt.AssertApiWriteOnce();
     this.Assert.ExpectedError('VCH-STA-0001');
     asserterror ProposalMgt.InsertApiLine(Line);
     this.Assert.ExpectedError('VCH-STA-0001');
-    Line."Proposal No." := Proposal."No.";
+    this.Assert.AreEqual(BeforeLineCount, Line.Count(), 'A standalone line with valid references must still be rejected.');
+    this.Assert.AreEqual(BeforeEntryCount, Entry.Count(), 'A standalone rejection must not write audit entries.');
+    Line.Validate("Proposal No.", Proposal."No.");
     asserterror ProposalMgt.InsertApiLine(Line);
     this.Assert.ExpectedError('VCH-STA-0001');
+    this.Assert.AreEqual(BeforeLineCount, Line.Count(), 'A navigation POST to a completed proposal must not write a line.');
+    this.Assert.AreEqual(BeforeEntryCount, Entry.Count(), 'A navigation rejection must not write audit entries.');
+    this.AssertSingleProposal(VendorRequest."No.");
     this.AssertSubmissionLogs(Proposal."No.");
     ClearLastError();
   end;
@@ -282,12 +349,14 @@ codeunit 50147 "AMC Write API Tests"
   var
     ProposalLine: Record "AMC Vendor Proposal Line";
     Entry: Record "AMC Collaboration Entry";
+    ExpectedStatus: Enum "AMC Request Status";
   begin
+    ExpectedStatus := VendorRequest.Status;
     this.AssertSingleRequestHasNoProposals(VendorRequest."No.");
     this.Assert.AreEqual(BeforeLineCount, ProposalLine.Count(), 'Rejected nested lines must be rolled back.');
     this.Assert.AreEqual(BeforeEntryCount, Entry.Count(), 'Rejected answers must not leave success timeline entries.');
     this.Assert.IsTrue(VendorRequest.Get(VendorRequest."No."), 'The committed request fixture must survive a rejected submission.');
-    this.Assert.AreEqual(VendorRequest.Status::"Awaiting Vendor", VendorRequest.Status, 'Failure must not move request status.');
+    this.Assert.AreEqual(ExpectedStatus, VendorRequest.Status, 'Failure must not move request status.');
   end;
 
   local procedure AssertSingleRequestHasNoProposals(RequestNo: Code[20])

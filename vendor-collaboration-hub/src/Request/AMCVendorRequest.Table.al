@@ -131,6 +131,6 @@ table 50101 "AMC Vendor Request"
 
   procedure InitRecord()
   begin
-    Rec.Status := Rec.Status::Draft;
+    Rec.Validate(Status, Rec.Status::Draft);
   end;
 }

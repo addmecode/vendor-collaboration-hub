@@ -1,6 +1,7 @@
 namespace Addmecode.VendorCollaborationHub.Tests;
 
 using Addmecode.VendorCollaborationHub;
+using Microsoft.Foundation.AuditCodes;
 using Microsoft.Foundation.NoSeries;
 using Microsoft.Purchases.Document;
 using Microsoft.Purchases.Vendor;
@@ -12,6 +13,7 @@ codeunit 50133 "AMC Proposal Tests"
 
     var
         Assert: Codeunit "Library Assert";
+        TestLibrary: Codeunit "AMC Test Library";
 
     [Test]
     procedure GivenVendorRequest_WhenCreateDraftFromRequest_ThenDraftCopiesRequestIdentity()
@@ -57,8 +59,9 @@ codeunit 50133 "AMC Proposal Tests"
     RequestNo: Code[20];
   begin
     // Given
+    this.TestLibrary.PrepareManualNumbering();
     Vendor.Init();
-    Vendor."No." := this.CreateIdentifier();
+    Vendor.Validate("No.", this.CreateIdentifier());
     Vendor.Insert(false);
     RequestNo := this.CreateRequest(Vendor."No.", 'RENAME-ORDER');
     ProposalNo := this.CreateDraft(RequestNo);
@@ -194,6 +197,7 @@ codeunit 50133 "AMC Proposal Tests"
         // Given
         this.ConfigureValidationSetup(true, 3, false);
         ProposalNo := this.CreateValidationProposal(10);
+        this.TestLibrary.EnsureItem('SUBSTITUTE', 'PCS');
         this.InsertProposalLine(ProposalNo, 10000, 10000, "AMC Proposal Line Type"::"Substitute Item", 1, 'SUBSTITUTE', '', 10, WorkDate(), '');
 
         // When
@@ -290,22 +294,23 @@ codeunit 50133 "AMC Proposal Tests"
         VendorProposal.Get(ProposalNo);
         VendorRequestLine.Get(VendorProposal."Request No.", 10000);
         PurchaseOrderNo := this.CreateIdentifier();
+        this.TestLibrary.PrepareManualNumbering();
         PurchaseHeader.Init();
-        PurchaseHeader."Document Type" := PurchaseHeader."Document Type"::Order;
-        PurchaseHeader."No." := PurchaseOrderNo;
+        PurchaseHeader.Validate("Document Type", PurchaseHeader."Document Type"::Order);
+        PurchaseHeader.Validate("No.", PurchaseOrderNo);
         PurchaseHeader.Insert(false);
         PurchaseLine.Init();
-        PurchaseLine."Document Type" := PurchaseHeader."Document Type";
-        PurchaseLine."Document No." := PurchaseHeader."No.";
-        PurchaseLine."Line No." := 10000;
-        PurchaseLine.Quantity := 10;
+        PurchaseLine.Validate("Document Type", PurchaseHeader."Document Type");
+        PurchaseLine.Validate("Document No.", PurchaseHeader."No.");
+        PurchaseLine.Validate("Line No.", 10000);
+        PurchaseLine.Validate(Quantity, 10);
         PurchaseLine.Insert(false);
         VendorProposalLine.Init();
-        VendorProposalLine."Proposal No." := ProposalNo;
-        VendorProposalLine."Line No." := 10000;
-        VendorProposalLine."Request Line No." := VendorRequestLine."Line No.";
-        VendorProposalLine."Line Type" := Enum::"AMC Proposal Line Type".FromInteger(99);
-        VendorProposalLine."Sequence No." := 1;
+        VendorProposalLine.Validate("Proposal No.", ProposalNo);
+        VendorProposalLine.Validate("Line No.", 10000);
+        VendorProposalLine.Validate("Request Line No.", VendorRequestLine."Line No.");
+        VendorProposalLine.Validate("Line Type", Enum::"AMC Proposal Line Type".FromInteger(99));
+        VendorProposalLine.Validate("Sequence No.", 1);
         VendorProposalLine.Insert(false);
         VendorProposalLine.Get(ProposalNo, VendorProposalLine."Line No.");
         LineHandler := VendorProposalLine."Line Type";
@@ -402,7 +407,7 @@ codeunit 50133 "AMC Proposal Tests"
         ProposalNoSeriesCode := this.CreateIdentifier();
         this.CreateNoSeries(ProposalNoSeriesCode);
         CollaborationSetup.GetSetup();
-        CollaborationSetup."Proposal Nos." := ProposalNoSeriesCode;
+        CollaborationSetup.Validate("Proposal Nos.", ProposalNoSeriesCode);
         CollaborationSetup.Modify(true);
     end;
 
@@ -411,9 +416,9 @@ codeunit 50133 "AMC Proposal Tests"
         CollaborationSetup: Record "AMC Collaboration Setup";
     begin
         CollaborationSetup.GetSetup();
-        CollaborationSetup."Allow Item Substitution" := AllowItemSubstitution;
-        CollaborationSetup."Max Splits per Line" := MaxSplitsPerLine;
-        CollaborationSetup."Require Reason Code" := RequireReasonCode;
+        CollaborationSetup.Validate("Allow Item Substitution", AllowItemSubstitution);
+        CollaborationSetup.Validate("Max Splits per Line", MaxSplitsPerLine);
+        CollaborationSetup.Validate("Require Reason Code", RequireReasonCode);
         CollaborationSetup.Modify(false);
     end;
 
@@ -428,11 +433,12 @@ codeunit 50133 "AMC Proposal Tests"
         ProposalNo := this.CreateIdentifier();
         this.InsertProposal(VendorProposal, ProposalNo, RequestNo, 'VALIDATION-VENDOR', 'VALIDATION-ORDER', this.CreateIdentifier(), VendorProposal.Status::Draft);
 
+        this.TestLibrary.EnsureItem('REQUESTED', 'PCS');
         VendorRequestLine.Init();
-        VendorRequestLine."Request No." := RequestNo;
-        VendorRequestLine."Line No." := 10000;
-        VendorRequestLine."Item No." := 'REQUESTED';
-        VendorRequestLine."Outstanding Quantity" := OutstandingQuantity;
+        VendorRequestLine.Validate("Request No.", RequestNo);
+        VendorRequestLine.Validate("Line No.", 10000);
+        VendorRequestLine.Validate("Item No.", 'REQUESTED');
+        VendorRequestLine.Validate("Outstanding Quantity", OutstandingQuantity);
         VendorRequestLine.Insert(false);
 
         exit(ProposalNo);
@@ -459,19 +465,19 @@ codeunit 50133 "AMC Proposal Tests"
         StartingNo: Code[20];
     begin
         //todo: use standard library
-        StartingNo := CopyStr('P' + DelChr(Format(CreateGuid()), '=', '{}-') + '1', 1, 20);
+        StartingNo := CopyStr('P' + DelChr(Format(CreateGuid()), '=', '{}-'), 1, 13) + '-000001';
         NoSeries.Init();
-        NoSeries.Code := NoSeriesCode;
-        NoSeries.Description := NoSeriesCode;
-        NoSeries."Default Nos." := true;
+        NoSeries.Validate(Code, NoSeriesCode);
+        NoSeries.Validate(Description, NoSeriesCode);
+        NoSeries.Validate("Default Nos.", true);
         NoSeries.Insert(false);
 
         NoSeriesLine.Init();
-        NoSeriesLine."Series Code" := NoSeriesCode;
-        NoSeriesLine."Line No." := 10000;
-        NoSeriesLine."Starting No." := StartingNo;
-        NoSeriesLine."Increment-by No." := 1;
-        NoSeriesLine.Open := true;
+        NoSeriesLine.Validate("Series Code", NoSeriesCode);
+        NoSeriesLine.Validate("Line No.", 10000);
+        NoSeriesLine.Validate("Starting No.", StartingNo);
+        NoSeriesLine.Validate("Increment-by No.", 1);
+        NoSeriesLine.Validate(Open, true);
         NoSeriesLine.Insert(false);
     end;
 
@@ -481,13 +487,31 @@ codeunit 50133 "AMC Proposal Tests"
         RequestNo: Code[20];
     begin
         RequestNo := this.CreateIdentifier();
+        this.EnsurePurchaseOrder(VendorNo, PurchaseOrderNo);
         VendorRequest.Init();
-        VendorRequest."No." := RequestNo;
-        VendorRequest."Vendor No." := VendorNo;
-        VendorRequest."Purchase Order No." := PurchaseOrderNo;
+        VendorRequest.Validate("No.", RequestNo);
+        VendorRequest.Validate("Vendor No.", VendorNo);
+        VendorRequest.Validate("Purchase Order No.", PurchaseOrderNo);
         VendorRequest.Insert(false);
 
         exit(RequestNo);
+    end;
+
+    local procedure EnsurePurchaseOrder(VendorNo: Code[20]; PurchaseOrderNo: Code[20])
+    var
+        Vendor: Record Vendor;
+        PurchaseHeader: Record "Purchase Header";
+    begin
+        if not Vendor.Get(VendorNo) then begin
+            this.TestLibrary.PrepareManualNumbering();
+            Vendor.Init();
+            Vendor.Validate("No.", VendorNo);
+            Vendor.Validate(Name, VendorNo);
+            Vendor.Insert(false);
+        end;
+        // Cross-vendor idempotency fixtures intentionally share an existing order.
+        if not PurchaseHeader.Get(PurchaseHeader."Document Type"::Order, PurchaseOrderNo) then
+            this.TestLibrary.CreatePurchaseOrder(PurchaseHeader, PurchaseOrderNo, VendorNo);
     end;
 
     local procedure CreateDraft(RequestNo: Code[20]): Code[20]
@@ -507,31 +531,42 @@ codeunit 50133 "AMC Proposal Tests"
 
     local procedure InsertProposal(var VendorProposal: Record "AMC Vendor Proposal"; ProposalNo: Code[20]; RequestNo: Code[20]; VendorNo: Code[20]; PurchaseOrderNo: Code[20]; IdempotencyKey: Text[64]; Status: Enum "AMC Proposal Status")
     begin
+        this.EnsurePurchaseOrder(VendorNo, PurchaseOrderNo);
         VendorProposal.Init();
-        VendorProposal."No." := ProposalNo;
-        VendorProposal."Request No." := RequestNo;
-        VendorProposal."Vendor No." := VendorNo;
-        VendorProposal."Purchase Order No." := PurchaseOrderNo;
-        VendorProposal."Idempotency Key" := IdempotencyKey;
-        VendorProposal.Status := Status;
+        VendorProposal.Validate("No.", ProposalNo);
+        VendorProposal.Validate("Request No.", RequestNo);
+        VendorProposal.Validate("Vendor No.", VendorNo);
+        VendorProposal.Validate("Purchase Order No.", PurchaseOrderNo);
+        VendorProposal.Validate("Idempotency Key", IdempotencyKey);
+        VendorProposal.Validate(Status, Status);
         VendorProposal.Insert(true);
     end;
 
     local procedure InsertProposalLine(ProposalNo: Code[20]; LineNo: Integer; RequestLineNo: Integer; LineType: Enum "AMC Proposal Line Type"; SequenceNo: Integer; ProposedItemNo: Code[20]; ProposedVariantCode: Code[10]; ProposedQuantity: Decimal; ProposedDeliveryDate: Date; ReasonCode: Code[10])
     var
         VendorProposalLine: Record "AMC Vendor Proposal Line";
+        ReasonCodeRecord: Record "Reason Code";
     begin
+        if ProposedItemNo <> '' then
+            this.TestLibrary.EnsureItem(ProposedItemNo, 'PCS');
+        this.TestLibrary.EnsureItemVariant(ProposedItemNo, ProposedVariantCode);
+        if ReasonCode <> '' then
+            if not ReasonCodeRecord.Get(ReasonCode) then begin
+                ReasonCodeRecord.Init();
+                ReasonCodeRecord.Validate(Code, ReasonCode);
+                ReasonCodeRecord.Insert(false);
+            end;
         VendorProposalLine.Init();
-        VendorProposalLine."Proposal No." := ProposalNo;
-        VendorProposalLine."Line No." := LineNo;
-        VendorProposalLine."Request Line No." := RequestLineNo;
-        VendorProposalLine."Line Type" := LineType;
-        VendorProposalLine."Sequence No." := SequenceNo;
-        VendorProposalLine."Proposed Item No." := ProposedItemNo;
-        VendorProposalLine."Proposed Variant Code" := ProposedVariantCode;
-        VendorProposalLine."Proposed Quantity" := ProposedQuantity;
-        VendorProposalLine."Proposed Delivery Date" := ProposedDeliveryDate;
-        VendorProposalLine."Reason Code" := ReasonCode;
+        VendorProposalLine.Validate("Proposal No.", ProposalNo);
+        VendorProposalLine.Validate("Line No.", LineNo);
+        VendorProposalLine.Validate("Request Line No.", RequestLineNo);
+        VendorProposalLine.Validate("Line Type", LineType);
+        VendorProposalLine.Validate("Sequence No.", SequenceNo);
+        VendorProposalLine.Validate("Proposed Item No.", ProposedItemNo);
+        VendorProposalLine.Validate("Proposed Variant Code", ProposedVariantCode);
+        VendorProposalLine.Validate("Proposed Quantity", ProposedQuantity);
+        VendorProposalLine.Validate("Proposed Delivery Date", ProposedDeliveryDate);
+        VendorProposalLine.Validate("Reason Code", ReasonCode);
         VendorProposalLine.Insert(false);
     end;
 }

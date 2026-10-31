@@ -34,7 +34,7 @@ codeunit 50132 "AMC Collab Log Tests"
         // Given
         EntryNo := this.LogEntry("AMC Collab Entry Type"::Comment);
         CollaborationEntry.Get(EntryNo);
-        CollaborationEntry.Description := 'Changed description.';
+        CollaborationEntry.Validate(Description, 'Changed description.');
 
         // When
         asserterror CollaborationEntry.Modify(true);
@@ -379,9 +379,9 @@ codeunit 50132 "AMC Collab Log Tests"
     TestLibrary: Codeunit "AMC Test Library";
   begin
     VendorProposal.Init();
-    VendorProposal."No." := TestLibrary.NewCode();
-    VendorProposal."Vendor No." := TestLibrary.NewCode();
-    VendorProposal."Idempotency Key" := TestLibrary.NewCode();
+    VendorProposal.Validate("No.", TestLibrary.NewCode());
+    VendorProposal.Validate("Vendor No.", TestLibrary.NewCode());
+    VendorProposal.Validate("Idempotency Key", TestLibrary.NewCode());
     VendorProposal.Insert(true);
   end;
 
@@ -401,12 +401,12 @@ codeunit 50132 "AMC Collab Log Tests"
   begin
     // Timeline ordering is page behavior; create immutable fixtures at their final times.
     CollaborationEntry.Init();
-    CollaborationEntry."Source Type" := SourceType;
-    CollaborationEntry."Source No." := SourceNo;
-    CollaborationEntry."Entry Type" := EntryType;
-    CollaborationEntry."Actor Type" := "AMC Actor Type"::System;
-    CollaborationEntry."Date Time" := EntryDateTime;
-    CollaborationEntry."Correlation Id" := CreateGuid();
+    CollaborationEntry.Validate("Source Type", SourceType);
+    CollaborationEntry.Validate("Source No.", SourceNo);
+    CollaborationEntry.Validate("Entry Type", EntryType);
+    CollaborationEntry.Validate("Actor Type", "AMC Actor Type"::System);
+    CollaborationEntry.Validate("Date Time", EntryDateTime);
+    CollaborationEntry.Validate("Correlation Id", CreateGuid());
     CollaborationEntry.Insert(true);
   end;
 

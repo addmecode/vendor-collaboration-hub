@@ -115,14 +115,14 @@ table 50100 "AMC Collaboration Setup"
 
     local procedure InitializeDefaults()
     begin
-        this.Enabled := false;
-        this."Default Response Days" := 7;
-        this."Allow Item Substitution" := false;
-        this."Allow Quantity Increase" := false;
-        this."Max Splits per Line" := 3;
-        this."Require Reason Code" := true;
-        this."Link Validity Days" := 14;
-        this."Telemetry Verbosity" := this."Telemetry Verbosity"::Normal;
+        this.Validate(Enabled, false);
+        this.Validate("Default Response Days", 7);
+        this.Validate("Allow Item Substitution", false);
+        this.Validate("Allow Quantity Increase", false);
+        this.Validate("Max Splits per Line", 3);
+        this.Validate("Require Reason Code", true);
+        this.Validate("Link Validity Days", 14);
+        this.Validate("Telemetry Verbosity", this."Telemetry Verbosity"::Normal);
     end;
 
     local procedure ValidateSetupForActivation()

@@ -11,6 +11,7 @@ codeunit 50136 "AMC Change Qty Handler Tests"
 
   var
     Assert: Codeunit "Library Assert";
+    TestLibrary: Codeunit "AMC Test Library";
 
   [Test]
   procedure GivenValidReducedQuantity_WhenChangeQuantityIsApplied_ThenPurchaseLineQuantityIsChanged()
@@ -23,7 +24,7 @@ codeunit 50136 "AMC Change Qty Handler Tests"
   begin
     // Given
     this.CreateSourceRecords(PurchaseHeader, PurchaseLine, ProposalLine, RequestLine, 10);
-    ProposalLine."Proposed Quantity" := 5;
+    ProposalLine.Validate("Proposed Quantity", 5);
     ProposalLine.Modify(false);
 
     // When
@@ -46,10 +47,10 @@ codeunit 50136 "AMC Change Qty Handler Tests"
   begin
     // Given
     this.CreateSourceRecords(PurchaseHeader, PurchaseLine, ProposalLine, RequestLine, 10);
-    PurchaseLine."Quantity Received" := 5;
-    PurchaseLine."Qty. Rcd. Not Invoiced" := 4;
+    PurchaseLine.Validate("Quantity Received", 5);
+    PurchaseLine.Validate("Qty. Rcd. Not Invoiced", 4);
     PurchaseLine.Modify(false);
-    ProposalLine."Proposed Quantity" := 3;
+    ProposalLine.Validate("Proposed Quantity", 3);
     ProposalLine.Modify(false);
 
     // When
@@ -73,7 +74,7 @@ codeunit 50136 "AMC Change Qty Handler Tests"
   begin
     // Given
     this.CreateSourceRecords(PurchaseHeader, PurchaseLine, ProposalLine, RequestLine, 10);
-    ProposalLine."Proposed Quantity" := 0;
+    ProposalLine.Validate("Proposed Quantity", 0);
     ProposalLine.Modify(false);
 
     // When
@@ -98,9 +99,9 @@ codeunit 50136 "AMC Change Qty Handler Tests"
     // Given
     this.CreateSourceRecords(PurchaseHeader, PurchaseLine, ProposalLine, RequestLine, 10);
     CollaborationSetup.GetSetup();
-    CollaborationSetup."Allow Quantity Increase" := false;
+    CollaborationSetup.Validate("Allow Quantity Increase", false);
     CollaborationSetup.Modify(false);
-    ProposalLine."Proposed Quantity" := 11;
+    ProposalLine.Validate("Proposed Quantity", 11);
     ProposalLine.Modify(false);
 
     // When
@@ -109,6 +110,28 @@ codeunit 50136 "AMC Change Qty Handler Tests"
     // Then
     this.Assert.AreEqual(1, ValidationResult.GetErrorCount(), 'An increase must be rejected when quantity increases are not allowed.');
     this.Assert.IsTrue(StrPos(ValidationResult.AsErrorText(), 'VCH-VAL-0015') > 0, 'The quantity increase validation error must be returned.');
+  end;
+
+  [Test]
+  procedure GivenQuantityEqualsReceivedFloor_WhenValidated_ThenNeitherMinimumErrorIsReturned()
+  var
+    PurchaseHeader: Record "Purchase Header";
+    PurchaseLine: Record "Purchase Line";
+    ProposalLine: Record "AMC Vendor Proposal Line";
+    RequestLine: Record "AMC Vendor Request Line";
+    ValidationResult: Codeunit "AMC Validation Result";
+    ChangeQtyHandler: Codeunit "AMC Change Qty Handler";
+  begin
+    // Given
+    this.CreateSourceRecords(PurchaseHeader, PurchaseLine, ProposalLine, RequestLine, 10);
+    PurchaseLine.Validate("Quantity Received", 5);
+    PurchaseLine.Validate("Qty. Rcd. Not Invoiced", 4);
+    PurchaseLine.Modify(false);
+    ProposalLine.Validate("Proposed Quantity", 5);
+    // When
+    ChangeQtyHandler.Validate(ProposalLine, RequestLine, ValidationResult);
+    // Then
+    this.Assert.AreEqual(0, ValidationResult.GetErrorCount(), 'Equality with the received floor must not return either minimum-quantity error.');
   end;
 
   local procedure CreateSourceRecords(var PurchaseHeader: Record "Purchase Header"; var PurchaseLine: Record "Purchase Line"; var ProposalLine: Record "AMC Vendor Proposal Line"; var RequestLine: Record "AMC Vendor Request Line"; Quantity: Decimal)
@@ -126,44 +149,41 @@ codeunit 50136 "AMC Change Qty Handler Tests"
     RequestNo := this.CreateIdentifier();
     VendorNo := this.CreateIdentifier();
 
+    this.TestLibrary.PrepareManualNumbering();
     Vendor.Init();
-    Vendor."No." := VendorNo;
-    Vendor.Name := VendorNo;
+    Vendor.Validate("No.", VendorNo);
+    Vendor.Validate(Name, VendorNo);
     Vendor.Insert(false);
-    PurchaseHeader.Init();
-    PurchaseHeader."Document Type" := PurchaseHeader."Document Type"::Order;
-    PurchaseHeader."No." := PurchaseOrderNo;
-    PurchaseHeader."Buy-from Vendor No." := VendorNo;
-    PurchaseHeader.Insert(false);
+    this.TestLibrary.CreatePurchaseOrder(PurchaseHeader, PurchaseOrderNo, VendorNo);
     PurchaseLine.Init();
-    PurchaseLine."Document Type" := PurchaseHeader."Document Type";
-    PurchaseLine."Document No." := PurchaseHeader."No.";
-    PurchaseLine."Line No." := 10000;
-    PurchaseLine.Quantity := Quantity;
+    PurchaseLine.Validate("Document Type", PurchaseHeader."Document Type");
+    PurchaseLine.Validate("Document No.", PurchaseHeader."No.");
+    PurchaseLine.Validate("Line No.", 10000);
+    PurchaseLine.Validate(Quantity, Quantity);
     PurchaseLine.Insert(false);
     VendorRequest.Init();
-    VendorRequest."No." := RequestNo;
-    VendorRequest."Vendor No." := VendorNo;
-    VendorRequest."Purchase Order No." := PurchaseOrderNo;
+    VendorRequest.Validate("No.", RequestNo);
+    VendorRequest.Validate("Vendor No.", VendorNo);
+    VendorRequest.Validate("Purchase Order No.", PurchaseOrderNo);
     VendorRequest.Insert(false);
     RequestLine.Init();
-    RequestLine."Request No." := RequestNo;
-    RequestLine."Line No." := 10000;
-    RequestLine."Purchase Line No." := PurchaseLine."Line No.";
+    RequestLine.Validate("Request No.", RequestNo);
+    RequestLine.Validate("Line No.", 10000);
+    RequestLine.Validate("Purchase Line No.", PurchaseLine."Line No.");
     RequestLine.Insert(false);
     VendorProposal.Init();
-    VendorProposal."No." := ProposalNo;
-    VendorProposal."Request No." := RequestNo;
-    VendorProposal."Vendor No." := VendorNo;
-    VendorProposal."Purchase Order No." := PurchaseOrderNo;
-    VendorProposal."Idempotency Key" := ProposalNo;
+    VendorProposal.Validate("No.", ProposalNo);
+    VendorProposal.Validate("Request No.", RequestNo);
+    VendorProposal.Validate("Vendor No.", VendorNo);
+    VendorProposal.Validate("Purchase Order No.", PurchaseOrderNo);
+    VendorProposal.Validate("Idempotency Key", ProposalNo);
     VendorProposal.Insert(false);
     ProposalLine.Init();
-    ProposalLine."Proposal No." := ProposalNo;
-    ProposalLine."Line No." := 10000;
-    ProposalLine."Request Line No." := RequestLine."Line No.";
-    ProposalLine."Line Type" := ProposalLine."Line Type"::"Change Quantity";
-    ProposalLine."Sequence No." := 1;
+    ProposalLine.Validate("Proposal No.", ProposalNo);
+    ProposalLine.Validate("Line No.", 10000);
+    ProposalLine.Validate("Request Line No.", RequestLine."Line No.");
+    ProposalLine.Validate("Line Type", ProposalLine."Line Type"::"Change Quantity");
+    ProposalLine.Validate("Sequence No.", 1);
     ProposalLine.Insert(false);
   end;
 

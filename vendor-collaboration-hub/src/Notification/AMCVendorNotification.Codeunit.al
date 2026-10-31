@@ -140,8 +140,8 @@ codeunit 50118 "AMC Vendor Notification"
   begin
     VendorAccessToken.SetRange("Token Hash", TokenHash);
     VendorAccessToken.FindFirst();
-    VendorAccessToken."Sent To E-Mail" := CopyStr(Recipient, 1, MaxStrLen(VendorAccessToken."Sent To E-Mail"));
-    VendorAccessToken."Sent At" := CurrentDateTime();
+    VendorAccessToken.Validate("Sent To E-Mail", CopyStr(Recipient, 1, MaxStrLen(VendorAccessToken."Sent To E-Mail")));
+    VendorAccessToken.Validate("Sent At", CurrentDateTime());
     VendorAccessToken.Modify(true);
   end;
 

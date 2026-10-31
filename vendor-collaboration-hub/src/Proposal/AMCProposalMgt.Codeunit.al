@@ -31,19 +31,19 @@ codeunit 50101 "AMC Proposal Mgt"
     // The runtime inserts the parent before its children. Stage only within this
     // transaction; the page's post-insert read completes the whole deep insert.
     VendorProposal.LockTable();
-    VendorProposal."No." := NoSeries.GetNextNo(CollaborationSetup."Proposal Nos.", WorkDate(), true);
+    VendorProposal.Validate("No.", NoSeries.GetNextNo(CollaborationSetup."Proposal Nos.", WorkDate(), true));
     if VendorProposal."No." = '' then
       Error(NumberSeriesRequiredErr);
     VendorProposal.InitRecord();
-    VendorProposal."Idempotency Key" := Format(CreateGuid(), 0, 4);
-    VendorProposal.Status := VendorProposal.Status::Submitted;
-    VendorProposal."API Submission Pending" := true;
-    VendorProposal."Submitted Date Time" := 0DT;
-    VendorProposal."Payload Hash" := '';
+    VendorProposal.Validate("Idempotency Key", Format(CreateGuid(), 0, 4));
+    VendorProposal.Validate(Status, VendorProposal.Status::Submitted);
+    VendorProposal.Validate("API Submission Pending", true);
+    VendorProposal.Validate("Submitted Date Time", 0DT);
+    VendorProposal.Validate("Payload Hash", '');
     if IsNullGuid(VendorProposal."Correlation Id") then
-      VendorProposal."Correlation Id" := CreateGuid();
+      VendorProposal.Validate("Correlation Id", CreateGuid());
     if IsNullGuid(VendorProposal.SystemId) then
-      VendorProposal.SystemId := CreateGuid();
+      VendorProposal.Validate(SystemId, CreateGuid());
     VendorProposal.Insert(true, true);
   end;
 
@@ -98,7 +98,7 @@ codeunit 50101 "AMC Proposal Mgt"
     IdempotencyMgt.Register(VendorProposal, IdempotencyKey, IdempotencyMgt.HashPayload(VendorProposal, AccessTokenId));
     VendorRequest.LockTable();
     this.AssertApiRequest(VendorProposal."Request No.", VendorProposal."Vendor No.", VendorRequest);
-    VendorProposal."Purchase Order No." := VendorRequest."Purchase Order No.";
+    VendorProposal.Validate("Purchase Order No.", VendorRequest."Purchase Order No.");
     this.ValidateApiLineStructure(VendorProposal, Result);
     ProposalValidator.Validate(VendorProposal, Result);
     if Result.HasErrors() then begin
@@ -107,9 +107,9 @@ codeunit 50101 "AMC Proposal Mgt"
     end;
 
     if IsNullGuid(VendorProposal."Correlation Id") then
-      VendorProposal."Correlation Id" := CreateGuid();
-    VendorProposal."Submitted Date Time" := CurrentDateTime();
-    VendorProposal."API Submission Pending" := false;
+      VendorProposal.Validate("Correlation Id", CreateGuid());
+    VendorProposal.Validate("Submitted Date Time", CurrentDateTime());
+    VendorProposal.Validate("API Submission Pending", false);
     VendorProposal.Modify(true);
     this.SupersedePreviousProposals(VendorProposal);
     if VendorRequest.Status = VendorRequest.Status::"Awaiting Vendor" then
@@ -146,11 +146,11 @@ codeunit 50101 "AMC Proposal Mgt"
       Error(NestedOnlyErr);
     LastLine.SetRange("Proposal No.", VendorProposal."No.");
     LastLine.SetLoadFields("Line No.");
-    ProposalLine."Line No." := 10000;
+    ProposalLine.Validate("Line No.", 10000);
     if LastLine.FindLast() then
-      ProposalLine."Line No." := LastLine."Line No." + 10000;
+      ProposalLine.Validate("Line No.", LastLine."Line No." + 10000);
     if IsNullGuid(ProposalLine.SystemId) then
-      ProposalLine.SystemId := CreateGuid();
+      ProposalLine.Validate(SystemId, CreateGuid());
     ProposalLine.Insert(true, true);
   end;
 
@@ -200,7 +200,7 @@ codeunit 50101 "AMC Proposal Mgt"
     PreviousProposal.SetFilter(Status, '%1|%2|%3', PreviousProposal.Status::Submitted, PreviousProposal.Status::"In Review", PreviousProposal.Status::"Changes Requested");
     if PreviousProposal.FindSet(true) then
       repeat
-        PreviousProposal."Superseded By" := VendorProposal."No.";
+        PreviousProposal.Validate("Superseded By", VendorProposal."No.");
         this.SetStatus(PreviousProposal, PreviousProposal.Status::Superseded);
         CollabLog.LogEvent("AMC Source Type"::Proposal, PreviousProposal."No.", 0, "AMC Collab Entry Type"::ProposalSuperseded, "AMC Actor Type"::Vendor, VendorProposal."Submitted By", '', StrSubstNo(SupersededLbl, VendorProposal."No."), VendorProposal."Correlation Id");
       until PreviousProposal.Next() = 0;
@@ -219,12 +219,12 @@ codeunit 50101 "AMC Proposal Mgt"
 
         ProposalNo := NoSeries.GetNextNo(CollaborationSetup."Proposal Nos.");
         VendorProposal.Init();
-        VendorProposal."No." := ProposalNo;
+        VendorProposal.Validate("No.", ProposalNo);
         VendorProposal.InitRecord();
-        VendorProposal."Request No." := VendorRequest."No.";
-        VendorProposal."Vendor No." := VendorRequest."Vendor No.";
-        VendorProposal."Purchase Order No." := VendorRequest."Purchase Order No.";
-        VendorProposal."Idempotency Key" := CopyStr(StrSubstNo(ManualIdempotencyKeyLbl, ProposalNo), 1, MaxStrLen(VendorProposal."Idempotency Key"));
+        VendorProposal.Validate("Request No.", VendorRequest."No.");
+        VendorProposal.Validate("Vendor No.", VendorRequest."Vendor No.");
+        VendorProposal.Validate("Purchase Order No.", VendorRequest."Purchase Order No.");
+        VendorProposal.Validate("Idempotency Key", CopyStr(StrSubstNo(ManualIdempotencyKeyLbl, ProposalNo), 1, MaxStrLen(VendorProposal."Idempotency Key")));
         VendorProposal.Insert(true);
 
         exit(ProposalNo);
@@ -250,7 +250,7 @@ codeunit 50101 "AMC Proposal Mgt"
     if not this.IsStatusTransitionAllowed(VendorProposal.Status, NewStatus) then
       Error(VCHPro0001Err, VendorProposal.Status, NewStatus);
 
-    VendorProposal.Status := NewStatus;
+    VendorProposal.Validate(Status, NewStatus);
     VendorProposal.Modify(false);
   end;
 

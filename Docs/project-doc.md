@@ -2148,7 +2148,7 @@ request/proposal documents, not an AL-side read-session guard on this page.
 ## 8.4 Error contract
 
 BC returns OData errors and you cannot fully control `error.code`. Therefore every
-`Error()` that **can cross the API** starts with a stable code:
+solution-owned business `Error()` that **can cross the API** starts with a stable code:
 
 ```jsonc
 {
@@ -2161,8 +2161,15 @@ BC returns OData errors and you cannot fully control `error.code`. Therefore eve
 
 The Function parses the `VCH-xxx-nnnn` prefix, never the message text.
 
+**Platform/field validation comes first.** Standard BC relation validation can
+reject an invalid item, variant or reason reference before the business validator
+or nested-insert guard runs. Such native BC errors may have no `VCH-` prefix or
+`[line s/r]` marker and may abort without aggregating business failures. The
+Function handles them through its generic unmapped-error fallback below; it does
+not parse native message text to invent a domain code or row marker.
+
 Because a deep insert returns **one** OData error for the whole request, every
-line-level failure must name its line in the message. The convention is
+line-level business failure must name its line in the message. The convention is
 `VCH-xxx-nnnn [line <sequence>/<requestLineNumber>]: <text>`, so the page can
 highlight the offending row in its editor:
 
@@ -2170,7 +2177,7 @@ highlight the offending row in its editor:
 VCH-VAL-0030 [line 1/20000]: Item ITEM-B2 is not a registered substitute for ITEM-B.
 ```
 
-**Validation does not stop at the first failure.** `AMC Validation Result` (§4.5)
+**Business validation, once reached, does not stop at the first failure.** `AMC Validation Result` (§4.5)
 collects every one of them, so a vendor who got three things wrong can be told about
 three things. What limits this is the transport, not the validator: a deep insert
 may return one OData error, so that path renders the first failure and puts the

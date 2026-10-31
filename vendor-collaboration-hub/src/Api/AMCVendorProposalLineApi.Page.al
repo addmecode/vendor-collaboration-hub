@@ -77,9 +77,9 @@ page 50123 "AMC Vendor Proposal Line API"
   var
     ProposalMgt: Codeunit "AMC Proposal Mgt";
   begin
-    Rec."Proposed Item No." := this.ProposedItemNumber;
-    Rec."Proposed Variant Code" := this.ProposedVariantCode;
-    Rec."Reason Code" := this.ReasonCode;
+    Rec.Validate("Proposed Item No.", this.ProposedItemNumber);
+    Rec.Validate("Proposed Variant Code", this.ProposedVariantCode);
+    Rec.Validate("Reason Code", this.ReasonCode);
     // A root POST has no proposal number; navigation POST targets a completed header.
     // Neither can pass the domain's pending-submission guard.
     ProposalMgt.InsertApiLine(Rec);
