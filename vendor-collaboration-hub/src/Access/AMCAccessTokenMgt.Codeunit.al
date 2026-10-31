@@ -29,7 +29,7 @@ codeunit 50117 "AMC Access Token Mgt"
         IssuedAt := CurrentDateTime();
 
         VendorAccessToken.Init();
-        VendorAccessToken.Validate("Token Id", CreateGuid());
+        VendorAccessToken.Validate("Token Id", Guid.CreateSequentialGuid());
         VendorAccessToken.Validate("Request No.", VendorRequest."No.");
         VendorAccessToken.Validate("Vendor No.", VendorRequest."Vendor No.");
         VendorAccessToken.Validate("Token Hash", this.HashToken(RawToken));
@@ -132,9 +132,10 @@ codeunit 50117 "AMC Access Token Mgt"
     procedure HashToken(RawToken: Text): Text[64]
     var
         CryptographyManagement: Codeunit "Cryptography Management";
-        HashAlgorithmType: Option MD5,SHA1,SHA256,SHA384,SHA512;
+        HashAlgorithmType: Enum "Hash Algorithm";
     begin
-        exit(UpperCase(CryptographyManagement.GenerateHash(RawToken, HashAlgorithmType::SHA256)));
+        // The standard hashing API still takes an Option; SHA256 has ordinal 2 in both types.
+        exit(UpperCase(CryptographyManagement.GenerateHash(RawToken, HashAlgorithmType::SHA256.AsInteger())));
     end;
 
     local procedure AssertActive(VendorAccessToken: Record "AMC Vendor Access Token")
@@ -165,10 +166,11 @@ codeunit 50117 "AMC Access Token Mgt"
     var
         CryptographyManagement: Codeunit "Cryptography Management";
         EntropySource: Text;
-        HashAlgorithmType: Option MD5,SHA1,SHA256,SHA384,SHA512;
+        HashAlgorithmType: Enum "Hash Algorithm";
     begin
         EntropySource := Format(CreateGuid()) + Format(CreateGuid()) + Format(CreateGuid());
-        exit(this.NormalizeBase64Url(CryptographyManagement.GenerateHashAsBase64String(EntropySource, HashAlgorithmType::SHA256)));
+        // Convert only at the standard Option-based API boundary.
+        exit(this.NormalizeBase64Url(CryptographyManagement.GenerateHashAsBase64String(EntropySource, HashAlgorithmType::SHA256.AsInteger())));
     end;
 
     [NonDebuggable]

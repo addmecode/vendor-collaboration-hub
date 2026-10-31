@@ -33,7 +33,7 @@ codeunit 50104 "AMC Apply Proposal Svc"
     PreviousRequestNo: Code[20];
   begin
     this.VerifyDecisionContext(DecisionContext);
-    VendorProposal.LockTable();
+    VendorProposal.ReadIsolation(IsolationLevel::UpdLock);
     VendorProposal.Get(DecisionContext."No.");
     this.VerifyApprovalAllowed(VendorProposal);
     this.ApproveProposal(VendorProposal, DecisionContext);

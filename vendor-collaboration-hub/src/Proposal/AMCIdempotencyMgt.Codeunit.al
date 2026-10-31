@@ -18,7 +18,7 @@ codeunit 50121 "AMC Idempotency Mgt"
       Error(KeyRequiredErr);
 
     // Keep the duplicate check and the unique-index write in the caller's transaction.
-    ExistingProposal.LockTable();
+    ExistingProposal.ReadIsolation(IsolationLevel::UpdLock);
     ExistingProposal.SetLoadFields("Payload Hash", SystemId, "No.");
     ExistingProposal.SetRange("Vendor No.", VendorProposal."Vendor No.");
     ExistingProposal.SetRange("Idempotency Key", IdempotencyKey);
@@ -40,7 +40,7 @@ codeunit 50121 "AMC Idempotency Mgt"
     Lines: JsonArray;
     Line: JsonObject;
     PayloadText: Text;
-    HashAlgorithmType: Option MD5,SHA1,SHA256,SHA384,SHA512;
+    HashAlgorithmType: Enum "Hash Algorithm";
   begin
     // Fixed property order, typed JSON scalars and business-line ordering are independent
     // of JSON input order, locale, generated numbers/SystemIds and tracing metadata.
@@ -69,6 +69,7 @@ codeunit 50121 "AMC Idempotency Mgt"
       until ProposalLine.Next() = 0;
     Payload.Add('vendorProposalLines', Lines);
     Payload.WriteTo(PayloadText);
-    exit(UpperCase(CryptographyManagement.GenerateHash(PayloadText, HashAlgorithmType::SHA256)));
+    // Convert only at the standard Option-based API boundary (SHA256 = 2).
+    exit(UpperCase(CryptographyManagement.GenerateHash(PayloadText, HashAlgorithmType::SHA256.AsInteger())));
   end;
 }

@@ -8,6 +8,7 @@ page 50106 "AMC Vendor Proposal"
     InsertAllowed = false;
     PageType = Document;
     SourceTable = "AMC Vendor Proposal";
+    UsageCategory = None;
 
     layout
     {

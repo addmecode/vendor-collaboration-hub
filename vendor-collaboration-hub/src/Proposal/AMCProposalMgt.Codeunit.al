@@ -30,6 +30,7 @@ codeunit 50101 "AMC Proposal Mgt"
 
     // The runtime inserts the parent before its children. Stage only within this
     // transaction; the page's post-insert read completes the whole deep insert.
+    // The lock must also cover other proposal buffers used by nested insertion and finalization.
     VendorProposal.LockTable();
     VendorProposal.Validate("No.", NoSeries.GetNextNo(CollaborationSetup."Proposal Nos.", WorkDate(), true));
     if VendorProposal."No." = '' then
@@ -96,7 +97,7 @@ codeunit 50101 "AMC Proposal Mgt"
       Error(PendingRequiredErr);
     this.AssertApiIdentity(AccessTokenId, VendorProposal."Request No.", VendorProposal."Vendor No.");
     IdempotencyMgt.Register(VendorProposal, IdempotencyKey, IdempotencyMgt.HashPayload(VendorProposal, AccessTokenId));
-    VendorRequest.LockTable();
+    VendorRequest.ReadIsolation(IsolationLevel::UpdLock);
     this.AssertApiRequest(VendorProposal."Request No.", VendorProposal."Vendor No.", VendorRequest);
     VendorProposal.Validate("Purchase Order No.", VendorRequest."Purchase Order No.");
     this.ValidateApiLineStructure(VendorProposal, Result);
@@ -231,7 +232,7 @@ codeunit 50101 "AMC Proposal Mgt"
     end;
 
   [EventSubscriber(ObjectType::Table, Database::Vendor, OnAfterRenameEvent, '', false, false)]
-  local procedure UpdateProposalVendorOnVendorRename(var Rec: Record Vendor; var xRec: Record Vendor; RunTrigger: Boolean)
+  local procedure Vendor_OnAfterRenameEvent(var Rec: Record Vendor; var xRec: Record Vendor)
   var
     VendorProposal: Record "AMC Vendor Proposal";
   begin
@@ -270,5 +271,6 @@ codeunit 50101 "AMC Proposal Mgt"
       CurrentStatus::"Changes Requested":
         exit(NewStatus = NewStatus::Superseded);
     end;
+    exit(false);
   end;
 }

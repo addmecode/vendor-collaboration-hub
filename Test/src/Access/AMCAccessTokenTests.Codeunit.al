@@ -160,7 +160,7 @@ codeunit 50143 "AMC Access Token Tests"
 
         // When
         VendorAccessLinks.OpenEdit();
-        VendorAccessLinks.GotoRecord(VendorAccessToken);
+        VendorAccessLinks.GoToRecord(VendorAccessToken);
         VendorAccessLinks.AMCRevokeLink.Invoke();
         VendorAccessLinks.Close();
 
@@ -264,7 +264,7 @@ codeunit 50143 "AMC Access Token Tests"
         JobQueueEntry.DeleteAll(true);
         CollaborationSetup.GetSetup();
         CollaborationSetupPage.OpenEdit();
-        CollaborationSetupPage.GotoRecord(CollaborationSetup);
+        CollaborationSetupPage.GoToRecord(CollaborationSetup);
 
         // When
         CollaborationSetupPage.AMCScheduleTokenExpiryJob.Invoke();
@@ -311,8 +311,6 @@ codeunit 50143 "AMC Access Token Tests"
     var
         ExistingTokenExpiryJobMsg: Label 'The token expiry job is already scheduled. No new job queue entry was created.';
     begin
-        ;
-
         this.ExistingTokenExpiryJobMessageCount += 1;
         this.Assert.AreEqual(ExistingTokenExpiryJobMsg, Message, 'The existing token expiry job message must match the expected text.');
     end;

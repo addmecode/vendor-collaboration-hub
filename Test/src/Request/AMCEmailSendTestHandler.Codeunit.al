@@ -1,7 +1,6 @@
 namespace Addmecode.VendorCollaborationHub.Tests;
 
 using Addmecode.VendorCollaborationHub;
-using System.Email;
 
 codeunit 50145 "AMC Email Send Test Handler"
 {
@@ -21,7 +20,7 @@ codeunit 50145 "AMC Email Send Test Handler"
     end;
 
     [EventSubscriber(ObjectType::Codeunit, Codeunit::"AMC Vendor Notification", OnSendOnBeforeEmailSend, '', false, false)]
-    local procedure OnSendOnBeforeEmailSend(RequestNo: Code[20]; EmailScenario: Enum "Email Scenario"; var IsHandled: Boolean; var EmailWasSent: Boolean)
+    local procedure "AMC Vendor Notification_OnSendOnBeforeEmailSend"(var IsHandled: Boolean; var EmailWasSent: Boolean)
     begin
         IsHandled := true;
         EmailWasSent := this.EmailHandOffSucceeds;

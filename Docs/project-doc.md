@@ -472,7 +472,7 @@ Test app adds `"test"` dependencies on `Library Assert`, `Any`,
 
 ```text
 bc/vendor-collaboration-hub/src/
-  Setup/           AMCCollaborationSetup.Table.al | .Page.al          (GetSetup is on the table)
+  Setup/           AMCCollaborationSetup.Table.al | .Page.al | AMCTelemetryVerbosity.Enum.al (GetSetup is on the table)
   Request/         AMCVendorRequest(.Line).Table.al | 2 status enums | AMCRequestMgt.Codeunit.al | 3 pages
   Proposal/        AMCVendorProposal(.Line).Table.al | 2 enums | Mgt / Validator / DecisionSvc
                    AMCValidationResult.Codeunit.al | AMCIdempotencyMgt.Codeunit.al | 3 pages
@@ -583,7 +583,7 @@ share one ID space per type and must fit in the same 50 slots together.
 |---|---|---|---|---|---|
 | Table | 7 | 0 | 7 | 50100–50106 | 43 |
 | TableExtension | 3 | 0 | 3 | 50100–50102 | 47 |
-| Enum | 8 | 0 | 8 | 50100–50107 | 42 |
+| Enum | 9 | 0 | 9 | 50100–50108 | 41 |
 | EnumExtension | 1 | 0 | 1 | 50100 | 49 |
 | Codeunit | 26 | 15 | 41 | 50100–50125, 50130–50144 | 9 |
 | Page | 18 | 0 | 18 | 50100–50111 (UI), 50120–50125 (API) | 32 |
@@ -591,7 +591,7 @@ share one ID space per type and must fit in the same 50 slots together.
 | PermissionSet | 4 | 0 | 4 | 50100–50103 | 46 |
 | Interface | 1 | 0 | 1 | *no ID consumed* | — |
 
-**86 objects, 41 in the busiest type.** Codeunits are the constraint, which is
+**87 objects, 41 in the busiest type.** Codeunits are the constraint, which is
 correct — that is where the behaviour lives, and it is where splitting things up
 actually buys something.
 
@@ -659,7 +659,7 @@ and for reasons that have nothing to do with counting:
 | Portal Support E-Mail | Text[80] | the one address shown when a link does not work. Static and identical for every failure, on purpose (§9.5) |
 | Link Validity Days | Integer | how long an access link stays usable; default 14. Must not be shorter than `Default Response Days` — a link that dies before the answer is due is a guaranteed support call, so the field validates it (§9.2) |
 | Attach Order PDF | Boolean | attach the standard purchase order report to the vendor e-mail |
-| Telemetry Verbosity | Enum `Verbosity` | standard enum |
+| Telemetry Verbosity | Enum `AMC Telemetry Verbosity` | Normal (default), Warning, Error, Verbose; application enum, not the built-in AL `Verbosity` type |
 
 ### Assisted Setup and number-series selection
 
@@ -977,6 +977,15 @@ Deliberately **no** `AMC Confirmed Date` — that is `Promised Receipt Date` (§
 | `AMC Actor Type` | 50105 | yes | Buyer, Vendor, System, Integration |
 | `AMC Source Type` | 50106 | yes | Request, Proposal |
 | `AMC Access Token Status` | 50107 | yes | Active, Expired, Revoked, Superseded |
+| `AMC Telemetry Verbosity` | 50108 | no | blank (reserved), Normal, Warning, Error, Verbose |
+
+`AMC Telemetry Verbosity` is the persisted setup choice. The built-in AL
+`Verbosity` type used by `Session.LogMessage` is not an application enum for a
+table field; do not rely on numeric casts between the two types. The development
+change from `Option` to this enum deliberately has no data-migration code.
+Ordinal 0 is reserved for the blank enum value. The setup field has
+`InitValue = Normal` and restricts UI choices to the four nonblank levels through
+`ValuesAllowed`, so its default and selectable levels remain unchanged.
 
 One enum extension: `AMC Email Scenario Ext` (50100) adds a
 `AMC Vendor Collaboration` value to the standard `Email Scenario` enum, so an
@@ -2350,7 +2359,7 @@ There is no system-wide guarantee that only a hash is stored.
 > Verify how your AL runtime exposes cryptographic randomness before coding. If a
 > random-bytes API is available, use it. Otherwise `CreateGuid()` is the platform's
 > CSPRNG in practice: concatenating three GUIDs and hashing the result with
-> `Cryptography Management.GenerateHash(..., HashAlgorithmType::SHA256)` derives a
+> `Cryptography Management.GenerateHash(..., HashAlgorithmType::SHA256.AsInteger())` derives a
 > 256-bit value from roughly 366 bits of input entropy. Confirm the hex casing that
 > `GenerateHash` returns and normalize it — the Function computes the same hash
 > independently, and a casing mismatch fails every lookup.

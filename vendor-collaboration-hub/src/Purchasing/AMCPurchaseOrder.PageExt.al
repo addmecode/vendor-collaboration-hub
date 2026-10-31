@@ -25,7 +25,7 @@ pageextension 50100 "AMC Purchase Order" extends "Purchase Order"
 
     actions
     {
-        addlast(Processing)
+        addlast(processing)
         {
             action(AMCCreateVendorRequest)
             {
@@ -44,6 +44,7 @@ pageextension 50100 "AMC Purchase Order" extends "Purchase Order"
                 ApplicationArea = All;
                 Caption = 'Unlock purchase order';
                 Enabled = Rec."AMC Active Request No." <> '';
+                Image = ReOpen;
                 ToolTip = 'Cancels the active vendor request and unlocks this purchase order.';
 
                 trigger OnAction()

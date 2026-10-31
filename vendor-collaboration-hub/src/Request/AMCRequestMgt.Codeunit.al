@@ -29,6 +29,7 @@ codeunit 50100 "AMC Request Mgt"
         RequestCreatedDescriptionLbl: Label 'Vendor request created.';
     begin
         OrderNo := PurchaseHeader."No.";
+        // Keep transaction-wide isolation for the caller and nested purchase-header guard buffers.
         PurchaseHeader.LockTable();
         PurchaseHeader.Get(PurchaseHeader."Document Type"::Order, OrderNo);
 
@@ -85,6 +86,7 @@ codeunit 50100 "AMC Request Mgt"
             Error(PurchaseOrderOnlyErr);
 
         PurchaseOrderNo := PurchaseHeader."No.";
+        // Cancellation and its nested order-lock checks must share the transaction's isolation state.
         PurchaseHeader.LockTable();
         PurchaseHeader.Get(PurchaseHeader."Document Type"::Order, PurchaseOrderNo);
         RequestNo := PurchaseHeader."AMC Active Request No.";
@@ -139,6 +141,7 @@ codeunit 50100 "AMC Request Mgt"
         RequestSendFailedErr: Label 'The vendor request send status could not be updated: %1', Comment = '%1 = original error detail';
     begin
         RequestNo := VendorRequest."No.";
+        // Preserve isolation in nested buffers; this transaction state ends at the standard Email commit.
         VendorRequest.LockTable();
         VendorRequest.Get(RequestNo);
         if not (VendorRequest.Status in [VendorRequest.Status::Draft, VendorRequest.Status::"Awaiting Vendor"]) then
@@ -201,6 +204,7 @@ codeunit 50100 "AMC Request Mgt"
       CurrentStatus::"In Review":
         exit(NewStatus in [NewStatus::Closed, NewStatus::Cancelled]);
     end;
+    exit(false);
   end;
 
     local procedure VerifyPurchaseOrderCanBeCancelled(PurchaseHeader: Record "Purchase Header"; VendorRequest: Record "AMC Vendor Request")
@@ -326,5 +330,6 @@ codeunit 50100 "AMC Request Mgt"
                 VendorRequestLine.Insert(false);
                 LineCount += 1;
             until PurchaseLine.Next() = 0;
+        exit(LineCount);
     end;
 }

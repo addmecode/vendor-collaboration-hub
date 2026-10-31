@@ -65,25 +65,25 @@ page 50125 "AMC Vendor Access Token API"
         exit(Rec.Find(Which));
     end;
 
-  [ServiceEnabled]
-  procedure RegisterAccess(var ActionContext: WebServiceActionContext)
-  var
-    AccessTokenMgt: Codeunit "AMC Access Token Mgt";
-    ApiTokenScope: Codeunit "AMC API Token Scope";
-  begin
-    ApiTokenScope.ApplyTokenScope(Rec, true);
-    if not Rec.FindFirst() then
-      Error(this.TokenNotFoundErr);
+    [ServiceEnabled]
+    procedure RegisterAccess(var ActionContext: WebServiceActionContext)
+    var
+        AccessTokenMgt: Codeunit "AMC Access Token Mgt";
+        ApiTokenScope: Codeunit "AMC API Token Scope";
+    begin
+        ApiTokenScope.ApplyTokenScope(Rec, true);
+        if not Rec.FindFirst() then
+            Error(this.TokenNotFoundErr);
 
-    AccessTokenMgt.Assert(Rec."Token Id", Rec."Request No.", Rec."Vendor No.");
-    AccessTokenMgt.RegisterAccess(Rec."Token Id");
+        AccessTokenMgt.Assert(Rec."Token Id", Rec."Request No.", Rec."Vendor No.");
+        AccessTokenMgt.RegisterAccess(Rec."Token Id");
 
-    ActionContext.SetObjectType(ObjectType::Page);
-    ActionContext.SetObjectId(Page::"AMC Vendor Access Token API");
-    ActionContext.AddEntityKey(Rec.FieldNo(SystemId), Rec.SystemId);
-    ActionContext.SetResultCode(WebServiceActionResultCode::Updated);
-  end;
+        ActionContext.SetObjectType(ObjectType::Page);
+        ActionContext.SetObjectId(Page::"AMC Vendor Access Token API");
+        ActionContext.AddEntityKey(Rec.FieldNo(SystemId), Rec.SystemId);
+        ActionContext.SetResultCode(WebServiceActionResultCode::Updated);
+    end;
 
-  var
-    TokenNotFoundErr: Label 'VCH-API-0003: The vendor access token was not found.';
+    var
+        TokenNotFoundErr: Label 'VCH-API-0003: The vendor access token was not found.';
 }

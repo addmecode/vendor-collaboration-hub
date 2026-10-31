@@ -67,6 +67,7 @@ codeunit 50122 "AMC Validation Result"
   begin
     if this.HasErrors() then
       exit(this.FormatError(1));
+    exit('');
   end;
 
   procedure GetErrorCodeList(): Text

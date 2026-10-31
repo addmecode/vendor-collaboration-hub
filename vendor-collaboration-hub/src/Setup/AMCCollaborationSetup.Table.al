@@ -77,11 +77,11 @@ table 50100 "AMC Collaboration Setup"
         {
             Caption = 'Attach Order PDF';
         }
-        field(14; "Telemetry Verbosity"; Option)
+        field(14; "Telemetry Verbosity"; Enum "AMC Telemetry Verbosity")
         {
             Caption = 'Telemetry Verbosity';
-            OptionCaption = 'Normal,Warning,Error,Verbose';
-            OptionMembers = Normal,Warning,Error,Verbose;
+            InitValue = Normal;
+            ValuesAllowed = Normal, Warning, Error, Verbose;
         }
     }
 

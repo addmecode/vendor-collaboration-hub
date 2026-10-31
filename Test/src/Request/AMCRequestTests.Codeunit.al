@@ -73,7 +73,7 @@ codeunit 50131 "AMC Request Tests"
         this.VendorRequestPageWasOpened := false;
         this.ExpectedPurchaseOrderNo := PurchaseHeader."No.";
         PurchaseOrder.OpenEdit();
-        PurchaseOrder.GotoRecord(PurchaseHeader);
+        PurchaseOrder.GoToRecord(PurchaseHeader);
 
         // When
         PurchaseOrder.AMCCreateVendorRequest.Invoke();
@@ -101,7 +101,7 @@ codeunit 50131 "AMC Request Tests"
         this.OpenCreatedVendorRequest := false;
         this.VendorRequestPageWasOpened := false;
         PurchaseOrder.OpenEdit();
-        PurchaseOrder.GotoRecord(PurchaseHeader);
+        PurchaseOrder.GoToRecord(PurchaseHeader);
 
         // When
         PurchaseOrder.AMCCreateVendorRequest.Invoke();
@@ -719,6 +719,7 @@ codeunit 50131 "AMC Request Tests"
         LanguageRecord.SetFilter(Code, '<>%1', CompanyLanguageCode);
         if LanguageRecord.FindFirst() then
             exit(LanguageRecord.Code);
+        exit('');
     end;
 
     local procedure CreatePurchaseOrder(var PurchaseHeader: Record "Purchase Header"; VendorNo: Code[20]; Status: Enum "Purchase Document Status")

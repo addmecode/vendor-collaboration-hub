@@ -10,6 +10,7 @@ page 50103 "AMC Vendor Request"
     ModifyAllowed = false;
     PageType = Document;
     SourceTable = "AMC Vendor Request";
+    UsageCategory = None;
 
     layout
     {

@@ -122,6 +122,7 @@ codeunit 50118 "AMC Vendor Notification"
   begin
     if (VendorRequest."Purchaser Code" <> '') and SalespersonPurchaser.Get(VendorRequest."Purchaser Code") then
       exit(SalespersonPurchaser."E-Mail");
+    exit('');
   end;
 
   [NonDebuggable]
@@ -197,6 +198,13 @@ codeunit 50118 "AMC Vendor Notification"
   end;
 
   // Existing bypass retained with metadata only; see Docs/email-send-transaction-and-test-seam.md.
+  /// <summary>
+  /// Publishes notification metadata before email handoff through the retained legacy test seam.
+  /// </summary>
+  /// <param name="RequestNo">The request being notified; no bearer link or message content is exposed.</param>
+  /// <param name="EmailScenario">The email scenario selected for delivery.</param>
+  /// <param name="IsHandled">Set to true only when the subscriber replaces the standard email handoff.</param>
+  /// <param name="EmailWasSent">The replacement handoff result, used when IsHandled is true.</param>
   [IntegrationEvent(false, false)]
   local procedure OnSendOnBeforeEmailSend(RequestNo: Code[20]; EmailScenario: Enum "Email Scenario"; var IsHandled: Boolean; var EmailWasSent: Boolean)
   begin

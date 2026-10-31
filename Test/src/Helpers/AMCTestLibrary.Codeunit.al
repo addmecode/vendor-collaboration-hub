@@ -74,7 +74,7 @@ codeunit 50149 "AMC Test Library"
     this.EnsureReason('UNAVAIL');
     this.EnsureSubstitution();
     AccessToken.Init();
-    AccessToken.Validate("Token Id", CreateGuid());
+    AccessToken.Validate("Token Id", Guid.CreateSequentialGuid());
     AccessToken.Validate("Request No.", VendorRequest."No.");
     AccessToken.Validate("Vendor No.", Vendor."No.");
     AccessToken.Validate("Token Hash", AccessTokenMgt.HashToken(Format(CreateGuid())));

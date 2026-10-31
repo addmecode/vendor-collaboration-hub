@@ -23,7 +23,7 @@ codeunit 50124 "AMC Token Expiry Job"
     var
         JobQueueEntry: Record "Job Queue Entry";
     begin
-        JobQueueEntry.LockTable();
+        JobQueueEntry.ReadIsolation(IsolationLevel::UpdLock);
         JobQueueEntry.SetRange("Object Type to Run", JobQueueEntry."Object Type to Run"::Codeunit);
         JobQueueEntry.SetRange("Object ID to Run", Codeunit::"AMC Token Expiry Job");
         if not JobQueueEntry.IsEmpty() then
