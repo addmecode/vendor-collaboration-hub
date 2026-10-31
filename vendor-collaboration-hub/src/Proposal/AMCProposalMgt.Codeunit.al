@@ -103,7 +103,7 @@ codeunit 50101 "AMC Proposal Mgt"
     ProposalValidator.Validate(VendorProposal, Result);
     if Result.HasErrors() then begin
       Telemetry.LogProposalValidationFailed(VendorProposal, Result);
-      Error(Result.AsFirstErrorText());
+      Error(ErrorInfo.Create(Result.AsFirstErrorText(), false));
     end;
 
     if IsNullGuid(VendorProposal."Correlation Id") then

@@ -38,7 +38,7 @@ codeunit 50118 "AMC Vendor Notification"
     RawToken := AccessTokenMgt.Issue(RequestNo);
     AccessLink := this.CreateAccessLink(VendorRequest, RawToken);
     this.Prepare(VendorRequest, AccessLink, EmailMessage);
-    this.OnSendOnBeforeEmailSend(RequestNo, Enum::"Email Scenario"::"Vendor Collaboration", IsHandled, EmailWasSent);
+    this.OnSendOnBeforeEmailSend(RequestNo, Enum::"Email Scenario"::"AMC Vendor Collaboration", IsHandled, EmailWasSent);
     if not IsHandled then
       EmailWasSent := this.TrySend(Email, EmailMessage);
     if not EmailWasSent then begin
@@ -59,7 +59,7 @@ codeunit 50118 "AMC Vendor Notification"
   procedure Prepare(RequestNo: Code[20]; AccessLink: Text; var EmailMessage: Codeunit "Email Message"; var EmailScenario: Enum "Email Scenario")
   begin
     this.Prepare(RequestNo, AccessLink, EmailMessage);
-    EmailScenario := Enum::"Email Scenario"::"Vendor Collaboration";
+    EmailScenario := Enum::"Email Scenario"::"AMC Vendor Collaboration";
   end;
 
   [NonDebuggable]
@@ -192,13 +192,13 @@ codeunit 50118 "AMC Vendor Notification"
   [NonDebuggable]
   local procedure TrySend(Email: Codeunit Email; EmailMessage: Codeunit "Email Message")
   begin
-    if not Email.Send(EmailMessage, Enum::"Email Scenario"::"Vendor Collaboration") then
+    if not Email.Send(EmailMessage, Enum::"Email Scenario"::"AMC Vendor Collaboration") then
       Error(this.EmailNotSentErr);
   end;
 
   // Existing bypass retained with metadata only; see Docs/email-send-transaction-and-test-seam.md.
   [IntegrationEvent(false, false)]
-  procedure OnSendOnBeforeEmailSend(RequestNo: Code[20]; EmailScenario: Enum "Email Scenario"; var IsHandled: Boolean; var EmailWasSent: Boolean)
+  local procedure OnSendOnBeforeEmailSend(RequestNo: Code[20]; EmailScenario: Enum "Email Scenario"; var IsHandled: Boolean; var EmailWasSent: Boolean)
   begin
   end;
 

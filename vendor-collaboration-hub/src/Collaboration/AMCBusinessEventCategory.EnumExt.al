@@ -4,7 +4,7 @@ using System.Integration;
 
 enumextension 50101 "AMC Business Event Category" extends EventCategory
 {
-  value(50101; "Vendor Collaboration")
+  value(50101; "AMC Vendor Collaboration")
   {
     Caption = 'Vendor Collaboration';
   }

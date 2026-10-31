@@ -5,6 +5,7 @@ using System.Media;
 
 codeunit 50109 "AMC Install"
 {
+  Access = Internal;
   Subtype = Install;
 
   [EventSubscriber(ObjectType::Codeunit, Codeunit::"Guided Experience", OnRegisterAssistedSetup, '', false, false)]

@@ -150,7 +150,7 @@ page 50106 "AMC Vendor Proposal"
                 begin
                     ProposalValidator.Validate(Rec, ValidationResult);
                     if ValidationResult.HasErrors() then
-                        Error(ValidationResult.AsDisplayText());
+                        Error(ErrorInfo.Create(ValidationResult.AsDisplayText(), false));
 
                     Message(ProposalIsValidMsg);
                 end;

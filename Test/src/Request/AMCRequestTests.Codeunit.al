@@ -686,7 +686,7 @@ codeunit 50131 "AMC Request Tests"
 
         LastErrorText := GetLastErrorText();
         this.UnbindEmailSendHandler(EmailSendHandler);
-        Error(LastErrorText);
+        Error(ErrorInfo.Create(LastErrorText, false));
     end;
 
     [TryFunction]

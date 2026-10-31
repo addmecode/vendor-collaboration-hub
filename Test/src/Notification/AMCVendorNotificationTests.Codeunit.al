@@ -70,7 +70,7 @@ codeunit 50144 "AMC Vendor Notification Tests"
     VendorNotification.Prepare(RequestNo, 'https://portal.contoso.com/access', EmailMessage, EmailScenario);
 
     // Then
-    this.Assert.AreEqual(Enum::"Email Scenario"::"Vendor Collaboration", EmailScenario, 'The collaboration email scenario must be used.');
+    this.Assert.AreEqual(Enum::"Email Scenario"::"AMC Vendor Collaboration", EmailScenario, 'The collaboration email scenario must be used.');
     Body := EmailMessage.GetBody();
     this.Assert.IsTrue(StrPos(Body, '<a href="https://portal.contoso.com/access">Open vendor request</a>') > 0, 'The prepared notification must retain the access link.');
     this.Assert.IsTrue(EmailMessage.GetHeader('Reply-To', ReplyTo), 'The prepared notification must include a Reply-To header.');

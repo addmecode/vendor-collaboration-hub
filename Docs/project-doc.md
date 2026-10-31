@@ -1539,7 +1539,7 @@ the entire reason this layer exists.
 ```al
 [ExternalBusinessEvent('VendorProposalSubmitted', 'Vendor proposal submitted',
     'Raised when a vendor submits a proposal for a purchase order.', ...)]
-procedure VendorProposalSubmitted(ProposalNo: Code[20]; VendorNo: Code[20];
+internal procedure VendorProposalSubmitted(ProposalNo: Code[20]; VendorNo: Code[20];
                                   PurchaseOrderNo: Code[20]; RequestNo: Code[20])
 begin
 end;
@@ -2083,7 +2083,7 @@ AMC Api Vendor Proposal.OnInsertRecord
   4. Request exists, belongs to this vendor, is open?  else VCH-VAL-0001
   5. insert header + all nested lines
   6. AMC Proposal Validator.Validate(proposal, Result) Result.HasErrors ->
-                                                       Error(Result.AsErrorText)
+                                                       Error(ErrorInfo.Create(Result.AsErrorText(), false))
                                                        -> full rollback
   7. Status := Submitted, Submitted Date Time := now
   8. log ProposalReceived + ProposalSubmitted, telemetry VCH0201/VCH0203
@@ -2775,9 +2775,9 @@ bc/test/src/
                AMCConfirmHandlerTests.Codeunit.al          50135
                AMCChangeQtyHandlerTests.Codeunit.al        50136
                AMCChangeDateHandlerTests.Codeunit.al       50137
-               AMCSplitDeliveryHandlerTests.Codeunit.al    50138
-               AMCSubstituteItemHandlerTests.Codeunit.al   50139
-               AMCCancelRemainderHandlerTests.Codeunit.al  50140
+               AMCSplitDeliveryTests.Codeunit.al           50138
+               AMCSubstituteItemTests.Codeunit.al          50139
+               AMCCancelRemainderTests.Codeunit.al         50140
   Locking/     AMCOrderLockTests.Codeunit.al               50141
   Api/         AMCApiTests.Codeunit.al                     50142
   Access/      AMCAccessTokenTests.Codeunit.al             50143

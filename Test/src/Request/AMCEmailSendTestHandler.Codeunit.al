@@ -21,7 +21,7 @@ codeunit 50145 "AMC Email Send Test Handler"
     end;
 
     [EventSubscriber(ObjectType::Codeunit, Codeunit::"AMC Vendor Notification", OnSendOnBeforeEmailSend, '', false, false)]
-    procedure OnSendOnBeforeEmailSend(RequestNo: Code[20]; EmailScenario: Enum "Email Scenario"; var IsHandled: Boolean; var EmailWasSent: Boolean)
+    local procedure OnSendOnBeforeEmailSend(RequestNo: Code[20]; EmailScenario: Enum "Email Scenario"; var IsHandled: Boolean; var EmailWasSent: Boolean)
     begin
         IsHandled := true;
         EmailWasSent := this.EmailHandOffSucceeds;

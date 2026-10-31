@@ -17,6 +17,7 @@ table 50103 "AMC Vendor Proposal"
         field(1; "No."; Code[20])
         {
             Caption = 'No.';
+            NotBlank = true;
         }
         field(2; "Request No."; Code[20])
         {

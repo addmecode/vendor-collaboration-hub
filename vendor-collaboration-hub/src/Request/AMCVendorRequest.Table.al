@@ -18,6 +18,7 @@ table 50101 "AMC Vendor Request"
         field(1; "No."; Code[20])
         {
             Caption = 'No.';
+            NotBlank = true;
         }
         field(2; "Vendor No."; Code[20])
         {

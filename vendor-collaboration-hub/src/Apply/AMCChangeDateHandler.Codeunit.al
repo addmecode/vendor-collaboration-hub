@@ -23,7 +23,7 @@ codeunit 50113 "AMC Change Date Handler" implements "AMC IProposalLineHandler"
     this.GetRequestLine(ProposalLine, RequestLine);
     this.Validate(ProposalLine, RequestLine, Result);
     if Result.HasErrors() then
-      Error(Result.AsErrorText());
+      Error(ErrorInfo.Create(Result.AsErrorText(), false));
 
     PurchaseLine.Get(PurchaseHeader."Document Type", PurchaseHeader."No.", RequestLine."Purchase Line No.");
     PurchaseLine.Validate("Promised Receipt Date", ProposalLine."Proposed Delivery Date");

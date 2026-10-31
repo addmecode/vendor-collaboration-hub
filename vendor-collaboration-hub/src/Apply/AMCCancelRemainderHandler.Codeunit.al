@@ -26,7 +26,7 @@ codeunit 50116 "AMC Cancel Remainder Handler" implements "AMC IProposalLineHandl
     this.GetRequestLine(ProposalLine, RequestLine);
     this.Validate(ProposalLine, RequestLine, Result);
     if Result.HasErrors() then
-      Error(Result.AsErrorText());
+      Error(ErrorInfo.Create(Result.AsErrorText(), false));
 
     PurchaseLine.Get(PurchaseHeader."Document Type", PurchaseHeader."No.", RequestLine."Purchase Line No.");
     PurchaseLine.Validate(Quantity, PurchaseLine."Quantity Received");
