@@ -53,7 +53,7 @@ codeunit 50100 "AMC Request Mgt"
         PurchaseHeader.Validate("AMC Collaboration Status", VendorRequest.Status);
         PurchaseHeader.Modify(true);
 
-        CollabLog.LogEvent("AMC Source Type"::Request, RequestNo, 0, "AMC Collab Entry Type"::RequestCreated, "AMC Actor Type"::Buyer, '', UserId(), RequestCreatedDescriptionLbl, CreateGuid());
+        CollabLog.LogEvent("AMC Source Type"::Request, RequestNo, 0, "AMC Collab Entry Type"::RequestCreated, "AMC Actor Type"::Buyer, '', CopyStr(UserId(), 1, 50), RequestCreatedDescriptionLbl, CreateGuid());
         Telemetry.LogRequestCreated(RequestNo, PurchaseHeader."Buy-from Vendor No.", PurchaseHeader."No.", LineCount);
 
         exit(RequestNo);
@@ -111,7 +111,7 @@ codeunit 50100 "AMC Request Mgt"
         end;
         OrderLockMgt.RestoreSuppressionContext(PreviousPurchaseOrderNo, PreviousRequestNo);
 
-        CollabLog.LogEvent("AMC Source Type"::Request, RequestNo, 0, "AMC Collab Entry Type"::OrderUnlocked, "AMC Actor Type"::Buyer, '', UserId(), RequestCancelledDescriptionLbl, CreateGuid());
+        CollabLog.LogEvent("AMC Source Type"::Request, RequestNo, 0, "AMC Collab Entry Type"::OrderUnlocked, "AMC Actor Type"::Buyer, '', CopyStr(UserId(), 1, 50), RequestCancelledDescriptionLbl, CreateGuid());
     end;
 
     procedure CloseAfterApply(var VendorRequest: Record "AMC Vendor Request"; var PurchaseHeader: Record "Purchase Header")
@@ -157,7 +157,7 @@ codeunit 50100 "AMC Request Mgt"
         VendorNotification.Send(VendorRequest."No.");
         if VendorRequest.Status = VendorRequest.Status::Draft then begin
             this.SetStatus(VendorRequest, VendorRequest.Status::"Awaiting Vendor");
-            CollabLog.LogEvent("AMC Source Type"::Request, VendorRequest."No.", 0, "AMC Collab Entry Type"::RequestSent, "AMC Actor Type"::Buyer, '', UserId(), RequestSentDescriptionLbl, CreateGuid());
+            CollabLog.LogEvent("AMC Source Type"::Request, VendorRequest."No.", 0, "AMC Collab Entry Type"::RequestSent, "AMC Actor Type"::Buyer, '', CopyStr(UserId(), 1, 50), RequestSentDescriptionLbl, CreateGuid());
         end;
         VendorRequest.Validate("Sent Date Time", CurrentDateTime());
         VendorRequest.Modify(true);

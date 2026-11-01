@@ -42,6 +42,7 @@ codeunit 50134 "AMC Apply Orchestration Tests"
         this.Assert.IsTrue(VendorProposal.Get(ProposalNo), 'The expected vendor proposal record must exist.');
         this.Assert.AreEqual(VendorProposal.Status::Applied, VendorProposal.Status, 'A successful decision must apply the proposal.');
         this.Assert.AreNotEqual(0DT, VendorProposal."Decision Date Time", 'A successful decision must be stamped.');
+        this.Assert.AreEqual(UserId(), VendorProposal."Decision User ID", 'The decision audit must retain the full current user ID.');
         this.Assert.AreEqual('Approved for test.', VendorProposal."Decision Reason", 'A successful decision must retain its audit reason.');
         this.Assert.IsTrue(PurchaseHeader.Get(PurchaseHeader."Document Type"::Order, PurchaseHeader."No."), 'The expected purchase header record must exist.');
         this.Assert.AreEqual(PurchaseHeader.Status::Released, PurchaseHeader.Status, 'Applying a proposal must release the purchase order.');
@@ -119,7 +120,7 @@ codeunit 50134 "AMC Apply Orchestration Tests"
         TempDecisionContext.Init();
         TempDecisionContext.Validate("No.", ProposalNo);
         TempDecisionContext.Validate(Status, TempDecisionContext.Status::"In Review");
-        TempDecisionContext.Validate("Decision User ID", UserId());
+        TempDecisionContext.Validate("Decision User ID", CopyStr(UserId(), 1, MaxStrLen(TempDecisionContext."Decision User ID")));
         Commit(); // The Boolean Codeunit.Run call requires no pending writes and rolls back only the worker attempt.
 
         // When

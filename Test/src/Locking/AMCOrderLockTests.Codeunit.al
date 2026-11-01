@@ -256,7 +256,7 @@ codeunit 50141 "AMC Order Lock Tests"
         this.TestLibrary.CreatePurchaseOrder(PurchaseHeader, this.CreateRequestNo(), VendorNo);
         this.TestLibrary.EnsurePurchaser('BUYER');
         PurchaseHeader.Validate("Purchaser Code", 'BUYER');
-        PurchaseHeader.Validate("Assigned User ID", UserId());
+        PurchaseHeader.Validate("Assigned User ID", CopyStr(UserId(), 1, MaxStrLen(PurchaseHeader."Assigned User ID")));
         PurchaseHeader.Validate("Currency Code", 'USD');
         PurchaseHeader.Validate(Status, PurchaseHeader.Status::Open);
         PurchaseHeader.Modify(false);

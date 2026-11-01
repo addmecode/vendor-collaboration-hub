@@ -70,6 +70,7 @@ codeunit 50121 "AMC Idempotency Mgt"
     Payload.Add('vendorProposalLines', Lines);
     Payload.WriteTo(PayloadText);
     // Convert only at the standard Option-based API boundary (SHA256 = 2).
-    exit(UpperCase(CryptographyManagement.GenerateHash(PayloadText, HashAlgorithmType::SHA256.AsInteger())));
+    // SHA256 produces exactly 64 hexadecimal characters; the bound preserves the full digest.
+    exit(CopyStr(UpperCase(CryptographyManagement.GenerateHash(PayloadText, HashAlgorithmType::SHA256.AsInteger())), 1, 64));
   end;
 }

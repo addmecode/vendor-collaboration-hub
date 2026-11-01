@@ -46,13 +46,13 @@ codeunit 50118 "AMC Vendor Notification"
       LastErrorText := GetLastErrorText();
       if LastErrorText = '' then
         LastErrorText := this.EmailNotSentErr;
-      CollabLog.LogEvent("AMC Source Type"::Request, VendorRequest."No.", 0, "AMC Collab Entry Type"::LinkSendFailed, "AMC Actor Type"::Buyer, '', UserId(), CopyStr(LastErrorText, 1, 250), CreateGuid());
+      CollabLog.LogEvent("AMC Source Type"::Request, VendorRequest."No.", 0, "AMC Collab Entry Type"::LinkSendFailed, "AMC Actor Type"::Buyer, '', CopyStr(UserId(), 1, 50), CopyStr(LastErrorText, 1, 250), CreateGuid());
       Telemetry.LogLinkSendFailed(VendorRequest."No.", VendorRequest."Vendor No.", VendorRequest."Purchase Order No.");
       Error(LinkSendFailedErr, LastErrorText);
     end;
 
     this.StampTokenSent(AccessTokenMgt.HashToken(RawToken), Recipient);
-    CollabLog.LogEvent("AMC Source Type"::Request, VendorRequest."No.", 0, "AMC Collab Entry Type"::LinkSent, "AMC Actor Type"::Buyer, '', UserId(), this.LinkSentDescriptionLbl, CreateGuid());
+    CollabLog.LogEvent("AMC Source Type"::Request, VendorRequest."No.", 0, "AMC Collab Entry Type"::LinkSent, "AMC Actor Type"::Buyer, '', CopyStr(UserId(), 1, 50), this.LinkSentDescriptionLbl, CreateGuid());
     Telemetry.LogLinkSent(VendorRequest."No.", VendorRequest."Vendor No.", VendorRequest."Purchase Order No.");
   end;
 

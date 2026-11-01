@@ -43,7 +43,7 @@ codeunit 50124 "AMC Token Expiry Job"
         JobQueueEntry.Validate("Run on Saturdays", true);
         JobQueueEntry.Validate("Run on Sundays", true);
         JobQueueEntry.Validate("No. of Minutes between Runs", 1440);
-        JobQueueEntry.Validate("User ID", UserId());
+        JobQueueEntry.Validate("User ID", CopyStr(UserId(), 1, MaxStrLen(JobQueueEntry."User ID")));
         JobQueueEntry.Insert(true);
         JobQueueEntry.SetStatus(JobQueueEntry.Status::Ready);
         exit(true);

@@ -418,7 +418,7 @@ codeunit 50132 "AMC Collab Log Tests"
         RequestNo: Code[20];
     begin
         RequestNo := this.CreateRequestNo();
-        CollabLog.LogComment("AMC Source Type"::Request, RequestNo, 0, "AMC Actor Type"::Buyer, '', UserId(), 'Vendor-facing comment.', CreateGuid());
+        CollabLog.LogComment("AMC Source Type"::Request, RequestNo, 0, "AMC Actor Type"::Buyer, '', CopyStr(UserId(), 1, MaxStrLen(CollaborationEntry."User ID")), 'Vendor-facing comment.', CreateGuid());
         CollabLog.LogEvent("AMC Source Type"::Request, RequestNo, 0, "AMC Collab Entry Type"::RequestCreated, "AMC Actor Type"::System, '', '', 'Vendor request created.', CreateGuid());
         CollaborationEntry.SetRange("Source Type", "AMC Source Type"::Request);
         CollaborationEntry.SetRange("Source No.", RequestNo);

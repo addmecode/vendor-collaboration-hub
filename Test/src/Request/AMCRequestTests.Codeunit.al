@@ -730,7 +730,7 @@ codeunit 50131 "AMC Request Tests"
         this.TestLibrary.CreatePurchaseOrder(PurchaseHeader, this.CreateRequestNo(), VendorNo);
         this.TestLibrary.EnsurePurchaser('BUYER');
         PurchaseHeader.Validate("Purchaser Code", 'BUYER');
-        PurchaseHeader.Validate("Assigned User ID", UserId());
+        PurchaseHeader.Validate("Assigned User ID", CopyStr(UserId(), 1, MaxStrLen(PurchaseHeader."Assigned User ID")));
         PurchaseHeader.Validate("Currency Code", 'USD');
         PurchaseHeader.Validate(Status, Status);
         PurchaseHeader.Modify(false);

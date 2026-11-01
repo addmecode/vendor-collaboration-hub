@@ -41,7 +41,7 @@ codeunit 50117 "AMC Access Token Mgt"
         VendorAccessToken.Validate("Expires At", IssuedAt + this.GetTokenLifetime(CollaborationSetup."Link Validity Days"));
         VendorAccessToken.Insert(true);
 
-        CollabLog.LogEvent("AMC Source Type"::Request, VendorRequest."No.", 0, "AMC Collab Entry Type"::LinkIssued, "AMC Actor Type"::Buyer, '', UserId(), this.LinkIssuedDescriptionLbl, CreateGuid());
+        CollabLog.LogEvent("AMC Source Type"::Request, VendorRequest."No.", 0, "AMC Collab Entry Type"::LinkIssued, "AMC Actor Type"::Buyer, '', CopyStr(UserId(), 1, 50), this.LinkIssuedDescriptionLbl, CreateGuid());
         exit(RawToken);
     end;
 
@@ -138,7 +138,8 @@ codeunit 50117 "AMC Access Token Mgt"
         HashAlgorithmType: Enum "Hash Algorithm";
     begin
         // The standard hashing API still takes an Option; SHA256 has ordinal 2 in both types.
-        exit(UpperCase(CryptographyManagement.GenerateHash(RawToken, HashAlgorithmType::SHA256.AsInteger())));
+        // SHA256 produces exactly 64 hexadecimal characters; the bound preserves the full digest.
+        exit(CopyStr(UpperCase(CryptographyManagement.GenerateHash(RawToken, HashAlgorithmType::SHA256.AsInteger())), 1, 64));
     end;
 
     local procedure AssertActive(VendorAccessToken: Record "AMC Vendor Access Token")
@@ -191,7 +192,7 @@ codeunit 50117 "AMC Access Token Mgt"
     var
         CollabLog: Codeunit "AMC Collab Log";
     begin
-        CollabLog.LogEvent("AMC Source Type"::Request, VendorAccessToken."Request No.", 0, EntryType, ActorType, '', UserId(), Description, CreateGuid());
+        CollabLog.LogEvent("AMC Source Type"::Request, VendorAccessToken."Request No.", 0, EntryType, ActorType, '', CopyStr(UserId(), 1, 50), Description, CreateGuid());
     end;
 
     var

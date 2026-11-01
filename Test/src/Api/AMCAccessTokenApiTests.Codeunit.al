@@ -49,6 +49,7 @@ codeunit 50146 "AMC Access Token API Tests"
     this.AssertUnscopedTokenScopeIsRejected(TokenScopeRequiredErr);
     this.AssertTokenHashScopeIsRejected(LowerCase(VendorAccessToken."Token Hash"));
     this.AssertTokenHashScopeIsRejected(CopyStr(VendorAccessToken."Token Hash", 1, 63));
+    this.AssertTokenHashScopeIsRejected(VendorAccessToken."Token Hash" + 'A');
     this.AssertTokenHashScopeIsRejected(VendorAccessToken."Token Hash" + '*');
     this.AssertTokenHashScopeIsRejected(VendorAccessToken."Token Hash" + '..' + OtherVendorAccessToken."Token Hash");
     this.AssertTokenHashScopeIsRejected('<>' + VendorAccessToken."Token Hash");

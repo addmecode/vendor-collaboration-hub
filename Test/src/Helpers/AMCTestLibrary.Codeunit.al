@@ -242,7 +242,7 @@ codeunit 50149 "AMC Test Library"
     Vendor.Modify(false);
     if not UserSetup.Get(UserId()) then begin
       UserSetup.Init();
-      UserSetup.Validate("User ID", UserId());
+      UserSetup.Validate("User ID", CopyStr(UserId(), 1, MaxStrLen(UserSetup."User ID")));
       UserSetup.Insert(false);
     end;
     PurchaseHeader.Init();
