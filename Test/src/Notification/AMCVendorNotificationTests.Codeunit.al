@@ -13,6 +13,15 @@ using System.TestLibraries.Utilities;
 codeunit 50144 "AMC Vendor Notification Tests"
 {
   Subtype = Test;
+  Permissions = tabledata "AMC Collaboration Setup" = m,
+                tabledata "AMC Vendor Access Token" = r,
+                tabledata "AMC Vendor Request" = r,
+                tabledata "No. Series" = i,
+                tabledata "No. Series Line" = i,
+                tabledata "Purchase Header" = m,
+                tabledata "Purchase Line" = i,
+                tabledata "Salesperson/Purchaser" = i,
+                tabledata Vendor = i;
 
   var
     Assert: Codeunit "Library Assert";

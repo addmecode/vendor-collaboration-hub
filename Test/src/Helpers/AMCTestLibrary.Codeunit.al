@@ -21,6 +21,37 @@ using System.TestLibraries.Utilities;
 
 codeunit 50149 "AMC Test Library"
 {
+  Permissions = tabledata "AMC Collaboration Setup" = rim,
+                tabledata "AMC Vendor Access Token" = i,
+                tabledata "AMC Vendor Request" = i,
+                tabledata "AMC Vendor Request Line" = i,
+                tabledata "Currency Exchange Rate" = ri,
+                tabledata "G/L Account" = ri,
+                tabledata "Gen. Business Posting Group" = ri,
+                tabledata "Gen. Product Posting Group" = ri,
+                tabledata "General Ledger Setup" = ri,
+                tabledata "General Posting Setup" = ri,
+                tabledata "Inventory Posting Group" = ri,
+                tabledata "Inventory Posting Setup" = ri,
+                tabledata "Inventory Setup" = rim,
+                tabledata Item = rim,
+                tabledata "Item Substitution" = ri,
+                tabledata "Item Variant" = ri,
+                tabledata Location = ri,
+                tabledata "No. Series" = i,
+                tabledata "No. Series Line" = i,
+                tabledata "Purchase Header" = i,
+                tabledata "Purchases & Payables Setup" = rim,
+                tabledata "Reason Code" = ri,
+                tabledata "Salesperson/Purchaser" = ri,
+                tabledata "Unit of Measure" = ri,
+                tabledata "User Setup" = ri,
+                tabledata "VAT Business Posting Group" = ri,
+                tabledata "VAT Posting Setup" = ri,
+                tabledata "VAT Product Posting Group" = ri,
+                tabledata Vendor = rim,
+                tabledata "Vendor Posting Group" = ri;
+
   procedure CreateWriteContext(var VendorRequest: Record "AMC Vendor Request"; var AccessToken: Record "AMC Vendor Access Token")
   var
     Vendor: Record Vendor;

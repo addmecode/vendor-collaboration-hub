@@ -10,6 +10,11 @@ using System.TestLibraries.Utilities;
 codeunit 50141 "AMC Order Lock Tests"
 {
     Subtype = Test;
+    Permissions = tabledata "AMC Vendor Request" = ri,
+                  tabledata Currency = ri,
+                  tabledata "Purchase Header" = rmd,
+                  tabledata "Purchase Line" = rimd,
+                  tabledata Vendor = i;
 
     var
         Assert: Codeunit "Library Assert";

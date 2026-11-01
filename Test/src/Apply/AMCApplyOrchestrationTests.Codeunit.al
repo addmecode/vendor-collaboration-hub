@@ -8,6 +8,14 @@ using System.TestLibraries.Utilities;
 codeunit 50134 "AMC Apply Orchestration Tests"
 {
     Subtype = Test;
+    Permissions = tabledata "AMC Collaboration Entry" = r,
+                  tabledata "AMC Vendor Proposal" = rim,
+                  tabledata "AMC Vendor Proposal Line" = rim,
+                  tabledata "AMC Vendor Request" = ri,
+                  tabledata "AMC Vendor Request Line" = ri,
+                  tabledata "Purchase Header" = rm,
+                  tabledata "Purchase Line" = ri,
+                  tabledata Vendor = i;
 
     var
         Assert: Codeunit "Library Assert";

@@ -7,6 +7,13 @@ using System.TestLibraries.Utilities;
 codeunit 50147 "AMC Write API Tests"
 {
   Subtype = Test;
+  Permissions = tabledata "AMC Collaboration Entry" = r,
+                tabledata "AMC Collaboration Setup" = rm,
+                tabledata "AMC Vendor Access Token" = m,
+                tabledata "AMC Vendor Proposal" = r,
+                tabledata "AMC Vendor Proposal Line" = ri,
+                tabledata "AMC Vendor Request" = rm,
+                tabledata Vendor = rm;
 
   [Test]
   procedure GivenFullAnswer_WhenSubmitting_ThenProposalAndLinesAreSubmittedOnce()

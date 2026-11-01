@@ -12,6 +12,18 @@ using System.TestLibraries.Utilities;
 codeunit 50139 "AMC Substitute Item Tests"
 {
   Subtype = Test;
+  Permissions = tabledata "AMC Vendor Proposal" = i,
+                tabledata "AMC Vendor Proposal Line" = im,
+                tabledata "AMC Vendor Request" = i,
+                tabledata "AMC Vendor Request Line" = i,
+                tabledata "Gen. Product Posting Group" = i,
+                tabledata "Inventory Posting Group" = i,
+                tabledata Item = rm,
+                tabledata "Item Substitution" = i,
+                tabledata "Purchase Line" = ri,
+                tabledata "VAT Product Posting Group" = i,
+                tabledata Vendor = i,
+                tabledata "Vendor Posting Group" = i;
 
   var
     Assert: Codeunit "Library Assert";

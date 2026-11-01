@@ -8,6 +8,12 @@ using System.TestLibraries.Utilities;
 codeunit 50137 "AMC Change Date Handler Tests"
 {
   Subtype = Test;
+  Permissions = tabledata "AMC Vendor Proposal" = i,
+                tabledata "AMC Vendor Proposal Line" = im,
+                tabledata "AMC Vendor Request" = i,
+                tabledata "AMC Vendor Request Line" = i,
+                tabledata "Purchase Line" = rim,
+                tabledata Vendor = i;
 
   var
     Assert: Codeunit "Library Assert";

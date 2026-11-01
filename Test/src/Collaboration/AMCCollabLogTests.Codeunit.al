@@ -6,6 +6,8 @@ using System.TestLibraries.Utilities;
 codeunit 50132 "AMC Collab Log Tests"
 {
     Subtype = Test;
+    Permissions = tabledata "AMC Collaboration Entry" = rimd,
+                  tabledata "AMC Vendor Proposal" = i;
 
     var
         Assert: Codeunit "Library Assert";

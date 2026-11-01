@@ -6,6 +6,7 @@ using System.TestLibraries.Utilities;
 codeunit 50146 "AMC Access Token API Tests"
 {
   Subtype = Test;
+  Permissions = tabledata "AMC Vendor Access Token" = r;
 
   var
     Assert: Codeunit "Library Assert";

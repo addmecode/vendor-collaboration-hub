@@ -7,6 +7,8 @@ using System.Threading;
 codeunit 50130 "AMC Setup Tests"
 {
     Subtype = Test;
+    Permissions = tabledata "AMC Collaboration Setup" = rm,
+                  tabledata "Job Queue Entry" = rd;
 
     var
         Assert: Codeunit "Library Assert";

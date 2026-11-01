@@ -6,6 +6,10 @@ using System.TestLibraries.Utilities;
 codeunit 50148 "AMC Comment API Tests"
 {
   Subtype = Test;
+  Permissions = tabledata "AMC Collaboration Entry" = r,
+                tabledata "AMC Vendor Access Token" = m,
+                tabledata "AMC Vendor Proposal" = m,
+                tabledata "AMC Vendor Request" = m;
 
   [Test]
   procedure GivenRequestComment_WhenWriting_ThenCommentTypeAndVendorAuditFieldsAreForced()

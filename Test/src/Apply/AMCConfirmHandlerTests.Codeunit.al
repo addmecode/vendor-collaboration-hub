@@ -8,6 +8,12 @@ using System.TestLibraries.Utilities;
 codeunit 50135 "AMC Confirm Handler Tests"
 {
   Subtype = Test;
+  Permissions = tabledata "AMC Vendor Proposal" = i,
+                tabledata "AMC Vendor Proposal Line" = i,
+                tabledata "AMC Vendor Request" = i,
+                tabledata "AMC Vendor Request Line" = i,
+                tabledata "Purchase Line" = ri,
+                tabledata Vendor = i;
 
   var
     Assert: Codeunit "Library Assert";

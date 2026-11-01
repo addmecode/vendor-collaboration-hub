@@ -8,6 +8,11 @@ using System.Threading;
 codeunit 50143 "AMC Access Token Tests"
 {
     Subtype = Test;
+    Permissions = tabledata "AMC Collaboration Entry" = r,
+                  tabledata "AMC Vendor Access Token" = rm,
+                  tabledata "AMC Vendor Request" = i,
+                  tabledata "Job Queue Entry" = rd,
+                  tabledata Vendor = i;
 
     var
         Assert: Codeunit "Library Assert";

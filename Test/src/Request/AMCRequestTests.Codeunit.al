@@ -11,6 +11,17 @@ using System.TestLibraries.Utilities;
 codeunit 50131 "AMC Request Tests"
 {
     Subtype = Test;
+    Permissions = tabledata "AMC Collaboration Entry" = r,
+                  tabledata "AMC Collaboration Setup" = m,
+                  tabledata "AMC Vendor Access Token" = r,
+                  tabledata "AMC Vendor Request" = rid,
+                  tabledata "AMC Vendor Request Line" = r,
+                  tabledata Currency = ri,
+                  tabledata "No. Series" = i,
+                  tabledata "No. Series Line" = i,
+                  tabledata "Purchase Header" = rm,
+                  tabledata "Purchase Line" = rim,
+                  tabledata Vendor = rim;
 
     var
         Assert: Codeunit "Library Assert";
