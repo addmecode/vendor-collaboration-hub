@@ -2,7 +2,7 @@
 
 Stan: 2026-11-01. Wyniki kompilacji z analizatorami skonfigurowanymi w projektach `vendor-collaboration-hub` (App) i `Test`.
 
-Łącznie: **0 błędów, 4 ostrzeżenia i 647 informacji**. Liczby w tabelach oznaczają wystąpienia komunikatów. **PC0037: 0 wystąpień.**
+Łącznie: **0 błędów, 3 ostrzeżenia i 647 informacji**. Liczby w tabelach oznaczają wystąpienia komunikatów. **PC0037: 0 wystąpień.**
 
 ## Warning — według kodu reguły
 
@@ -10,7 +10,6 @@ Stan: 2026-11-01. Wyniki kompilacji z analizatorami skonfigurowanymi w projektac
 |---|---|---:|---:|---:|
 | `AS0081` | Ostrzeżenie dotyczące `internalsVisibleTo` | 1 | 0 | 1 |
 | `AS0092` | Brak konfiguracji Application Insights | 1 | 1 | 2 |
-| `LC0090` | Zbyt wysoka złożoność poznawcza | 1 | 0 | 1 |
 
 ## Info — według kodu reguły
 

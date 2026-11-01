@@ -191,25 +191,31 @@ codeunit 50104 "AMC Apply Proposal Svc"
   var
     VendorProposalLine: Record "AMC Vendor Proposal Line";
     VendorRequestLine: Record "AMC Vendor Request Line";
-    ConfirmedQuantity: Decimal;
   begin
     VendorRequestLine.SetRange("Request No.", RequestNo);
     if VendorRequestLine.FindSet(true) then
       repeat
-        ConfirmedQuantity := this.GetConfirmedQuantity(ProposalNo, VendorRequestLine."Line No.", VendorProposalLine);
-        if ConfirmedQuantity > VendorRequestLine."Requested Quantity" then
-          ConfirmedQuantity := VendorRequestLine."Requested Quantity";
-        VendorRequestLine.Validate("Confirmed Quantity", ConfirmedQuantity);
-        VendorRequestLine.Validate("Outstanding Quantity", VendorRequestLine."Requested Quantity" - ConfirmedQuantity);
-        if VendorRequestLine."Outstanding Quantity" <= 0 then
-          VendorRequestLine.Validate(Status, VendorRequestLine.Status::Confirmed)
-        else
-          if ConfirmedQuantity > 0 then
-            VendorRequestLine.Validate(Status, VendorRequestLine.Status::"Partially Confirmed")
-          else
-            VendorRequestLine.Validate(Status, VendorRequestLine.Status::Open);
-        VendorRequestLine.Modify(true);
+        this.RecalculateRequestLine(ProposalNo, VendorRequestLine, VendorProposalLine);
       until VendorRequestLine.Next() = 0;
+  end;
+
+  local procedure RecalculateRequestLine(ProposalNo: Code[20]; var VendorRequestLine: Record "AMC Vendor Request Line"; var VendorProposalLine: Record "AMC Vendor Proposal Line")
+  var
+    ConfirmedQuantity: Decimal;
+  begin
+    ConfirmedQuantity := this.GetConfirmedQuantity(ProposalNo, VendorRequestLine."Line No.", VendorProposalLine);
+    if ConfirmedQuantity > VendorRequestLine."Requested Quantity" then
+      ConfirmedQuantity := VendorRequestLine."Requested Quantity";
+    VendorRequestLine.Validate("Confirmed Quantity", ConfirmedQuantity);
+    VendorRequestLine.Validate("Outstanding Quantity", VendorRequestLine."Requested Quantity" - ConfirmedQuantity);
+    if VendorRequestLine."Outstanding Quantity" <= 0 then
+      VendorRequestLine.Validate(Status, VendorRequestLine.Status::Confirmed)
+    else
+      if ConfirmedQuantity > 0 then
+        VendorRequestLine.Validate(Status, VendorRequestLine.Status::"Partially Confirmed")
+      else
+        VendorRequestLine.Validate(Status, VendorRequestLine.Status::Open);
+    VendorRequestLine.Modify(true);
   end;
 
   local procedure GetConfirmedQuantity(ProposalNo: Code[20]; RequestLineNo: Integer; var VendorProposalLine: Record "AMC Vendor Proposal Line"): Decimal

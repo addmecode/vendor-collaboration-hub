@@ -52,6 +52,7 @@ codeunit 50134 "AMC Apply Orchestration Tests"
         this.Assert.IsTrue(VendorRequestLine.Get(VendorProposal."Request No.", 10000), 'The expected vendor request line record must exist.');
         this.Assert.AreEqual(10, VendorRequestLine."Confirmed Quantity", 'Applying a confirmed line must recalculate confirmed quantity.');
         this.Assert.AreEqual(0, VendorRequestLine."Outstanding Quantity", 'Applying a confirmed line must clear outstanding quantity.');
+        this.Assert.AreEqual(VendorRequestLine.Status::Confirmed, VendorRequestLine.Status, 'A fully confirmed request line must have Confirmed status.');
         this.AssertProposalHasEntry(ProposalNo, "AMC Collab Entry Type"::ProposalApproved);
         this.AssertProposalHasEntry(ProposalNo, "AMC Collab Entry Type"::ProposalApplied);
         this.Assert.AreEqual(1, this.GetProposalEntryCount(ProposalNo, "AMC Collab Entry Type"::ProposalApplied), 'An applied line with no changed purchase values must still be audited.');
