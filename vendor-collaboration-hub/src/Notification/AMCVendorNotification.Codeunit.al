@@ -65,20 +65,6 @@ codeunit 50118 "AMC Vendor Notification"
   end;
 
   /// <summary>
-  /// Prepares an unsent request email and returns the vendor collaboration email scenario without issuing a token.
-  /// </summary>
-  /// <param name="RequestNo">The persisted request to load.</param>
-  /// <param name="AccessLink">The HTTPS bearer link to include; must not be logged.</param>
-  /// <param name="EmailMessage">Receives the prepared message with configured reply-to and optional order PDF.</param>
-  /// <param name="EmailScenario">Receives the vendor collaboration scenario.</param>
-  [NonDebuggable]
-  procedure Prepare(RequestNo: Code[20]; AccessLink: Text; var EmailMessage: Codeunit "Email Message"; var EmailScenario: Enum "Email Scenario")
-  begin
-    this.Prepare(RequestNo, AccessLink, EmailMessage);
-    EmailScenario := Enum::"Email Scenario"::"AMC Vendor Collaboration";
-  end;
-
-  /// <summary>
   /// Loads the request and prepares an unsent email without issuing a token.
   /// </summary>
   /// <param name="RequestNo">The persisted request to load.</param>

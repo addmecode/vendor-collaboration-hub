@@ -17,7 +17,7 @@ codeunit 50124 "AMC Token Expiry Job"
     /// <summary>
     /// Runs token expiry in the current transaction through access-token management.
     /// </summary>
-    procedure ExpireTokens()
+    local procedure ExpireTokens()
     var
         AccessTokenMgt: Codeunit "AMC Access Token Mgt";
     begin

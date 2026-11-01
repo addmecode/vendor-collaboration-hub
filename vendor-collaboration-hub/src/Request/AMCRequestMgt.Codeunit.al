@@ -24,10 +24,8 @@ codeunit 50100 "AMC Request Mgt"
     procedure CreateFromOrder(var PurchaseHeader: Record "Purchase Header"): Code[20]
     var
         CollaborationSetup: Record "AMC Collaboration Setup";
-        PurchaseLine: Record "Purchase Line";
         Vendor: Record Vendor;
         VendorRequest: Record "AMC Vendor Request";
-        VendorRequestLine: Record "AMC Vendor Request Line";
         CollabLog: Codeunit "AMC Collab Log";
         NoSeries: Codeunit "No. Series";
         Telemetry: Codeunit "AMC Telemetry";
@@ -54,7 +52,7 @@ codeunit 50100 "AMC Request Mgt"
 
         RequestNo := NoSeries.GetNextNo(CollaborationSetup."Request Nos.");
         this.CreateVendorRequest(VendorRequest, RequestNo, PurchaseHeader, Vendor, CollaborationSetup);
-        LineCount := this.CreateVendorRequestLines(VendorRequestLine, RequestNo, PurchaseHeader, PurchaseLine);
+        LineCount := this.CreateVendorRequestLines(RequestNo, PurchaseHeader);
 
         //todo: move to a separate function?
         PurchaseHeader.Validate("AMC Active Request No.", RequestNo);
@@ -344,7 +342,10 @@ codeunit 50100 "AMC Request Mgt"
         exit(CollaborationSetup."Default Response Days");
     end;
 
-    local procedure CreateVendorRequestLines(var VendorRequestLine: Record "AMC Vendor Request Line"; RequestNo: Code[20]; PurchaseHeader: Record "Purchase Header"; var PurchaseLine: Record "Purchase Line") LineCount: Integer
+    local procedure CreateVendorRequestLines(RequestNo: Code[20]; PurchaseHeader: Record "Purchase Header") LineCount: Integer
+    var
+        PurchaseLine: Record "Purchase Line";
+        VendorRequestLine: Record "AMC Vendor Request Line";
     begin
         PurchaseLine.SetRange("Document Type", PurchaseHeader."Document Type");
         PurchaseLine.SetRange("Document No.", PurchaseHeader."No.");

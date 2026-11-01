@@ -20,13 +20,11 @@ codeunit 50123 "AMC Purchase Line Builder"
   /// <param name="PromisedReceiptDate">The promised receipt date validated on the new line.</param>
   /// <param name="NewPurchaseLine">Receives the inserted purchase line; lack of a number gap raises an error.</param>
   procedure Build(OriginPurchaseLine: Record "Purchase Line"; ProposalLine: Record "AMC Vendor Proposal Line"; ItemNo: Code[20]; VariantCode: Code[10]; NewQuantity: Decimal; PromisedReceiptDate: Date; var NewPurchaseLine: Record "Purchase Line")
-  var
-    NextPurchaseLine: Record "Purchase Line";
   begin
     NewPurchaseLine.Init();
     NewPurchaseLine.Validate("Document Type", OriginPurchaseLine."Document Type");
     NewPurchaseLine.Validate("Document No.", OriginPurchaseLine."Document No.");
-    NewPurchaseLine.Validate("Line No.", this.GetLineNoAfterOrigin(OriginPurchaseLine, NextPurchaseLine));
+    NewPurchaseLine.Validate("Line No.", this.GetLineNoAfterOrigin(OriginPurchaseLine));
     NewPurchaseLine.Validate("Buy-from Vendor No.", OriginPurchaseLine."Buy-from Vendor No.");
     NewPurchaseLine.Validate("Pay-to Vendor No.", OriginPurchaseLine."Pay-to Vendor No.");
     NewPurchaseLine.Validate(Type, OriginPurchaseLine.Type);
@@ -45,8 +43,9 @@ codeunit 50123 "AMC Purchase Line Builder"
     NewPurchaseLine.Insert(true);
   end;
 
-  local procedure GetLineNoAfterOrigin(OriginPurchaseLine: Record "Purchase Line"; var NextPurchaseLine: Record "Purchase Line"): Integer
+  local procedure GetLineNoAfterOrigin(OriginPurchaseLine: Record "Purchase Line"): Integer
   var
+    NextPurchaseLine: Record "Purchase Line";
     NextLineNo: Integer;
   begin
     NextPurchaseLine.SetRange("Document Type", OriginPurchaseLine."Document Type");

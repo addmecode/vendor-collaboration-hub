@@ -109,7 +109,7 @@ page 50103 "AMC Vendor Request"
             {
                 ApplicationArea = All;
                 Caption = 'Send';
-                Enabled = this.SendEnabled;
+                Enabled = Rec.Status = Rec.Status::Draft;
                 Image = SendTo;
                 ToolTip = 'Sends the vendor request and an access link to the vendor.';
 
@@ -134,11 +134,6 @@ page 50103 "AMC Vendor Request"
         }
     }
 
-    trigger OnAfterGetCurrRecord()
-    begin
-        this.SendEnabled := Rec.Status = Rec.Status::Draft;
-    end;
-
     local procedure SendRequest()
     var
         RequestMgt: Codeunit "AMC Request Mgt";
@@ -146,7 +141,4 @@ page 50103 "AMC Vendor Request"
         RequestMgt.Send(Rec);
         CurrPage.Update(false);
     end;
-
-    var
-        SendEnabled: Boolean;
 }

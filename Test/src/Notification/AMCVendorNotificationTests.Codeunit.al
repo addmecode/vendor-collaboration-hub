@@ -64,12 +64,11 @@ codeunit 50144 "AMC Vendor Notification Tests"
   end;
 
   [Test]
-  procedure GivenVendorRequest_WhenPreparingNotification_ThenCollaborationScenarioAndBuyerReplyToAreUsed()
+  procedure GivenVendorRequest_WhenPreparingNotification_ThenAccessLinkAndBuyerReplyToAreUsed()
   var
     EmailMessage: Codeunit "Email Message";
     VendorNotification: Codeunit "AMC Vendor Notification";
     Body: Text;
-    EmailScenario: Enum "Email Scenario";
     ReplyTo: Text;
     RequestNo: Code[20];
   begin
@@ -77,10 +76,9 @@ codeunit 50144 "AMC Vendor Notification Tests"
     RequestNo := this.CreateVendorRequest('portal@contoso.com', 'vendor@contoso.com', 'buyer@contoso.com', '');
 
     // When
-    VendorNotification.Prepare(RequestNo, 'https://portal.contoso.com/access', EmailMessage, EmailScenario);
+    VendorNotification.Prepare(RequestNo, 'https://portal.contoso.com/access', EmailMessage);
 
     // Then
-    this.Assert.AreEqual(Enum::"Email Scenario"::"AMC Vendor Collaboration", EmailScenario, 'The collaboration email scenario must be used.');
     Body := EmailMessage.GetBody();
     this.Assert.IsTrue(StrPos(Body, '<a href="https://portal.contoso.com/access">Open vendor request</a>') > 0, 'The prepared notification must retain the access link.');
     this.Assert.IsTrue(EmailMessage.GetHeader('Reply-To', ReplyTo), 'The prepared notification must include a Reply-To header.');

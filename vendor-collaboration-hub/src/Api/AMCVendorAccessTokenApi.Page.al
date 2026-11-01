@@ -82,7 +82,6 @@ page 50125 "AMC Vendor Access Token API"
         if not Rec.FindFirst() then
             Error(this.TokenNotFoundErr);
 
-        AccessTokenMgt.Assert(Rec."Token Id", Rec."Request No.", Rec."Vendor No.");
         AccessTokenMgt.RegisterAccess(Rec."Token Id");
 
         ActionContext.SetObjectType(ObjectType::Page);
