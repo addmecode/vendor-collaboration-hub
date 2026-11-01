@@ -10,11 +10,13 @@ tableextension 50102 "AMC Vendor Ext" extends Vendor
         field(50100; "AMC Collaboration Enabled"; Boolean)
         {
             Caption = 'Collaboration Enabled';
+            ToolTip = 'Specifies whether this vendor can participate in vendor collaboration.';
             DataClassification = SystemMetadata;
         }
         field(50101; "AMC Portal Contact E-Mail"; Text[80])
         {
             Caption = 'Portal Contact Email';
+            ToolTip = 'Specifies the email address to which vendor collaboration links are sent. If blank, the vendor email address is used.';
             DataClassification = EndUserIdentifiableInformation;
             ExtendedDatatype = EMail;
 
@@ -29,6 +31,7 @@ tableextension 50102 "AMC Vendor Ext" extends Vendor
         field(50102; "AMC Response Days"; Integer)
         {
             Caption = 'Response Days';
+            ToolTip = 'Specifies the number of days this vendor has to respond. Set to zero to use the default response days from Vendor Collaboration Setup.';
             DataClassification = SystemMetadata;
 
             trigger OnValidate()

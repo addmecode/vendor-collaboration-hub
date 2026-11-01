@@ -16,11 +16,13 @@ table 50100 "AMC Collaboration Setup"
         {
             AllowInCustomizations = Never;
             Caption = 'Primary Key';
+            ToolTip = 'Specifies the key of the single collaboration setup record. The key is always blank.';
             NotBlank = false;
         }
         field(2; Enabled; Boolean)
         {
             Caption = 'Enabled';
+            ToolTip = 'Specifies whether vendor collaboration is enabled.';
 
             trigger OnValidate()
             begin
@@ -31,55 +33,67 @@ table 50100 "AMC Collaboration Setup"
         field(3; "Request Nos."; Code[20])
         {
             Caption = 'Request Nos.';
+            ToolTip = 'Specifies the number series used for vendor requests.';
             TableRelation = "No. Series";
         }
         field(4; "Proposal Nos."; Code[20])
         {
             Caption = 'Proposal Nos.';
+            ToolTip = 'Specifies the number series used for vendor proposals.';
             TableRelation = "No. Series";
         }
         field(5; "Default Response Days"; Integer)
         {
             Caption = 'Default Response Days';
+            ToolTip = 'Specifies the default number of days a vendor has to respond.';
         }
         field(6; "Allow Item Substitution"; Boolean)
         {
             Caption = 'Allow Item Substitution';
+            ToolTip = 'Specifies whether vendors can propose substitute items.';
         }
         field(7; "Allow Quantity Increase"; Boolean)
         {
             Caption = 'Allow Quantity Increase';
+            ToolTip = 'Specifies whether vendors can propose quantities above the requested quantity.';
         }
         field(8; "Max Splits per Line"; Integer)
         {
             Caption = 'Max Splits per Line';
+            ToolTip = 'Specifies the maximum number of proposed deliveries for one request line.';
         }
         field(9; "Require Reason Code"; Boolean)
         {
             Caption = 'Require Reason Code';
+            ToolTip = 'Specifies whether non-confirmation proposal lines require a reason code.';
         }
         field(10; "Portal Base URL"; Text[250])
         {
             Caption = 'Portal Base URL';
+            ToolTip = 'Specifies the base URL used to build vendor access links.';
             ExtendedDatatype = URL;
         }
         field(11; "Portal Support E-Mail"; Text[80])
         {
             Caption = 'Portal Support E-Mail';
+            ToolTip = 'Specifies the support email address shown when a vendor access link cannot be used.';
             DataClassification = CustomerContent;
             ExtendedDatatype = EMail;
         }
         field(12; "Link Validity Days"; Integer)
         {
             Caption = 'Link Validity Days';
+            ToolTip = 'Specifies how many days a vendor access link remains valid.';
         }
         field(13; "Attach Order PDF"; Boolean)
         {
             Caption = 'Attach Order PDF';
+            ToolTip = 'Specifies whether the purchase order PDF is attached to the vendor email.';
         }
         field(14; "Telemetry Verbosity"; Enum "AMC Telemetry Verbosity")
         {
             Caption = 'Telemetry Verbosity';
+            ToolTip = 'Specifies the telemetry verbosity used by vendor collaboration.';
             InitValue = Normal;
             ValuesAllowed = Normal, Warning, Error, Verbose;
         }

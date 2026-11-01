@@ -1,8 +1,8 @@
 # Diagnostyka analizatorów AL
 
-Stan: 2026-10-31. Wyniki kompilacji z analizatorami skonfigurowanymi w projektach `vendor-collaboration-hub` (App) i `Test`.
+Stan: 2026-11-01. Wyniki kompilacji z analizatorami skonfigurowanymi w projektach `vendor-collaboration-hub` (App) i `Test`.
 
-Łącznie: **0 błędów, 110 ostrzeżeń i 1009 informacji**. Liczby w tabelach oznaczają wystąpienia komunikatów. **PC0037: 0 wystąpień.**
+Łącznie: **0 błędów, 110 ostrzeżeń i 867 informacji**. Liczby w tabelach oznaczają wystąpienia komunikatów. **PC0037: 0 wystąpień.**
 
 Weryfikacja po poprawkach: oba projekty skompilowane z analizatorami z konfiguracji VS Code (App: 72 pliki AL, Test: 19), po odświeżeniu zależności App w Test. Usunięto z zestawienia rozwiązane zgłoszenia; nie wyłączano reguł. Nie publikowano aplikacji ani nie uruchamiano testów w sandboxie.
 
@@ -26,7 +26,6 @@ Weryfikacja po poprawkach: oba projekty skompilowane z analizatorami z konfigura
 | Kod | Opis | App | Test | Razem |
 |---|---|---:|---:|---:|
 | `AC0019` | Wartość enum o numerze 0 powinna mieć pustą nazwę i caption | 7 | 0 | 7 |
-| `AC0028` | Brak ToolTip na polu tabeli | 142 | 0 | 142 |
 | `AC0030` | Niewykorzystany wynik operacji na rekordzie | 50 | 127 | 177 |
 | `AC0031` | Brak jawnej deklaracji uprawnienia do operacji na tabeli | 0 | 414 | 414 |
 | `DC0001` | `Commit()` bez komentarza uzasadniającego | 0 | 41 | 41 |

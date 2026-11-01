@@ -19,7 +19,6 @@ page 50100 "AMC Collaboration Setup"
                 Caption = 'Status';
                 field(Enabled; Rec.Enabled)
                 {
-                    ToolTip = 'Specifies whether vendor collaboration is enabled.';
 
                     trigger OnValidate()
                     begin
@@ -35,31 +34,24 @@ page 50100 "AMC Collaboration Setup"
 
                 field("Request Nos."; Rec."Request Nos.")
                 {
-                    ToolTip = 'Specifies the number series used for vendor requests.';
                 }
                 field("Proposal Nos."; Rec."Proposal Nos.")
                 {
-                    ToolTip = 'Specifies the number series used for vendor proposals.';
                 }
                 field("Default Response Days"; Rec."Default Response Days")
                 {
-                    ToolTip = 'Specifies the default number of days a vendor has to respond.';
                 }
                 field("Allow Item Substitution"; Rec."Allow Item Substitution")
                 {
-                    ToolTip = 'Specifies whether vendors can propose substitute items.';
                 }
                 field("Allow Quantity Increase"; Rec."Allow Quantity Increase")
                 {
-                    ToolTip = 'Specifies whether vendors can propose quantities above the requested quantity.';
                 }
                 field("Max Splits per Line"; Rec."Max Splits per Line")
                 {
-                    ToolTip = 'Specifies the maximum number of proposed deliveries for one request line.';
                 }
                 field("Require Reason Code"; Rec."Require Reason Code")
                 {
-                    ToolTip = 'Specifies whether non-confirmation proposal lines require a reason code.';
                 }
             }
             group(Portal)
@@ -69,15 +61,12 @@ page 50100 "AMC Collaboration Setup"
 
                 field("Portal Base URL"; Rec."Portal Base URL")
                 {
-                    ToolTip = 'Specifies the base URL used to build vendor access links.';
                 }
                 field("Portal Support E-Mail"; Rec."Portal Support E-Mail")
                 {
-                    ToolTip = 'Specifies the support email address shown when a vendor access link cannot be used.';
                 }
                 field("Link Validity Days"; Rec."Link Validity Days")
                 {
-                    ToolTip = 'Specifies how many days a vendor access link remains valid.';
                 }
             }
             group(Email)
@@ -87,7 +76,6 @@ page 50100 "AMC Collaboration Setup"
 
                 field("Attach Order PDF"; Rec."Attach Order PDF")
                 {
-                    ToolTip = 'Specifies whether the purchase order PDF is attached to the vendor email.';
                 }
             }
             group(Telemetry)
@@ -97,7 +85,6 @@ page 50100 "AMC Collaboration Setup"
 
                 field("Telemetry Verbosity"; Rec."Telemetry Verbosity")
                 {
-                    ToolTip = 'Specifies the telemetry verbosity used by vendor collaboration.';
                 }
             }
         }

@@ -12,13 +12,11 @@ pageextension 50100 "AMC Purchase Order" extends "Purchase Order"
             {
                 ApplicationArea = All;
                 Editable = false;
-                ToolTip = 'Specifies the active vendor request for this purchase order.';
             }
             field(AMCCollaborationStatus; Rec."AMC Collaboration Status")
             {
                 ApplicationArea = All;
                 Editable = false;
-                ToolTip = 'Specifies the current vendor collaboration status for this purchase order.';
             }
         }
     }
