@@ -115,10 +115,10 @@ codeunit 50147 "AMC Write API Tests"
   begin
     // Given
     this.TestLibrary.CreateWriteContext(VendorRequest, AccessToken);
-    Commit();
+    Commit(); // Separate the request/token arrange baseline from the submission transaction used for replay.
     IdempotencyKey := Format(CreateGuid());
     this.TestLibrary.SubmitAnswer(VendorRequest, AccessToken.SystemId, IdempotencyKey, 400, false, Proposal);
-    Commit();
+    Commit(); // Preserve the submitted proposal and audit entries when the exact-replay error rolls back.
     // When: wire array order is not business identity.
     asserterror this.TestLibrary.SubmitAnswer(VendorRequest, AccessToken.SystemId, IdempotencyKey, 400, true, Replay);
     // Then
@@ -141,10 +141,10 @@ codeunit 50147 "AMC Write API Tests"
   begin
     // Given
     this.TestLibrary.CreateWriteContext(VendorRequest, AccessToken);
-    Commit();
+    Commit(); // Separate the request/token arrange baseline from the submission transaction used for key reuse.
     IdempotencyKey := Format(CreateGuid());
     this.TestLibrary.SubmitAnswer(VendorRequest, AccessToken.SystemId, IdempotencyKey, 400, false, Proposal);
-    Commit();
+    Commit(); // Preserve the original proposal and audit entries when the payload-mismatch error rolls back.
     // When
     asserterror this.TestLibrary.SubmitAnswer(VendorRequest, AccessToken.SystemId, IdempotencyKey, 390, false, Replay);
     // Then
@@ -173,7 +173,7 @@ codeunit 50147 "AMC Write API Tests"
     // Given
     this.TestLibrary.CreateWriteContext(VendorRequest, AccessToken);
     this.TestLibrary.CreateWriteContext(OtherRequest, OtherToken);
-    Commit();
+    Commit(); // Preserve both request/token fixtures across the expected submission errors.
     BeforeLineCount := ProposalLine.Count();
     BeforeEntryCount := Entry.Count();
     IdempotencyKey := Format(CreateGuid());
@@ -181,7 +181,7 @@ codeunit 50147 "AMC Write API Tests"
     this.Assert.IsTrue(Setup.Get(), 'The expected setup record must exist.');
     Setup.Validate(Enabled, false);
     Setup.Modify(false);
-    Commit();
+    Commit(); // Keep collaboration disabled after the expected setup-validation error rolls back.
     asserterror this.TestLibrary.SubmitAnswer(VendorRequest, AccessToken.SystemId, IdempotencyKey, 400, false, Proposal);
     this.Assert.ExpectedError('VCH-AUT-0001');
     this.AssertNoSubmissionWrites(VendorRequest, BeforeLineCount, BeforeEntryCount);
@@ -190,19 +190,19 @@ codeunit 50147 "AMC Write API Tests"
     this.Assert.IsTrue(Vendor.Get(VendorRequest."Vendor No."), 'The expected vendor record must exist.');
     Vendor.Validate("AMC Collaboration Enabled", false);
     Vendor.Modify(false);
-    Commit();
+    Commit(); // Preserve enabled setup and the disabled vendor across the expected vendor-validation error.
     asserterror this.TestLibrary.SubmitAnswer(VendorRequest, AccessToken.SystemId, IdempotencyKey, 400, false, Proposal);
     this.Assert.ExpectedError('VCH-AUT-0002');
     this.AssertNoSubmissionWrites(VendorRequest, BeforeLineCount, BeforeEntryCount);
     Vendor.Validate("AMC Collaboration Enabled", true);
     Vendor.Modify(false);
-    Commit();
+    Commit(); // Keep the vendor enabled while the foreign-token submission is rolled back.
     asserterror this.TestLibrary.SubmitAnswer(VendorRequest, OtherToken.SystemId, IdempotencyKey, 400, false, Proposal);
     this.Assert.ExpectedError('VCH-AUT-0004');
     this.AssertNoSubmissionWrites(VendorRequest, BeforeLineCount, BeforeEntryCount);
     AccessToken.Validate("Expires At", CurrentDateTime() - 1000);
     AccessToken.Modify(false);
-    Commit();
+    Commit(); // Preserve token expiry across the expected expired-token rejection.
     asserterror this.TestLibrary.SubmitAnswer(VendorRequest, AccessToken.SystemId, IdempotencyKey, 400, false, Proposal);
     this.Assert.ExpectedError('VCH-AUT-0003');
     this.AssertNoSubmissionWrites(VendorRequest, BeforeLineCount, BeforeEntryCount);
@@ -210,7 +210,7 @@ codeunit 50147 "AMC Write API Tests"
     AccessToken.Modify(false);
     VendorRequest.Validate(Status, VendorRequest.Status::Draft);
     VendorRequest.Modify(false);
-    Commit();
+    Commit(); // Preserve the valid token and Draft request across the expected request-state rejection.
     asserterror this.TestLibrary.SubmitAnswer(VendorRequest, AccessToken.SystemId, IdempotencyKey, 400, false, Proposal);
     this.Assert.ExpectedError('VCH-VAL-0001');
     this.AssertNoSubmissionWrites(VendorRequest, BeforeLineCount, BeforeEntryCount);
@@ -230,7 +230,7 @@ codeunit 50147 "AMC Write API Tests"
   begin
     // Given
     this.TestLibrary.CreateWriteContext(VendorRequest, AccessToken);
-    Commit();
+    Commit(); // Keep the request/token fixtures available after each expected invalid-token or missing-key error.
     BeforeLineCount := ProposalLine.Count();
     BeforeEntryCount := Entry.Count();
     // When / Then: only the Task 16 API SystemId is an accepted token claim.
@@ -281,7 +281,7 @@ codeunit 50147 "AMC Write API Tests"
   begin
     // Given: field validation precedes the page's insert/domain guards.
     this.TestLibrary.CreateWriteContext(VendorRequest, AccessToken);
-    Commit();
+    Commit(); // Preserve the request and related-item fixtures across the expected native field-validation errors.
     BeforeLineCount := Line.Count();
     BeforeEntryCount := Entry.Count();
 
@@ -320,9 +320,9 @@ codeunit 50147 "AMC Write API Tests"
   begin
     // Given
     this.TestLibrary.CreateWriteContext(VendorRequest, AccessToken);
-    Commit();
+    Commit(); // Separate the request/token arrange baseline from the submission used for write-once checks.
     this.TestLibrary.SubmitAnswer(VendorRequest, AccessToken.SystemId, Format(CreateGuid()), 400, false, Proposal);
-    Commit();
+    Commit(); // Preserve the submitted proposal, lines and audit baseline across expected write-once errors.
     BeforeLineCount := Line.Count();
     BeforeEntryCount := Entry.Count();
     Line.Validate("Proposed Item No.", 'ITEM-B2');

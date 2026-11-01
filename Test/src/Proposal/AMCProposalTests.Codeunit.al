@@ -388,7 +388,7 @@ codeunit 50133 "AMC Proposal Tests"
     RequestNo := this.CreateRequest('INVALID-VENDOR', 'INVALID-ORDER');
     ProposalNo := this.CreateDraft(RequestNo);
     this.Assert.IsTrue(VendorProposal.Get(ProposalNo), 'The expected vendor proposal record must exist.');
-    Commit();
+    Commit(); // Preserve the Draft proposal for the unchanged-status assertion after the expected transition error.
 
     // When
     asserterror ProposalMgt.SetStatus(VendorProposal, VendorProposal.Status::Applied);

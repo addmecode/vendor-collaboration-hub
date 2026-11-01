@@ -81,7 +81,7 @@ codeunit 50148 "AMC Comment API Tests"
     // Expected errors roll back the current transaction; preserve the arrange baseline.
     Commit();
     this.TestLibrary.SubmitAnswer(ForeignRequest, ForeignToken.SystemId, Format(CreateGuid()), 400, false, ForeignProposal);
-    Commit();
+    Commit(); // Preserve the foreign proposal and audit baseline across both expected comment-authorization errors.
     BeforeCount := EntryView.Count();
     // When / Then
     this.InitializeComment(Entry, "AMC Source Type"::Request, ForeignRequest."No.");
@@ -108,14 +108,14 @@ codeunit 50148 "AMC Comment API Tests"
     // Given: matching vendor alone is not authorization for a different request.
     this.TestLibrary.CreateWriteContext(VendorRequest, AccessToken);
     this.TestLibrary.CreateWriteContext(ForeignRequest, ForeignToken);
-    Commit();
+    Commit(); // Separate the two request/token fixtures from the same-vendor ownership changes below.
     ForeignRequest.Validate("Vendor No.", VendorRequest."Vendor No.");
     ForeignRequest.Modify(false);
     ForeignToken.Validate("Vendor No.", VendorRequest."Vendor No.");
     ForeignToken.Modify(false);
-    Commit();
+    Commit(); // Establish the same-vendor, foreign-request baseline before creating its proposal.
     this.TestLibrary.SubmitAnswer(ForeignRequest, ForeignToken.SystemId, Format(CreateGuid()), 400, false, ForeignProposal);
-    Commit();
+    Commit(); // Keep the foreign-request proposal available after the expected comment-authorization rollback.
     this.InitializeComment(Entry, "AMC Source Type"::Proposal, ForeignProposal."No.");
     // When / Then
     asserterror CollabLog.WriteVendorComment(Entry, AccessToken.SystemId);
@@ -136,11 +136,11 @@ codeunit 50148 "AMC Comment API Tests"
   begin
     // Given: isolate vendor ownership while keeping the proposal's request paired to the token.
     this.TestLibrary.CreateWriteContext(VendorRequest, AccessToken);
-    Commit();
+    Commit(); // Separate the paired request/token baseline from the deliberately foreign-vendor proposal.
     this.TestLibrary.SubmitAnswer(VendorRequest, AccessToken.SystemId, Format(CreateGuid()), 400, false, ForeignProposal);
     ForeignProposal.Validate("Vendor No.", this.TestLibrary.NewCode());
     ForeignProposal.Modify(false);
-    Commit();
+    Commit(); // Preserve the mismatched proposal and audit baseline across the expected ownership error.
     BeforeCount := EntryView.Count();
     this.InitializeComment(Entry, "AMC Source Type"::Proposal, ForeignProposal."No.");
     // When / Then
@@ -162,7 +162,7 @@ codeunit 50148 "AMC Comment API Tests"
   begin
     // Given
     this.TestLibrary.CreateWriteContext(VendorRequest, AccessToken);
-    Commit();
+    Commit(); // Preserve request/token fixtures and the entry-count baseline across expected invalid-comment errors.
     BeforeCount := EntryView.Count();
     // When / Then
     this.InitializeComment(Entry, "AMC Source Type"::Proposal, 'MISSING');
@@ -179,7 +179,7 @@ codeunit 50148 "AMC Comment API Tests"
     this.InitializeComment(Entry, "AMC Source Type"::Request, VendorRequest."No.");
     AccessToken.Validate(Status, AccessToken.Status::Revoked);
     AccessToken.Modify(false);
-    Commit();
+    Commit(); // Keep the token revoked when the expected token-validation error rolls back.
     asserterror CollabLog.WriteVendorComment(Entry, AccessToken.SystemId);
     this.Assert.ExpectedError('VCH-AUT-0003');
     this.Assert.AreEqual(BeforeCount, EntryView.Count(), 'Invalid comments must leave no entries.');

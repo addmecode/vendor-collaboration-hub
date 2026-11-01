@@ -319,7 +319,7 @@ codeunit 50143 "AMC Access Token Tests"
     var
         VCHAut0003Err: Label 'VCH-AUT-0003: This access link is no longer valid.';
     begin
-        Commit();
+        Commit(); // Preserve the caller's token state and request fixture across the expected token-validation rollback.
         asserterror AccessTokenMgt.Assert(VendorAccessToken."Token Id", RequestNo, VendorNo);
         this.Assert.ExpectedError(VCHAut0003Err);
     end;

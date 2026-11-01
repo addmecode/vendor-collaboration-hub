@@ -130,7 +130,7 @@ codeunit 50144 "AMC Vendor Notification Tests"
     // Given
     RequestNo := this.CreateVendorRequest('', '', 'buyer@contoso.com', '');
     this.Assert.IsTrue(VendorRequest.Get(RequestNo), 'The expected vendor request record must exist.');
-    Commit();
+    Commit(); // Preserve the vendor/request fixtures so token absence is checked after the expected send-error rollback.
 
     // When
     asserterror VendorNotification.Send(RequestNo);
@@ -153,7 +153,7 @@ codeunit 50144 "AMC Vendor Notification Tests"
     // Given
     RequestNo := this.CreateVendorRequest('', '', 'buyer@contoso.com', '');
     this.Assert.IsTrue(VendorRequest.Get(RequestNo), 'The expected vendor request record must exist.');
-    Commit();
+    Commit(); // Keep the missing-email fixture outside the expected notification-preparation rollback.
 
     // When
     asserterror VendorNotification.Prepare(RequestNo, 'https://portal.contoso.com/access', EmailMessage);
@@ -183,7 +183,7 @@ codeunit 50144 "AMC Vendor Notification Tests"
     TempVendorRequest.Validate("No.", this.CreateUniqueCode());
     TempVendorRequest.Validate("Language Code", Language.GetLanguageCode(Language.GetDefaultApplicationLanguageId()));
     OriginalLanguageId := GlobalLanguage();
-    Commit();
+    Commit(); // End the arrange transaction before the expected builder error and language-restoration checks.
 
     // When
     asserterror VendorEmailBuilder.Build(TempVendorRequest, 'javascript:alert(1)', Subject, HtmlBody, PlainTextBody);

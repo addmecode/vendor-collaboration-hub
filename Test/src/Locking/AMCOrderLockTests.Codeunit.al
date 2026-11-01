@@ -66,7 +66,7 @@ codeunit 50141 "AMC Order Lock Tests"
         NewPurchaseLine.Validate("Line No.", 20000);
         NewPurchaseLine.Validate(Description, 'New line');
         this.LockPurchaseOrder(PurchaseHeader, RequestNo);
-        Commit();
+        Commit(); // Keep the locked order and original line available across the rejected modify, insert and delete attempts.
         this.Assert.IsTrue(PurchaseLine.Get(PurchaseHeader."Document Type", PurchaseHeader."No.", 10000), 'The expected purchase line record must exist.');
         PurchaseLine.Validate(Description, 'Changed description');
 
@@ -100,7 +100,7 @@ codeunit 50141 "AMC Order Lock Tests"
         // Given
         this.CreateLockedPurchaseOrder(PurchaseHeader, RequestNo);
         PurchaseOrderNo := PurchaseHeader."No.";
-        Commit();
+        Commit(); // Preserve the locked order so both expected release failures test the same persisted fixture.
 
         // When
         asserterror ReleasePurchaseDocument.PerformManualRelease(PurchaseHeader);
@@ -164,7 +164,7 @@ codeunit 50141 "AMC Order Lock Tests"
         // Given
         this.CreateLockedPurchaseOrder(PurchaseHeader, RequestNo);
         PurchaseOrderNo := PurchaseHeader."No.";
-        Commit();
+        Commit(); // Preserve the locked order across expected errors while testing suppression-context changes.
         OrderLockMgt.SetSuppressionContext(PurchaseOrderNo, 'OTHER-REQUEST', PreviousPurchaseOrderNo, PreviousRequestNo);
         this.Assert.IsTrue(PersistedPurchaseHeader.Get(PersistedPurchaseHeader."Document Type"::Order, PurchaseOrderNo), 'The expected persisted purchase header record must exist.');
 

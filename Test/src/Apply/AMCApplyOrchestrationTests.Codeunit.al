@@ -30,7 +30,7 @@ codeunit 50134 "AMC Apply Orchestration Tests"
         this.Assert.IsTrue(VendorProposalLine.Get(ProposalNo, 10000), 'The expected vendor proposal line record must exist.');
         VendorProposalLine.Validate("Line Type", VendorProposalLine."Line Type"::"Change Date");
         VendorProposalLine.Modify(false);
-        Commit();
+        Commit(); // Approval captures Codeunit.Run's result and must start without pending arrange writes.
 
         // When
         ApplySucceeded := DecisionSvc.Approve(VendorProposal, 'Approved for test.');
@@ -67,7 +67,7 @@ codeunit 50134 "AMC Apply Orchestration Tests"
     begin
         // Given
         this.CreateProposalForApply(PurchaseHeader, VendorProposal, ProposalNo);
-        Commit();
+        Commit(); // Separate the in-review arrange baseline from the rejection's status and audit writes.
 
         // When
         DecisionSvc.Reject(VendorProposal, 'Rejected for test.');
@@ -96,7 +96,7 @@ codeunit 50134 "AMC Apply Orchestration Tests"
         this.CreateProposalForApply(PurchaseHeader, VendorProposal, ProposalNo);
         VendorProposal.Validate(Status, VendorProposal.Status::Draft);
         VendorProposal.Modify(false);
-        Commit();
+        Commit(); // Preserve the Draft proposal fixture when the expected approval-validation error rolls back.
 
         // When
         asserterror DecisionSvc.Approve(VendorProposal, 'Invalid decision.');
@@ -120,7 +120,7 @@ codeunit 50134 "AMC Apply Orchestration Tests"
         TempDecisionContext.Validate("No.", ProposalNo);
         TempDecisionContext.Validate(Status, TempDecisionContext.Status::"In Review");
         TempDecisionContext.Validate("Decision User ID", UserId());
-        Commit(); //todo: why commit?
+        Commit(); // The Boolean Codeunit.Run call requires no pending writes and rolls back only the worker attempt.
 
         // When
         ApplySucceeded := Codeunit.Run(Codeunit::"AMC Apply Proposal Svc", TempDecisionContext);
@@ -150,7 +150,7 @@ codeunit 50134 "AMC Apply Orchestration Tests"
         VendorProposalLine.Validate("Proposed Delivery Date", WorkDate() + 10);
         VendorProposalLine.Modify(false);
         this.InsertUnknownProposalLine(ProposalNo, 20000, 2);
-        Commit();
+        Commit(); // Enter the Boolean Codeunit.Run worker without writes; preserve fixtures for rollback assertions.
 
         // When
         this.Assert.IsFalse(DecisionSvc.Approve(VendorProposal, 'Approve with deterministic failure.'), 'A later unknown handler must fail the atomic apply.');
@@ -185,14 +185,14 @@ codeunit 50134 "AMC Apply Orchestration Tests"
         // Given
         this.CreateProposalForApply(PurchaseHeader, VendorProposal, ProposalNo);
         this.InsertUnknownProposalLine(ProposalNo, 20000, 2);
-        Commit();
+        Commit(); // End arrange writes before the first Boolean Codeunit.Run attempt and preserve its failure fixture.
         this.Assert.IsFalse(DecisionSvc.Approve(VendorProposal, 'First attempt fails.'), 'The first attempt must fail on the unknown handler.');
         this.Assert.IsTrue(VendorProposalLine.Get(ProposalNo, 20000), 'The expected vendor proposal line record must exist.');
         VendorProposalLine.Validate("Line Type", VendorProposalLine."Line Type"::Confirm);
         VendorProposalLine.Validate("Proposed Quantity", 10);
         VendorProposalLine.Validate("Proposed Delivery Date", WorkDate() + 1);
         VendorProposalLine.Modify(false);
-        Commit();
+        Commit(); // Persist failure bookkeeping and the corrected line before retrying the Boolean Codeunit.Run worker.
 
         // When
         ApplySucceeded := DecisionSvc.Approve(VendorProposal, 'Retry after correction.');

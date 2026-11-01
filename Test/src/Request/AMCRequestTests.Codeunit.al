@@ -219,7 +219,7 @@ codeunit 50131 "AMC Request Tests"
         RequestNo := RequestMgt.CreateFromOrder(PurchaseHeader);
         this.Assert.IsTrue(PurchaseLine.Get(PurchaseHeader."Document Type", PurchaseHeader."No.", 10000), 'The expected purchase line record must exist.');
         PurchaseLine.Validate(Description, 'Changed description');
-        Commit();
+        Commit(); // Preserve the request snapshot and original persisted line across the expected source-write rejection.
 
         // When
         asserterror PurchaseLine.Modify(true);
@@ -357,7 +357,7 @@ codeunit 50131 "AMC Request Tests"
     // Given
     RequestNo := this.CreateRequestNo();
     this.InsertVendorRequest(VendorRequest, RequestNo);
-    Commit();
+    Commit(); // Preserve the Draft request for the unchanged-status assertion after the expected transition error.
 
     // When
     asserterror RequestMgt.SetStatus(VendorRequest, VendorRequest.Status::"In Review");
@@ -424,7 +424,7 @@ codeunit 50131 "AMC Request Tests"
         this.CreatePurchaseOrder(PurchaseHeader, VendorNo, PurchaseHeader.Status::Open);
         RequestNo := RequestMgt.CreateFromOrder(PurchaseHeader);
         this.Assert.IsTrue(VendorRequest.Get(RequestNo), 'The expected vendor request record must exist.');
-        Commit();
+        Commit(); // Preserve the Draft fixture so only send-attempt writes roll back on the simulated email failure.
         this.BindEmailSendHandler(EmailSendHandler, false);
 
         // When
@@ -461,7 +461,7 @@ codeunit 50131 "AMC Request Tests"
         this.CreatePurchaseOrder(PurchaseHeader, VendorNo, PurchaseHeader.Status::Open);
         RequestNo := RequestMgt.CreateFromOrder(PurchaseHeader);
         this.Assert.IsTrue(VendorRequest.Get(RequestNo), 'The expected vendor request record must exist.');
-        Commit();
+        Commit(); // Keep the Draft request and missing-email vendor outside the expected send-error rollback.
 
         // When
         asserterror RequestMgt.Send(VendorRequest);
@@ -544,7 +544,7 @@ codeunit 50131 "AMC Request Tests"
         this.CreatePurchaseOrder(PurchaseHeader, VendorNo, PurchaseHeader.Status::Open);
         RequestNo := RequestMgt.CreateFromOrder(PurchaseHeader);
         this.Assert.IsTrue(VendorRequest.Get(RequestNo), 'The expected vendor request record must exist.');
-        Commit();
+        Commit(); // Preserve the Draft request and response-day mismatch across the expected link-validity error.
 
         // When
         asserterror RequestMgt.Send(VendorRequest);
