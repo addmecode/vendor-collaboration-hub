@@ -3,6 +3,9 @@ namespace Addmecode.VendorCollaborationHub;
 using Microsoft.Foundation.NoSeries;
 using Microsoft.Purchases.Vendor;
 
+/// <summary>
+/// Creates proposal drafts, validates and completes API submissions and enforces proposal status transitions.
+/// </summary>
 codeunit 50101 "AMC Proposal Mgt"
 {
   Permissions = tabledata "AMC Collaboration Setup" = r,
@@ -12,6 +15,12 @@ codeunit 50101 "AMC Proposal Mgt"
                 tabledata "AMC Vendor Request" = r,
                 tabledata Vendor = r;
 
+  /// <summary>
+  /// Validates API identity and stages a pending proposal header for a deep insert without committing.
+  /// </summary>
+  /// <param name="VendorProposal">The supplied identity fields; receives the inserted pending proposal.</param>
+  /// <param name="AccessTokenId">The access token's API SystemId.</param>
+  /// <param name="IdempotencyKey">A required client key; registered with the completed payload during finalization.</param>
   [CommitBehavior(CommitBehavior::Error)]
   procedure BeginApiSubmission(var VendorProposal: Record "AMC Vendor Proposal"; AccessTokenId: Guid; IdempotencyKey: Text[64])
   var
@@ -48,6 +57,12 @@ codeunit 50101 "AMC Proposal Mgt"
     VendorProposal.Insert(true, true);
   end;
 
+  /// <summary>
+  /// Requires enabled setup and vendor collaboration and an active token bound to the supplied identity.
+  /// </summary>
+  /// <param name="AccessTokenId">The access token's API SystemId, not its Token Id primary key.</param>
+  /// <param name="RequestNo">The expected token request.</param>
+  /// <param name="VendorNo">The expected token vendor.</param>
   procedure AssertApiIdentity(AccessTokenId: Guid; RequestNo: Code[20]; VendorNo: Code[20])
   var
     CollaborationSetup: Record "AMC Collaboration Setup";
@@ -76,6 +91,12 @@ codeunit 50101 "AMC Proposal Mgt"
     AccessTokenMgt.Assert(VendorAccessToken."Token Id", RequestNo, VendorNo);
   end;
 
+  /// <summary>
+  /// Validates a pending deep insert, registers its payload, supersedes earlier proposals and records submission without committing.
+  /// </summary>
+  /// <param name="VendorProposal">The pending proposal; receives the finalized submitted record.</param>
+  /// <param name="AccessTokenId">The access token's API SystemId.</param>
+  /// <param name="IdempotencyKey">The client key checked for reuse within this vendor.</param>
   [CommitBehavior(CommitBehavior::Error)]
   procedure CompleteApiSubmission(var VendorProposal: Record "AMC Vendor Proposal"; AccessTokenId: Guid; IdempotencyKey: Text[64])
   var
@@ -123,6 +144,12 @@ codeunit 50101 "AMC Proposal Mgt"
     BusinessEvents.VendorProposalSubmitted(VendorProposal."No.", VendorProposal."Vendor No.", VendorProposal."Purchase Order No.", VendorProposal."Request No.");
   end;
 
+  /// <summary>
+  /// Loads a request and requires matching vendor ownership and a status open for a vendor response.
+  /// </summary>
+  /// <param name="RequestNo">The request to load.</param>
+  /// <param name="VendorNo">The expected request vendor.</param>
+  /// <param name="VendorRequest">Receives the request; any caller-selected read isolation is retained.</param>
   procedure AssertApiRequest(RequestNo: Code[20]; VendorNo: Code[20]; var VendorRequest: Record "AMC Vendor Request")
   var
     RequestNotOpenErr: Label 'VCH-VAL-0001: The request does not exist, belongs to another vendor, or is not open for a vendor response.';
@@ -134,6 +161,10 @@ codeunit 50101 "AMC Proposal Mgt"
       Error(RequestNotOpenErr);
   end;
 
+  /// <summary>
+  /// Assigns an internal line number and inserts a line only under a pending submitted deep-insert header.
+  /// </summary>
+  /// <param name="ProposalLine">The supplied line; receives its assigned line number and SystemId.</param>
   [CommitBehavior(CommitBehavior::Error)]
   procedure InsertApiLine(var ProposalLine: Record "AMC Vendor Proposal Line")
   var
@@ -156,6 +187,9 @@ codeunit 50101 "AMC Proposal Mgt"
     ProposalLine.Insert(true, true);
   end;
 
+  /// <summary>
+  /// Always raises the write-once API error to reject proposal or proposal-line update and delete operations.
+  /// </summary>
   procedure AssertApiWriteOnce()
   var
     WriteOnceErr: Label 'VCH-STA-0001: Proposals and their lines are write-once through the API; update and delete are not supported.';
@@ -213,6 +247,11 @@ codeunit 50101 "AMC Proposal Mgt"
       until PreviousProposal.Next() = 0;
   end;
 
+    /// <summary>
+    /// Creates a numbered manual draft from the persisted request identity with an internal idempotency key.
+    /// </summary>
+    /// <param name="VendorRequest">Identifies the request to reread and copy.</param>
+    /// <returns>The new draft proposal number.</returns>
     procedure CreateDraftFromRequest(VendorRequest: Record "AMC Vendor Request"): Code[20]
     var
         CollaborationSetup: Record "AMC Collaboration Setup";
@@ -252,6 +291,11 @@ codeunit 50101 "AMC Proposal Mgt"
     VendorProposal.ModifyAll("Vendor No.", Rec."No.", false);
   end;
 
+  /// <summary>
+  /// Checks the proposal state machine and persists the requested transition without running the modify trigger.
+  /// </summary>
+  /// <param name="VendorProposal">The proposal buffer to transition and persist.</param>
+  /// <param name="NewStatus">The permitted next status; invalid transitions raise an error.</param>
   procedure SetStatus(var VendorProposal: Record "AMC Vendor Proposal"; NewStatus: Enum "AMC Proposal Status")
   var
     VCHPro0001Err: Label 'Vendor proposal status cannot change from %1 to %2.', Comment = '%1 = current proposal status, %2 = requested proposal status';

@@ -1,5 +1,8 @@
 namespace Addmecode.VendorCollaborationHub;
 
+/// <summary>
+/// Restricts token API lookups to an exact token hash or an allowed bound SystemId, not other API reads.
+/// </summary>
 codeunit 50126 "AMC API Token Scope"
 {
     Permissions = tabledata "AMC Vendor Access Token" = r;

@@ -1,5 +1,8 @@
 namespace Addmecode.VendorCollaborationHub;
 
+/// <summary>
+/// Stores requested purchase-line snapshots and their confirmed and outstanding quantities.
+/// </summary>
 table 50102 "AMC Vendor Request Line"
 {
     Caption = 'Vendor Request Line';

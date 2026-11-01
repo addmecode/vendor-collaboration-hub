@@ -2,16 +2,30 @@ namespace Addmecode.VendorCollaborationHub;
 
 using Microsoft.Purchases.Document;
 
+/// <summary>
+/// Inserts a substitute purchase line and reduces the original line's quantity.
+/// </summary>
 codeunit 50115 "AMC Substitute Item Handler" implements "AMC IProposalLineHandler"
 {
   Permissions = tabledata "AMC Vendor Proposal" = r,
                 tabledata "AMC Vendor Request Line" = r,
                 tabledata "Purchase Line" = rm;
 
+  /// <summary>
+  /// Adds no handler-specific checks; shared proposal validation checks substitution policy and registration.
+  /// </summary>
+  /// <param name="ProposalLine">The substitution proposal line; unchanged.</param>
+  /// <param name="RequestLine">The request-line snapshot; unchanged.</param>
+  /// <param name="Result">The validation result; no errors are appended by this handler.</param>
   procedure Validate(var ProposalLine: Record "AMC Vendor Proposal Line"; var RequestLine: Record "AMC Vendor Request Line"; var Result: Codeunit "AMC Validation Result")
   begin
   end;
 
+  /// <summary>
+  /// Inserts the proposed substitute and reduces the original line by the substituted quantity, stamping proposal origin.
+  /// </summary>
+  /// <param name="ProposalLine">Supplies the substitute item, variant, quantity and date after shared validation.</param>
+  /// <param name="PurchaseHeader">Identifies the target order under the caller's application context.</param>
   procedure Apply(var ProposalLine: Record "AMC Vendor Proposal Line"; var PurchaseHeader: Record "Purchase Header")
   var
     NewPurchaseLine: Record "Purchase Line";

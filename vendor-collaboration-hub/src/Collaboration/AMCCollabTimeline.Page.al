@@ -1,5 +1,8 @@
 namespace Addmecode.VendorCollaborationHub;
 
+/// <summary>
+/// Displays events and comments together for the request or proposal shown by its parent page.
+/// </summary>
 page 50107 "AMC Collab Timeline"
 {
     ApplicationArea = All;

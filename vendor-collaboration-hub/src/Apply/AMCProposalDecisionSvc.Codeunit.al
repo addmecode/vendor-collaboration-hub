@@ -1,10 +1,19 @@
 namespace Addmecode.VendorCollaborationHub;
 
+/// <summary>
+/// Records buyer decisions, runs proposal application and records failed application attempts.
+/// </summary>
 codeunit 50103 "AMC Proposal Decision Svc"
 {
   Permissions = tabledata "AMC Vendor Proposal" = rm,
                 tabledata "AMC Vendor Proposal Line" = r;
 
+  /// <summary>
+  /// Approves and applies a proposal from In Review or Apply Failed using an isolated worker and records application failures.
+  /// </summary>
+  /// <param name="VendorProposal">Identifies the persisted proposal and receives its resulting state.</param>
+  /// <param name="DecisionReason">The buyer's reason passed to the application worker.</param>
+  /// <returns>True when application succeeds; false when the worker fails and the failure has been recorded.</returns>
   procedure Approve(var VendorProposal: Record "AMC Vendor Proposal"; DecisionReason: Text[250]): Boolean
   var
     TempDecisionContext: Record "AMC Vendor Proposal" temporary;
@@ -55,6 +64,11 @@ codeunit 50103 "AMC Proposal Decision Svc"
     exit(false);
   end;
 
+  /// <summary>
+  /// Rejects an In Review proposal and records buyer decision metadata and collaboration history.
+  /// </summary>
+  /// <param name="VendorProposal">Identifies the proposal and receives the rejected state.</param>
+  /// <param name="DecisionReason">The reason stored with the buyer's decision.</param>
   procedure Reject(var VendorProposal: Record "AMC Vendor Proposal"; DecisionReason: Text[250])
   var
     CollabLog: Codeunit "AMC Collab Log";
@@ -71,6 +85,11 @@ codeunit 50103 "AMC Proposal Decision Svc"
     CollabLog.LogEvent("AMC Source Type"::Proposal, VendorProposal."No.", 0, "AMC Collab Entry Type"::ProposalRejected, "AMC Actor Type"::Buyer, '', CopyStr(UserId(), 1, 50), ProposalRejectedDescriptionLbl, VendorProposal."Correlation Id");
   end;
 
+  /// <summary>
+  /// Requests changes to an In Review proposal and records buyer decision metadata and history.
+  /// </summary>
+  /// <param name="VendorProposal">Identifies the proposal and receives the Changes Requested state.</param>
+  /// <param name="DecisionReason">The reason stored with the buyer's decision.</param>
   procedure RequestChanges(var VendorProposal: Record "AMC Vendor Proposal"; DecisionReason: Text[250])
   var
     CollabLog: Codeunit "AMC Collab Log";

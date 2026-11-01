@@ -2,6 +2,9 @@ namespace Addmecode.VendorCollaborationHub;
 
 using Microsoft.Purchases.Document;
 
+/// <summary>
+/// Validates proposed quantities against receipts and setup and applies purchase-line quantity changes.
+/// </summary>
 codeunit 50112 "AMC Change Qty Handler" implements "AMC IProposalLineHandler"
 {
   Permissions = tabledata "AMC Collaboration Setup" = r,
@@ -9,6 +12,12 @@ codeunit 50112 "AMC Change Qty Handler" implements "AMC IProposalLineHandler"
                 tabledata "AMC Vendor Request Line" = r,
                 tabledata "Purchase Line" = rm;
 
+  /// <summary>
+  /// Checks positive quantity, receipt-related minimums and the setup policy for quantity increases.
+  /// </summary>
+  /// <param name="ProposalLine">Supplies the proposed quantity and proposal identity.</param>
+  /// <param name="RequestLine">Identifies the snapshotted purchase line.</param>
+  /// <param name="Result">Receives quantity errors; missing required purchasing records raise an error.</param>
   procedure Validate(var ProposalLine: Record "AMC Vendor Proposal Line"; var RequestLine: Record "AMC Vendor Request Line"; var Result: Codeunit "AMC Validation Result")
   var
     CollaborationSetup: Record "AMC Collaboration Setup";
@@ -32,6 +41,11 @@ codeunit 50112 "AMC Change Qty Handler" implements "AMC IProposalLineHandler"
       this.AddValidationError(Result, ProposalLine, this.QuantityIncreaseNotAllowedCodeLbl, this.QuantityIncreaseNotAllowedErr);
   end;
 
+  /// <summary>
+  /// Rechecks quantity rules and validates and persists the proposed purchase-line quantity.
+  /// </summary>
+  /// <param name="ProposalLine">Supplies the proposed quantity and request-line identity.</param>
+  /// <param name="PurchaseHeader">Identifies the target order under the caller's application context.</param>
   procedure Apply(var ProposalLine: Record "AMC Vendor Proposal Line"; var PurchaseHeader: Record "Purchase Header")
   var
     PurchaseLine: Record "Purchase Line";

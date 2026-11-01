@@ -1,5 +1,8 @@
 namespace Addmecode.VendorCollaborationHub;
 
+/// <summary>
+/// Defines the lifecycle states of a vendor access token.
+/// </summary>
 enum 50107 "AMC Access Token Status"
 {
     Extensible = true;

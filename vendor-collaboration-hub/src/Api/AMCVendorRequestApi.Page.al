@@ -1,5 +1,8 @@
 namespace Addmecode.VendorCollaborationHub;
 
+/// <summary>
+/// Exposes read-only request snapshots under the caller's BC permissions; the portal must enforce per-link read ownership.
+/// </summary>
 page 50120 "AMC Vendor Request API"
 {
     APIPublisher = 'addmecode';

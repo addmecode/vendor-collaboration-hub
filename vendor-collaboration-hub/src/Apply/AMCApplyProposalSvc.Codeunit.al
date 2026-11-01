@@ -2,6 +2,9 @@ namespace Addmecode.VendorCollaborationHub;
 
 using Microsoft.Purchases.Document;
 
+/// <summary>
+/// Applies an approved proposal through line handlers, records field changes and closes its request on success.
+/// </summary>
 codeunit 50104 "AMC Apply Proposal Svc"
 {
   TableNo = "AMC Vendor Proposal";

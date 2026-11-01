@@ -1,5 +1,8 @@
 namespace Addmecode.VendorCollaborationHub;
 
+/// <summary>
+/// Exposes a read-only token projection with guarded lookups and a bound action for recording access.
+/// </summary>
 page 50125 "AMC Vendor Access Token API"
 {
     APIPublisher = 'addmecode';
@@ -65,6 +68,10 @@ page 50125 "AMC Vendor Access Token API"
         exit(Rec.Find(Which));
     end;
 
+    /// <summary>
+    /// Records access to an active token selected by a guarded hash or bound SystemId lookup.
+    /// </summary>
+    /// <param name="ActionContext">Receives the updated token entity key and action result.</param>
     [ServiceEnabled]
     procedure RegisterAccess(var ActionContext: WebServiceActionContext)
     var

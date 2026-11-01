@@ -1,5 +1,8 @@
 namespace Addmecode.VendorCollaborationHub;
 
+/// <summary>
+/// Lists access-link lifecycle and usage metadata and provides revocation actions without exposing token hashes.
+/// </summary>
 page 50110 "AMC Vendor Access Links"
 {
     ApplicationArea = All;

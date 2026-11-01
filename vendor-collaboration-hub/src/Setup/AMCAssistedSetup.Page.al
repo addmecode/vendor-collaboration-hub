@@ -3,6 +3,9 @@ namespace Addmecode.VendorCollaborationHub;
 using Microsoft.Foundation.NoSeries;
 using System.Environment.Configuration;
 
+/// <summary>
+/// Guides initial collaboration configuration and activation using existing number series.
+/// </summary>
 page 50101 "AMC Assisted Setup"
 {
     ApplicationArea = All;

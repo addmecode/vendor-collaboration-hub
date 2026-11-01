@@ -4,6 +4,9 @@ using Microsoft.Inventory.Item;
 using Microsoft.Purchases.Document;
 using Microsoft.Purchases.Vendor;
 
+/// <summary>
+/// Grants read access to collaboration data and the related purchasing and master data.
+/// </summary>
 permissionset 50100 "AMC Collab Read"
 {
     Assignable = true;

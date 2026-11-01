@@ -2,12 +2,21 @@ namespace Addmecode.VendorCollaborationHub;
 
 using Microsoft.Purchases.Document;
 
+/// <summary>
+/// Validates and cancels the unreceived remainder of a purchase line.
+/// </summary>
 codeunit 50116 "AMC Cancel Remainder Handler" implements "AMC IProposalLineHandler"
 {
   Permissions = tabledata "AMC Vendor Proposal" = r,
                 tabledata "AMC Vendor Request Line" = r,
                 tabledata "Purchase Line" = rm;
 
+  /// <summary>
+  /// Appends an error when the source purchase line has no unreceived quantity to cancel.
+  /// </summary>
+  /// <param name="ProposalLine">Supplies the proposal identity and error coordinates.</param>
+  /// <param name="RequestLine">Identifies the source purchase line.</param>
+  /// <param name="Result">Receives the remainder error; missing required records raise an error.</param>
   procedure Validate(var ProposalLine: Record "AMC Vendor Proposal Line"; var RequestLine: Record "AMC Vendor Request Line"; var Result: Codeunit "AMC Validation Result")
   var
     PurchaseLine: Record "Purchase Line";
@@ -17,6 +26,11 @@ codeunit 50116 "AMC Cancel Remainder Handler" implements "AMC IProposalLineHandl
       Result.AddError(this.NoRemainderToCancelCodeLbl, ProposalLine."Request Line No.", ProposalLine."Sequence No.", this.NoRemainderToCancelErr);
   end;
 
+  /// <summary>
+  /// Rechecks the remainder and reduces the purchase-line quantity to its received quantity, stamping proposal origin.
+  /// </summary>
+  /// <param name="ProposalLine">Identifies the cancellation proposal and request line.</param>
+  /// <param name="PurchaseHeader">Identifies the target order under the caller's application context.</param>
   procedure Apply(var ProposalLine: Record "AMC Vendor Proposal Line"; var PurchaseHeader: Record "Purchase Header")
   var
     PurchaseLine: Record "Purchase Line";

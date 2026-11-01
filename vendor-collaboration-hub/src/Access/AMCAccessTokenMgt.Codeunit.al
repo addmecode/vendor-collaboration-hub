@@ -3,6 +3,9 @@ namespace Addmecode.VendorCollaborationHub;
 using Microsoft.Purchases.Vendor;
 using System.Security.Encryption;
 
+/// <summary>
+/// Validates request-bound access tokens and records their access and lifecycle history without storing bearer tokens.
+/// </summary>
 codeunit 50117 "AMC Access Token Mgt"
 {
     Permissions = tabledata "AMC Vendor Access Token" = rim,
@@ -46,6 +49,12 @@ codeunit 50117 "AMC Access Token Mgt"
         exit(RawToken);
     end;
 
+    /// <summary>
+    /// Raises an error unless the token is active, unexpired and bound to the supplied request and vendor.
+    /// </summary>
+    /// <param name="TokenId">The token domain primary key, not its API SystemId.</param>
+    /// <param name="RequestNo">The expected request number.</param>
+    /// <param name="VendorNo">The expected vendor number.</param>
     procedure Assert(TokenId: Guid; RequestNo: Code[20]; VendorNo: Code[20])
     var
         VendorAccessToken: Record "AMC Vendor Access Token";
@@ -58,6 +67,10 @@ codeunit 50117 "AMC Access Token Mgt"
             Error(this.VCHAut0004Err);
     end;
 
+    /// <summary>
+    /// Validates an active token, updates its access timestamps and count, and logs a link-opened event.
+    /// </summary>
+    /// <param name="TokenId">The token domain primary key.</param>
     procedure RegisterAccess(TokenId: Guid)
     var
         VendorAccessToken: Record "AMC Vendor Access Token";
@@ -78,6 +91,11 @@ codeunit 50117 "AMC Access Token Mgt"
         CollabLog.LogEvent("AMC Source Type"::Request, VendorAccessToken."Request No.", 0, "AMC Collab Entry Type"::LinkOpened, "AMC Actor Type"::Vendor, '', '', this.LinkOpenedDescriptionLbl, CreateGuid());
     end;
 
+    /// <summary>
+    /// Revokes an active token and records revocation metadata and history; missing or inactive tokens are ignored.
+    /// </summary>
+    /// <param name="TokenId">The token domain primary key.</param>
+    /// <param name="RevocationReason">The reason stored with the revocation.</param>
     procedure Revoke(TokenId: Guid; RevocationReason: Text[250])
     var
         VendorAccessToken: Record "AMC Vendor Access Token";
@@ -96,6 +114,11 @@ codeunit 50117 "AMC Access Token Mgt"
         this.LogTokenLifecycle(VendorAccessToken, "AMC Collab Entry Type"::LinkRevoked, "AMC Actor Type"::Buyer, this.LinkRevokedDescriptionLbl);
     end;
 
+    /// <summary>
+    /// Revokes every active token belonging to a request.
+    /// </summary>
+    /// <param name="RequestNo">The request whose tokens are revoked.</param>
+    /// <param name="RevocationReason">The reason stored on each revoked token.</param>
     procedure RevokeRequestTokens(RequestNo: Code[20]; RevocationReason: Text[250])
     var
         VendorAccessToken: Record "AMC Vendor Access Token";
@@ -107,6 +130,10 @@ codeunit 50117 "AMC Access Token Mgt"
             this.Revoke(VendorAccessToken."Token Id", RevocationReason);
     end;
 
+    /// <summary>
+    /// Marks a request's active tokens as superseded and logs their lifecycle changes.
+    /// </summary>
+    /// <param name="RequestNo">The request whose previous links are replaced.</param>
     procedure Supersede(RequestNo: Code[20])
     var
         VendorAccessToken: Record "AMC Vendor Access Token";
@@ -120,6 +147,9 @@ codeunit 50117 "AMC Access Token Mgt"
         end;
     end;
 
+    /// <summary>
+    /// Marks active tokens whose expiry is earlier than the current time as expired and logs each change.
+    /// </summary>
     procedure Expire()
     var
         VendorAccessToken: Record "AMC Vendor Access Token";
@@ -133,6 +163,11 @@ codeunit 50117 "AMC Access Token Mgt"
         end;
     end;
 
+    /// <summary>
+    /// Computes the complete uppercase hexadecimal SHA-256 digest of a bearer token.
+    /// </summary>
+    /// <param name="RawToken">The bearer token to hash; callers must not log or persist this value.</param>
+    /// <returns>The 64-character token digest.</returns>
     [NonDebuggable]
     procedure HashToken(RawToken: Text): Text[64]
     var

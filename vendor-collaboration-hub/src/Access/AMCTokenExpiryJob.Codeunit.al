@@ -2,6 +2,9 @@ namespace Addmecode.VendorCollaborationHub;
 
 using System.Threading;
 
+/// <summary>
+/// Expires overdue access tokens and schedules the recurring expiry job.
+/// </summary>
 codeunit 50124 "AMC Token Expiry Job"
 {
     Permissions = tabledata "Job Queue Entry" = ri;
@@ -11,6 +14,9 @@ codeunit 50124 "AMC Token Expiry Job"
         this.ExpireTokens();
     end;
 
+    /// <summary>
+    /// Runs token expiry in the current transaction through access-token management.
+    /// </summary>
     procedure ExpireTokens()
     var
         AccessTokenMgt: Codeunit "AMC Access Token Mgt";
@@ -19,6 +25,10 @@ codeunit 50124 "AMC Token Expiry Job"
         AccessTokenMgt.Expire();
     end;
 
+    /// <summary>
+    /// Creates a ready, daily recurring expiry job unless an entry for this codeunit already exists.
+    /// </summary>
+    /// <returns>True when a job was created; false when an existing entry was found.</returns>
     procedure ScheduleTokenExpiryJob(): Boolean
     var
         JobQueueEntry: Record "Job Queue Entry";

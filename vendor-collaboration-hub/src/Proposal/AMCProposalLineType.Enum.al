@@ -1,5 +1,8 @@
 namespace Addmecode.VendorCollaborationHub;
 
+/// <summary>
+/// Selects the type-specific handler for each supported proposal-line operation.
+/// </summary>
 enum 50103 "AMC Proposal Line Type" implements "AMC IProposalLineHandler"
 {
   Extensible = true;

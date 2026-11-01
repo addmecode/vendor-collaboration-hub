@@ -4,10 +4,21 @@ using System.Globalization;
 using System.Integration;
 using System.IO;
 
+/// <summary>
+/// Builds localized vendor email content with request metadata and a secure access link.
+/// </summary>
 codeunit 50119 "AMC Vendor Email Builder"
 {
   Permissions = tabledata "AMC Vendor Request Line" = r;
 
+  /// <summary>
+  /// Builds request-language email content with an HTTPS access link and restores the prior global language on success or failure.
+  /// </summary>
+  /// <param name="VendorRequest">The request snapshot used for language and message metadata.</param>
+  /// <param name="AccessLink">An absolute HTTPS bearer link that must not be logged.</param>
+  /// <param name="Subject">Receives the localized message subject.</param>
+  /// <param name="HtmlBody">Receives the HTML body with encoded request values and link.</param>
+  /// <param name="PlainTextBody">Receives the plain-text body.</param>
   [NonDebuggable]
   procedure Build(VendorRequest: Record "AMC Vendor Request"; AccessLink: Text; var Subject: Text; var HtmlBody: Text; var PlainTextBody: Text)
   var

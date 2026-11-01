@@ -1,5 +1,8 @@
 namespace Addmecode.VendorCollaborationHub;
 
+/// <summary>
+/// Defines the confirmation and outstanding-quantity states of a request line.
+/// </summary>
 enum 50101 "AMC Request Line Status"
 {
     Extensible = true;

@@ -7,6 +7,9 @@ using Microsoft.Inventory.Item.Substitution;
 using Microsoft.Purchases.Document;
 using Microsoft.Purchases.Vendor;
 
+/// <summary>
+/// Grants integration access for collaboration reads and validated vendor writes, without per-vendor read isolation.
+/// </summary>
 permissionset 50103 "AMC API Integration"
 {
   Assignable = true;

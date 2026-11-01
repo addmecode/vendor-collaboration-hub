@@ -1,5 +1,8 @@
 namespace Addmecode.VendorCollaborationHub;
 
+/// <summary>
+/// Stores collaboration audit events, comments, actor identities and field-change details.
+/// </summary>
 table 50105 "AMC Collaboration Entry"
 {
     Caption = 'Collaboration Entry';

@@ -1,5 +1,8 @@
 namespace Addmecode.VendorCollaborationHub;
 
+/// <summary>
+/// Presents a request snapshot, lines, access links and collaboration history with request-management actions.
+/// </summary>
 page 50103 "AMC Vendor Request"
 {
     ApplicationArea = All;

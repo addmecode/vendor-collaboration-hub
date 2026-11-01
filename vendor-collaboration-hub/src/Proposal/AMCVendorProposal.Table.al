@@ -3,6 +3,9 @@ namespace Addmecode.VendorCollaborationHub;
 using Microsoft.Purchases.Document;
 using Microsoft.Purchases.Vendor;
 
+/// <summary>
+/// Stores proposal identity, submission and idempotency data, buyer decisions and application results.
+/// </summary>
 table 50103 "AMC Vendor Proposal"
 {
     Caption = 'Vendor Proposal';
@@ -168,6 +171,9 @@ table 50103 "AMC Vendor Proposal"
             Error(DuplicateIdempotencyKeyErr, Rec."Idempotency Key", Rec."Vendor No.");
     end;
 
+  /// <summary>
+  /// Initializes the current proposal buffer to Draft without inserting or persisting it.
+  /// </summary>
   procedure InitRecord()
   begin
     Rec.Validate(Status, Rec.Status::Draft);

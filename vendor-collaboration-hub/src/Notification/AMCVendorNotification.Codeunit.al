@@ -7,6 +7,9 @@ using Microsoft.Purchases.Vendor;
 using System.Email;
 using System.Utilities;
 
+/// <summary>
+/// Prepares vendor notifications, issues access links and hands email to the configured email scenario.
+/// </summary>
 codeunit 50118 "AMC Vendor Notification"
 {
   Permissions = tabledata "AMC Vendor Access Token" = rm,
@@ -15,6 +18,11 @@ codeunit 50118 "AMC Vendor Notification"
                 tabledata "Salesperson/Purchaser" = r,
                 tabledata Vendor = r;
 
+  /// <summary>
+  /// Issues a token, prepares and hands off its email, then stamps successful delivery metadata; handoff failures raise an error.
+  /// Standard email handoff can commit; this procedure does not promise transactional delivery.
+  /// </summary>
+  /// <param name="RequestNo">The request for which a new bearer link is issued.</param>
   [NonDebuggable]
   procedure Send(RequestNo: Code[20])
   var
@@ -56,6 +64,13 @@ codeunit 50118 "AMC Vendor Notification"
     Telemetry.LogLinkSent(VendorRequest."No.", VendorRequest."Vendor No.", VendorRequest."Purchase Order No.");
   end;
 
+  /// <summary>
+  /// Prepares an unsent request email and returns the vendor collaboration email scenario without issuing a token.
+  /// </summary>
+  /// <param name="RequestNo">The persisted request to load.</param>
+  /// <param name="AccessLink">The HTTPS bearer link to include; must not be logged.</param>
+  /// <param name="EmailMessage">Receives the prepared message with configured reply-to and optional order PDF.</param>
+  /// <param name="EmailScenario">Receives the vendor collaboration scenario.</param>
   [NonDebuggable]
   procedure Prepare(RequestNo: Code[20]; AccessLink: Text; var EmailMessage: Codeunit "Email Message"; var EmailScenario: Enum "Email Scenario")
   begin
@@ -63,6 +78,12 @@ codeunit 50118 "AMC Vendor Notification"
     EmailScenario := Enum::"Email Scenario"::"AMC Vendor Collaboration";
   end;
 
+  /// <summary>
+  /// Loads the request and prepares an unsent email without issuing a token.
+  /// </summary>
+  /// <param name="RequestNo">The persisted request to load.</param>
+  /// <param name="AccessLink">The HTTPS bearer link to include; must not be logged.</param>
+  /// <param name="EmailMessage">Receives the prepared message with configured reply-to and optional order PDF.</param>
   [NonDebuggable]
   procedure Prepare(RequestNo: Code[20]; AccessLink: Text; var EmailMessage: Codeunit "Email Message")
   var
@@ -73,6 +94,12 @@ codeunit 50118 "AMC Vendor Notification"
     this.Prepare(VendorRequest, AccessLink, EmailMessage);
   end;
 
+  /// <summary>
+  /// Resolves the recipient and builds an unsent localized HTML email with buyer reply-to and an optional order PDF.
+  /// </summary>
+  /// <param name="VendorRequest">The request snapshot supplying content and recipient context.</param>
+  /// <param name="AccessLink">The HTTPS bearer link to include; must not be logged.</param>
+  /// <param name="EmailMessage">Receives the prepared email; no token is issued and no email is sent.</param>
   [NonDebuggable]
   procedure Prepare(VendorRequest: Record "AMC Vendor Request"; AccessLink: Text; var EmailMessage: Codeunit "Email Message")
   var

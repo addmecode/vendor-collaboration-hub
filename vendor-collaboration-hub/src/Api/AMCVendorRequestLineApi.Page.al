@@ -1,5 +1,8 @@
 namespace Addmecode.VendorCollaborationHub;
 
+/// <summary>
+/// Exposes read-only request lines under the caller's BC permissions, without per-link security filtering.
+/// </summary>
 page 50121 "AMC Vendor Request Line API"
 {
     APIPublisher = 'addmecode';

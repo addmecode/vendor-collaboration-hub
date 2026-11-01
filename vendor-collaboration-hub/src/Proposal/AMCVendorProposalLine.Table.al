@@ -3,6 +3,9 @@ namespace Addmecode.VendorCollaborationHub;
 using Microsoft.Foundation.AuditCodes;
 using Microsoft.Inventory.Item;
 
+/// <summary>
+/// Stores sequenced vendor changes to requested items, quantities and delivery dates with their reasons.
+/// </summary>
 table 50104 "AMC Vendor Proposal Line"
 {
     Caption = 'Vendor Proposal Line';

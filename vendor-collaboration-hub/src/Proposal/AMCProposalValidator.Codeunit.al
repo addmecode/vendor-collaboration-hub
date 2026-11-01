@@ -3,6 +3,9 @@ namespace Addmecode.VendorCollaborationHub;
 using Microsoft.Foundation.AuditCodes;
 using Microsoft.Inventory.Item.Substitution;
 
+/// <summary>
+/// Aggregates request, quantity, delivery, reason, split and substitution validation errors for a proposal.
+/// </summary>
 codeunit 50102 "AMC Proposal Validator"
 {
   Permissions = tabledata "AMC Collaboration Setup" = r,
@@ -12,6 +15,11 @@ codeunit 50102 "AMC Proposal Validator"
                 tabledata "Item Substitution" = r,
                 tabledata "Reason Code" = r;
 
+  /// <summary>
+  /// Checks the request and setup, then appends shared and type-specific line validation errors without clearing existing results.
+  /// </summary>
+  /// <param name="VendorProposal">The proposal whose persisted lines are validated.</param>
+  /// <param name="Result">Receives validation errors in evaluation order.</param>
   procedure Validate(VendorProposal: Record "AMC Vendor Proposal"; var Result: Codeunit "AMC Validation Result")
   var
     CollaborationSetup: Record "AMC Collaboration Setup";

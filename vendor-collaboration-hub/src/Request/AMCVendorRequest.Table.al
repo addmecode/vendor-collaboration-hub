@@ -5,6 +5,9 @@ using Microsoft.Purchases.Document;
 using Microsoft.Purchases.Vendor;
 using System.Security.AccessControl;
 
+/// <summary>
+/// Stores the purchase-order request snapshot, response deadline and request lifecycle metadata.
+/// </summary>
 table 50101 "AMC Vendor Request"
 {
     Caption = 'Vendor Request';
@@ -149,6 +152,9 @@ table 50101 "AMC Vendor Request"
             Error(RequestSnapshotCannotBeChangedErr);
     end;
 
+  /// <summary>
+  /// Initializes the current request buffer to Draft without inserting or persisting it.
+  /// </summary>
   procedure InitRecord()
   begin
     Rec.Validate(Status, Rec.Status::Draft);

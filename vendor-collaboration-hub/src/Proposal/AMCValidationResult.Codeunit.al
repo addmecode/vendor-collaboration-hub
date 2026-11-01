@@ -1,5 +1,8 @@
 namespace Addmecode.VendorCollaborationHub;
 
+/// <summary>
+/// Accumulates ordered validation errors and renders them for API, telemetry and user-facing output.
+/// </summary>
 codeunit 50122 "AMC Validation Result"
 {
     var
@@ -8,6 +11,13 @@ codeunit 50122 "AMC Validation Result"
         SequenceNos: List of [Integer];
         ErrorTexts: List of [Text];
 
+    /// <summary>
+    /// Appends an error without clearing or deduplicating earlier errors.
+    /// </summary>
+    /// <param name="ErrorCode">The machine-readable validation code.</param>
+    /// <param name="RequestLineNo">The affected request line, or zero for a request-level error.</param>
+    /// <param name="SequenceNo">The affected sequence, or zero for a request-level error.</param>
+    /// <param name="ErrorText">The human-readable error message.</param>
     procedure AddError(ErrorCode: Code[20]; RequestLineNo: Integer; SequenceNo: Integer; ErrorText: Text)
     begin
         this.ErrorCodes.Add(ErrorCode);
@@ -16,16 +26,28 @@ codeunit 50122 "AMC Validation Result"
         this.ErrorTexts.Add(ErrorText);
     end;
 
+    /// <summary>
+    /// Checks whether any validation errors have been accumulated.
+    /// </summary>
+    /// <returns>True when at least one error exists.</returns>
     procedure HasErrors(): Boolean
     begin
         exit(this.ErrorCodes.Count() > 0);
     end;
 
+    /// <summary>
+    /// Counts the accumulated validation errors.
+    /// </summary>
+    /// <returns>The number of errors, including repeated codes.</returns>
     procedure GetErrorCount(): Integer
     begin
         exit(this.ErrorCodes.Count());
     end;
 
+    /// <summary>
+    /// Formats all errors in insertion order with codes and available line coordinates, separated by spaces.
+    /// </summary>
+    /// <returns>The formatted errors, or empty text when no errors exist.</returns>
     procedure AsErrorText(): Text
     var
         ErrorText: TextBuilder;
@@ -43,6 +65,10 @@ codeunit 50122 "AMC Validation Result"
         exit(ErrorText.ToText());
     end;
 
+    /// <summary>
+    /// Serializes errors in insertion order with code, requestLineNo, sequenceNo and message properties.
+    /// </summary>
+    /// <returns>A JSON array, empty when there are no errors.</returns>
     procedure AsJson(): Text
     var
         ErrorJson: JsonObject;
@@ -63,6 +89,10 @@ codeunit 50122 "AMC Validation Result"
         exit(JsonText);
     end;
 
+  /// <summary>
+  /// Formats only the first error, including its code and available line coordinates.
+  /// </summary>
+  /// <returns>The first formatted error, or empty text when no errors exist.</returns>
   procedure AsFirstErrorText(): Text
   begin
     if this.HasErrors() then
@@ -70,6 +100,10 @@ codeunit 50122 "AMC Validation Result"
     exit('');
   end;
 
+  /// <summary>
+  /// Joins accumulated error codes in insertion order without deduplication.
+  /// </summary>
+  /// <returns>A comma-separated code list, or empty text when no errors exist.</returns>
   procedure GetErrorCodeList(): Text
   var
     ErrorCode: Code[20];
@@ -83,6 +117,10 @@ codeunit 50122 "AMC Validation Result"
     exit(CodeList.ToText());
   end;
 
+    /// <summary>
+    /// Formats all messages with available line coordinates, omitting machine-readable error codes.
+    /// </summary>
+    /// <returns>The space-separated display messages, or empty text when no errors exist.</returns>
     procedure AsDisplayText(): Text
     var
         ErrorText: TextBuilder;

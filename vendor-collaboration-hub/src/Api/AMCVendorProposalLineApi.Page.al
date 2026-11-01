@@ -1,5 +1,8 @@
 namespace Addmecode.VendorCollaborationHub;
 
+/// <summary>
+/// Exposes proposal lines and permits insertion only within a pending proposal deep insert.
+/// </summary>
 page 50123 "AMC Vendor Proposal Line API"
 {
   PageType = API;

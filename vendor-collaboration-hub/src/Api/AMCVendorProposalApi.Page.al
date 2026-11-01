@@ -1,5 +1,8 @@
 namespace Addmecode.VendorCollaborationHub;
 
+/// <summary>
+/// Exposes vendor proposals and accepts token-validated, write-once deep inserts with idempotency checks.
+/// </summary>
 page 50122 "AMC Vendor Proposal API"
 {
   PageType = API;

@@ -4,6 +4,9 @@ using Microsoft.CRM.Team;
 using Microsoft.Purchases.Document;
 using System.Email;
 
+/// <summary>
+/// Grants buyer access to manage requests, decide proposals and apply purchasing changes.
+/// </summary>
 permissionset 50101 "AMC Collab Buyer"
 {
     Assignable = true;

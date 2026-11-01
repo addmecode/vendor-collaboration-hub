@@ -2,10 +2,23 @@ namespace Addmecode.VendorCollaborationHub;
 
 using Microsoft.Purchases.Document;
 
+/// <summary>
+/// Inserts split or substitute purchase lines with inherited context, dimensions and proposal-origin stamps.
+/// </summary>
 codeunit 50123 "AMC Purchase Line Builder"
 {
   Permissions = tabledata "Purchase Line" = ri;
 
+  /// <summary>
+  /// Inserts a validated purchase line in the number gap after the origin, inheriting context and dimensions and stamping proposal origin.
+  /// </summary>
+  /// <param name="OriginPurchaseLine">The source of order, vendor, location, unit and dimension context.</param>
+  /// <param name="ProposalLine">The proposal identity stamped on the new line.</param>
+  /// <param name="ItemNo">The item number for the new line.</param>
+  /// <param name="VariantCode">The variant code for the new line.</param>
+  /// <param name="NewQuantity">The quantity validated on the new line.</param>
+  /// <param name="PromisedReceiptDate">The promised receipt date validated on the new line.</param>
+  /// <param name="NewPurchaseLine">Receives the inserted purchase line; lack of a number gap raises an error.</param>
   procedure Build(OriginPurchaseLine: Record "Purchase Line"; ProposalLine: Record "AMC Vendor Proposal Line"; ItemNo: Code[20]; VariantCode: Code[10]; NewQuantity: Decimal; PromisedReceiptDate: Date; var NewPurchaseLine: Record "Purchase Line")
   var
     NextPurchaseLine: Record "Purchase Line";

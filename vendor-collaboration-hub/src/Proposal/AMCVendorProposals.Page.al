@@ -1,5 +1,8 @@
 namespace Addmecode.VendorCollaborationHub;
 
+/// <summary>
+/// Lists vendor proposals and serves as the buyer's filterable proposal worklist.
+/// </summary>
 page 50105 "AMC Vendor Proposals"
 {
     ApplicationArea = All;

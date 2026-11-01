@@ -2,6 +2,9 @@ namespace Addmecode.VendorCollaborationHub;
 
 using System.Security.AccessControl;
 
+/// <summary>
+/// Stores token hashes, request and vendor bindings, expiry, revocation and access metadata; never the raw bearer token.
+/// </summary>
 table 50106 "AMC Vendor Access Token"
 {
     Caption = 'Vendor Access Token';

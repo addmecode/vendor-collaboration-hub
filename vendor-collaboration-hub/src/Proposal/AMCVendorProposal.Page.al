@@ -1,5 +1,8 @@
 namespace Addmecode.VendorCollaborationHub;
 
+/// <summary>
+/// Presents a vendor proposal, its lines and history with buyer review and decision actions.
+/// </summary>
 page 50106 "AMC Vendor Proposal"
 {
     ApplicationArea = All;

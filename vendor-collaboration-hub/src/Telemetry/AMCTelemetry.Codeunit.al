@@ -1,7 +1,17 @@
 namespace Addmecode.VendorCollaborationHub;
 
+/// <summary>
+/// Emits collaboration lifecycle telemetry with logical event identifiers and structured dimensions.
+/// </summary>
 codeunit 50106 "AMC Telemetry"
 {
+    /// <summary>
+    /// Adds the logical event-id dimension and emits pseudonymous telemetry, using All scope for link-send and apply failures.
+    /// </summary>
+    /// <param name="EventId">The logical collaboration event identifier.</param>
+    /// <param name="Message">The telemetry message; callers must exclude bearer tokens and secrets.</param>
+    /// <param name="MessageVerbosity">The emitted telemetry severity.</param>
+    /// <param name="CustomDimensions">The supplied dimensions, updated with vchEventId before emission.</param>
     procedure LogMessage(EventId: Text; Message: Text; MessageVerbosity: Verbosity; var CustomDimensions: Dictionary of [Text, Text])
     var
         Scope: TelemetryScope;
@@ -13,6 +23,13 @@ codeunit 50106 "AMC Telemetry"
         Session.LogMessage(EventId, Message, MessageVerbosity, DataClassification::EndUserPseudonymousIdentifiers, Scope, CustomDimensions);
     end;
 
+    /// <summary>
+    /// Emits the request-created event with request, vendor, order and line-count dimensions.
+    /// </summary>
+    /// <param name="RequestNo">The created request number.</param>
+    /// <param name="VendorNo">The request vendor number.</param>
+    /// <param name="OrderNo">The source purchase order number.</param>
+    /// <param name="LineCount">The number of snapshotted request lines.</param>
     procedure LogRequestCreated(RequestNo: Code[20]; VendorNo: Code[20]; OrderNo: Code[20]; LineCount: Integer)
     var
         CustomDimensions: Dictionary of [Text, Text];
@@ -25,6 +42,14 @@ codeunit 50106 "AMC Telemetry"
         this.LogMessage(this.VCH0101Tok, RequestCreatedMsg, Verbosity::Normal, CustomDimensions);
     end;
 
+    /// <summary>
+    /// Emits successful proposal-application telemetry with line count and elapsed milliseconds.
+    /// </summary>
+    /// <param name="ProposalNo">The applied proposal number.</param>
+    /// <param name="RequestNo">The related request number.</param>
+    /// <param name="OrderNo">The updated purchase order number.</param>
+    /// <param name="LineCount">The number of proposal lines.</param>
+    /// <param name="Duration">The elapsed application duration.</param>
     procedure LogProposalApplied(ProposalNo: Code[20]; RequestNo: Code[20]; OrderNo: Code[20]; LineCount: Integer; Duration: Duration)
     var
         CustomDimensions: Dictionary of [Text, Text];
@@ -39,6 +64,11 @@ codeunit 50106 "AMC Telemetry"
         this.LogMessage(this.VCH0220Tok, ProposalAppliedMsg, Verbosity::Normal, CustomDimensions);
     end;
 
+  /// <summary>
+  /// Emits the received and submitted events with proposal identity, correlation and line-count dimensions.
+  /// </summary>
+  /// <param name="VendorProposal">The submitted proposal supplying event identity.</param>
+  /// <param name="LineCount">The number of submitted proposal lines.</param>
   procedure LogProposalSubmitted(VendorProposal: Record "AMC Vendor Proposal"; LineCount: Integer)
   var
     CustomDimensions: Dictionary of [Text, Text];
@@ -53,6 +83,11 @@ codeunit 50106 "AMC Telemetry"
     this.LogMessage(this.VCH0203Tok, SubmittedMsg, Verbosity::Normal, CustomDimensions);
   end;
 
+  /// <summary>
+  /// Emits validation-failure telemetry with error count and codes, excluding free-text validation messages.
+  /// </summary>
+  /// <param name="VendorProposal">The rejected proposal supplying identity and correlation dimensions.</param>
+  /// <param name="Result">The accumulated errors to summarize; unchanged.</param>
   procedure LogProposalValidationFailed(VendorProposal: Record "AMC Vendor Proposal"; var Result: Codeunit "AMC Validation Result")
   var
     CustomDimensions: Dictionary of [Text, Text];
@@ -76,6 +111,14 @@ codeunit 50106 "AMC Telemetry"
     CustomDimensions.Add(this.VCHCorrelationIdTok, Format(VendorProposal."Correlation Id", 0, 4));
   end;
 
+    /// <summary>
+    /// Emits application-failure telemetry with the error code and elapsed milliseconds, excluding free-text error details.
+    /// </summary>
+    /// <param name="ProposalNo">The proposal whose application failed.</param>
+    /// <param name="RequestNo">The related request number.</param>
+    /// <param name="OrderNo">The target purchase order number.</param>
+    /// <param name="ErrorCode">The captured application error code.</param>
+    /// <param name="Duration">The elapsed application duration.</param>
     procedure LogProposalApplyFailed(ProposalNo: Code[20]; RequestNo: Code[20]; OrderNo: Code[20]; ErrorCode: Code[20]; Duration: Duration)
     var
         CustomDimensions: Dictionary of [Text, Text];
@@ -90,6 +133,12 @@ codeunit 50106 "AMC Telemetry"
         this.LogMessage(this.VCH0221Tok, ProposalApplyFailedMsg, Verbosity::Error, CustomDimensions);
     end;
 
+    /// <summary>
+    /// Emits successful link-email handoff telemetry without link or message content.
+    /// </summary>
+    /// <param name="RequestNo">The notified request number.</param>
+    /// <param name="VendorNo">The notified vendor number.</param>
+    /// <param name="OrderNo">The related purchase order number.</param>
     procedure LogLinkSent(RequestNo: Code[20]; VendorNo: Code[20]; OrderNo: Code[20])
     var
         CustomDimensions: Dictionary of [Text, Text];
@@ -102,6 +151,12 @@ codeunit 50106 "AMC Telemetry"
         this.LogMessage(this.VCH0121Tok, LinkSentMsg, Verbosity::Normal, CustomDimensions);
     end;
 
+    /// <summary>
+    /// Emits failed link-email handoff telemetry without bearer link, recipient or message content.
+    /// </summary>
+    /// <param name="RequestNo">The request whose notification failed.</param>
+    /// <param name="VendorNo">The intended vendor number.</param>
+    /// <param name="OrderNo">The related purchase order number.</param>
     procedure LogLinkSendFailed(RequestNo: Code[20]; VendorNo: Code[20]; OrderNo: Code[20])
     var
         CustomDimensions: Dictionary of [Text, Text];

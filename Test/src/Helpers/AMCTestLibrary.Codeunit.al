@@ -19,6 +19,10 @@ using Microsoft.Purchases.Vendor;
 using System.Security.User;
 using System.TestLibraries.Utilities;
 
+/// <summary>
+/// Creates functional-test fixtures and exercises proposal submission without HTTP or email delivery.
+/// Object permissions can elevate indirect data access; this helper is not a production-role denial test.
+/// </summary>
 codeunit 50149 "AMC Test Library"
 {
   Permissions = tabledata "AMC Collaboration Setup" = rim,
@@ -52,6 +56,11 @@ codeunit 50149 "AMC Test Library"
                 tabledata Vendor = rim,
                 tabledata "Vendor Posting Group" = ri;
 
+  /// <summary>
+  /// Creates enabled API-write fixtures with a vendor, order, two request lines, substitution and an active token without email or HTTP.
+  /// </summary>
+  /// <param name="VendorRequest">Receives the awaiting-vendor request.</param>
+  /// <param name="AccessToken">Receives the active token; use its SystemId for API-domain calls.</param>
   procedure CreateWriteContext(var VendorRequest: Record "AMC Vendor Request"; var AccessToken: Record "AMC Vendor Access Token")
   var
     Vendor: Record Vendor;
@@ -115,6 +124,15 @@ codeunit 50149 "AMC Test Library"
     AccessToken.Insert(false);
   end;
 
+  /// <summary>
+  /// Exercises proposal deep-insert domain methods with two split lines and a substitute, without HTTP.
+  /// </summary>
+  /// <param name="VendorRequest">The request fixture supplying request and vendor identity.</param>
+  /// <param name="AccessTokenId">The active fixture token's API SystemId.</param>
+  /// <param name="IdempotencyKey">The client submission key used by finalization.</param>
+  /// <param name="SecondSplitQuantity">The configurable quantity for the second split; the first split is 600.</param>
+  /// <param name="ReverseLines">Whether to insert the same business lines in reverse order.</param>
+  /// <param name="VendorProposal">Receives the staged and then finalized proposal, unless validation raises an error.</param>
   procedure SubmitAnswer(VendorRequest: Record "AMC Vendor Request"; AccessTokenId: Guid; IdempotencyKey: Text[64]; SecondSplitQuantity: Decimal; ReverseLines: Boolean; var VendorProposal: Record "AMC Vendor Proposal")
   var
     ProposalMgt: Codeunit "AMC Proposal Mgt";
@@ -139,6 +157,14 @@ codeunit 50149 "AMC Test Library"
     ProposalMgt.CompleteApiSubmission(VendorProposal, AccessTokenId, IdempotencyKey);
   end;
 
+  /// <summary>
+  /// Inserts a fixture proposal line through the nested API domain method with standard dates, reasons and substitute defaults.
+  /// </summary>
+  /// <param name="VendorProposal">The pending deep-insert parent proposal.</param>
+  /// <param name="RequestLineNo">The request line being answered.</param>
+  /// <param name="SequenceNo">The business sequence; also determines the date offset from WorkDate.</param>
+  /// <param name="LineType">The operation type; substitution uses the ITEM-B2 fixture.</param>
+  /// <param name="Quantity">The proposed quantity.</param>
   procedure AddAnswerLine(VendorProposal: Record "AMC Vendor Proposal"; RequestLineNo: Integer; SequenceNo: Integer; LineType: Enum "AMC Proposal Line Type"; Quantity: Decimal)
   var
     ProposalLine: Record "AMC Vendor Proposal Line";
@@ -161,6 +187,10 @@ codeunit 50149 "AMC Test Library"
     ProposalMgt.InsertApiLine(ProposalLine);
   end;
 
+  /// <summary>
+  /// Generates a short GUID-derived identifier for test records.
+  /// </summary>
+  /// <returns>The first 20 GUID characters after removing braces and hyphens.</returns>
   procedure NewCode(): Code[20]
   begin
     exit(CopyStr(DelChr(Format(CreateGuid()), '=', '{}-'), 1, 20));
@@ -210,6 +240,9 @@ codeunit 50149 "AMC Test Library"
     ItemSubstitution.Insert(false);
   end;
 
+  /// <summary>
+  /// Ensures the manual-numbering series and assigns it to vendor, purchase-order and item setup for fixtures.
+  /// </summary>
   procedure PrepareManualNumbering()
   var
     NoSeries: Record "No. Series";
@@ -237,6 +270,12 @@ codeunit 50149 "AMC Test Library"
     InventorySetup.Modify(false);
   end;
 
+  /// <summary>
+  /// Ensures test numbering and posting prerequisites, updates the existing vendor's posting groups and inserts an initialized order.
+  /// </summary>
+  /// <param name="PurchaseHeader">Receives the inserted order header.</param>
+  /// <param name="OrderNo">The explicit test purchase-order number.</param>
+  /// <param name="VendorNo">The existing vendor used as buy-from vendor.</param>
   procedure CreatePurchaseOrder(var PurchaseHeader: Record "Purchase Header"; OrderNo: Code[20]; VendorNo: Code[20])
   var
     Vendor: Record Vendor;
@@ -285,6 +324,11 @@ codeunit 50149 "AMC Test Library"
     PurchaseHeader.Insert(false);
   end;
 
+  /// <summary>
+  /// Creates a missing item with fixture posting groups and base unit; existing items are left unchanged.
+  /// </summary>
+  /// <param name="ItemNo">The item identifier to ensure.</param>
+  /// <param name="UnitOfMeasureCode">The base unit created and assigned for a new item.</param>
   procedure EnsureItem(ItemNo: Code[20]; UnitOfMeasureCode: Code[10])
   var
     Item: Record Item;
@@ -310,6 +354,10 @@ codeunit 50149 "AMC Test Library"
     Item.Modify(false);
   end;
 
+  /// <summary>
+  /// Creates a missing salesperson/purchaser fixture; empty codes and existing records are left unchanged.
+  /// </summary>
+  /// <param name="PurchaserCode">The purchaser code and display name to use.</param>
   procedure EnsurePurchaser(PurchaserCode: Code[20])
   var
     SalespersonPurchaser: Record "Salesperson/Purchaser";
@@ -324,6 +372,11 @@ codeunit 50149 "AMC Test Library"
     SalespersonPurchaser.Insert(false);
   end;
 
+  /// <summary>
+  /// Creates a missing item variant; an empty variant code is ignored.
+  /// </summary>
+  /// <param name="ItemNo">The parent item number.</param>
+  /// <param name="VariantCode">The variant code to ensure.</param>
   procedure EnsureItemVariant(ItemNo: Code[20]; VariantCode: Code[10])
   var
     ItemVariant: Record "Item Variant";
@@ -338,6 +391,10 @@ codeunit 50149 "AMC Test Library"
     ItemVariant.Insert(false);
   end;
 
+  /// <summary>
+  /// Ensures a nonempty location and its AMC-TEST inventory posting setup.
+  /// </summary>
+  /// <param name="LocationCode">The location code; empty values are ignored.</param>
   procedure EnsureLocation(LocationCode: Code[10])
   var
     Location: Record Location;
@@ -353,6 +410,10 @@ codeunit 50149 "AMC Test Library"
     this.EnsureInventoryPostingSetup(LocationCode, 'AMC-TEST');
   end;
 
+  /// <summary>
+  /// Creates a one-to-one exchange rate at WorkDate unless a rate already exists on or before that date.
+  /// </summary>
+  /// <param name="CurrencyCode">The currency whose rate is ensured.</param>
   procedure EnsureCurrencyExchangeRate(CurrencyCode: Code[10])
   var
     CurrencyExchangeRate: Record "Currency Exchange Rate";
@@ -371,6 +432,10 @@ codeunit 50149 "AMC Test Library"
     CurrencyExchangeRate.Insert(false);
   end;
 
+  /// <summary>
+  /// Creates a default numbering series and a line starting with a GUID-derived prefix and incrementing by one.
+  /// </summary>
+  /// <returns>The new number-series code.</returns>
   procedure CreateNumberSeries(): Code[20]
   var
     NoSeries: Record "No. Series";
@@ -425,6 +490,12 @@ codeunit 50149 "AMC Test Library"
     this.EnsurePurchasePostingSetup('AMC-TEST', 'AMC-TEST', 'AMC-TEST');
   end;
 
+  /// <summary>
+  /// Ensures fixture accounts and general, VAT and inventory posting setup for the supplied product groups.
+  /// </summary>
+  /// <param name="GenProductPostingGroupCode">The general product posting group used with the fixture business group.</param>
+  /// <param name="InventoryPostingGroupCode">The inventory posting group used for the blank location.</param>
+  /// <param name="VATProductPostingGroupCode">The VAT product posting group used with the fixture VAT business group.</param>
   procedure EnsurePurchasePostingSetup(GenProductPostingGroupCode: Code[20]; InventoryPostingGroupCode: Code[20]; VATProductPostingGroupCode: Code[20])
   var
     GLAccount: Record "G/L Account";

@@ -3,6 +3,9 @@ namespace Addmecode.VendorCollaborationHub;
 using Microsoft.Foundation.NoSeries;
 using System.Threading;
 
+/// <summary>
+/// Extends buyer permissions with collaboration setup and administrative access.
+/// </summary>
 permissionset 50102 "AMC Collab Admin"
 {
     Assignable = true;

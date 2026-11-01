@@ -4,6 +4,9 @@ using Microsoft.Foundation.NoSeries;
 using System.Email;
 using System.Integration;
 
+/// <summary>
+/// Stores company collaboration settings and validates configuration prerequisites when enabling collaboration.
+/// </summary>
 table 50100 "AMC Collaboration Setup"
 {
     Caption = 'Vendor Collaboration Setup';
@@ -122,6 +125,9 @@ table 50100 "AMC Collaboration Setup"
                 this.ValidateSetupForActivation();
     end;
 
+    /// <summary>
+    /// Loads the company setup record, inserting it with default initialization when it does not exist.
+    /// </summary>
     procedure GetSetup()
     begin
         if not this.Get() then begin

@@ -1,5 +1,8 @@
 namespace Addmecode.VendorCollaborationHub;
 
+/// <summary>
+/// Lists vendor requests with their purchase-order identities and collaboration status.
+/// </summary>
 page 50102 "AMC Vendor Requests"
 {
     ApplicationArea = All;

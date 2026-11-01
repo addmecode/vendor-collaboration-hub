@@ -3,6 +3,9 @@ namespace Addmecode.VendorCollaborationHub;
 using Microsoft.Purchases.Document;
 using Microsoft.Purchases.Posting;
 
+/// <summary>
+/// Enforces collaboration order locks through standard purchasing event subscribers.
+/// </summary>
 codeunit 50107 "AMC Purchase Events"
 {
     [EventSubscriber(ObjectType::Table, Database::"Purchase Header", OnBeforeModifyEvent, '', false, false)]

@@ -5,6 +5,9 @@ using Microsoft.Purchases.Document;
 using Microsoft.Purchases.Vendor;
 using System.Globalization;
 
+/// <summary>
+/// Creates purchase-order snapshots, sends requests and manages request status and order locking.
+/// </summary>
 codeunit 50100 "AMC Request Mgt"
 {
     Permissions = tabledata "AMC Vendor Request" = rim,
@@ -13,6 +16,11 @@ codeunit 50100 "AMC Request Mgt"
                   tabledata "Purchase Line" = r,
                   tabledata Vendor = r;
 
+    /// <summary>
+    /// Validates an open order, creates a draft request and line snapshots, and locks the order to that request.
+    /// </summary>
+    /// <param name="PurchaseHeader">The order to reread, lock and update with the active request.</param>
+    /// <returns>The created request number.</returns>
     procedure CreateFromOrder(var PurchaseHeader: Record "Purchase Header"): Code[20]
     var
         CollaborationSetup: Record "AMC Collaboration Setup";
@@ -59,6 +67,10 @@ codeunit 50100 "AMC Request Mgt"
         exit(RequestNo);
     end;
 
+    /// <summary>
+    /// Opens the vendor request document or raises an error if it no longer exists.
+    /// </summary>
+    /// <param name="RequestNo">The request number to display.</param>
     procedure OpenRequest(RequestNo: Code[20])
     var
         VendorRequest: Record "AMC Vendor Request";
@@ -68,6 +80,10 @@ codeunit 50100 "AMC Request Mgt"
         Page.Run(Page::"AMC Vendor Request", VendorRequest);
     end;
 
+    /// <summary>
+    /// Cancels the order's active nonterminal request, revokes its tokens and clears the order lock with scoped suppression.
+    /// </summary>
+    /// <param name="PurchaseHeader">The purchase order to reread and unlock.</param>
     procedure Cancel(var PurchaseHeader: Record "Purchase Header")
     var
         VendorRequest: Record "AMC Vendor Request";
@@ -114,6 +130,11 @@ codeunit 50100 "AMC Request Mgt"
         CollabLog.LogEvent("AMC Source Type"::Request, RequestNo, 0, "AMC Collab Entry Type"::OrderUnlocked, "AMC Actor Type"::Buyer, '', CopyStr(UserId(), 1, 50), RequestCancelledDescriptionLbl, CreateGuid());
     end;
 
+    /// <summary>
+    /// Closes an applied request, revokes its tokens and clears its order lock within the caller's apply context.
+    /// </summary>
+    /// <param name="VendorRequest">The request to close and stamp with the closure time.</param>
+    /// <param name="PurchaseHeader">The order whose active request and collaboration status are updated.</param>
     procedure CloseAfterApply(var VendorRequest: Record "AMC Vendor Request"; var PurchaseHeader: Record "Purchase Header")
     var
         AccessTokenMgt: Codeunit "AMC Access Token Mgt";
@@ -129,6 +150,11 @@ codeunit 50100 "AMC Request Mgt"
         PurchaseHeader.Modify(true);
     end;
 
+    /// <summary>
+    /// Sends or resends a link for a draft or awaiting-vendor request, superseding old links on resend and updating send status.
+    /// Email handoff can commit through the standard email implementation; this is not an atomic send-and-status operation.
+    /// </summary>
+    /// <param name="VendorRequest">The request to reread and update after notification handoff.</param>
     procedure Send(var VendorRequest: Record "AMC Vendor Request")
     var
         PurchaseHeader: Record "Purchase Header";
@@ -187,6 +213,11 @@ codeunit 50100 "AMC Request Mgt"
         PurchaseHeader.Modify(true);
     end;
 
+  /// <summary>
+  /// Checks the request state machine and persists an allowed transition with the modify trigger.
+  /// </summary>
+  /// <param name="VendorRequest">The request buffer to transition and persist.</param>
+  /// <param name="NewStatus">The permitted next status; invalid transitions raise an error.</param>
   procedure SetStatus(var VendorRequest: Record "AMC Vendor Request"; NewStatus: Enum "AMC Request Status")
   var
     VCHReq0005Err: Label 'Vendor request status cannot change from %1 to %2.', Comment = '%1 = current request status, %2 = requested request status';

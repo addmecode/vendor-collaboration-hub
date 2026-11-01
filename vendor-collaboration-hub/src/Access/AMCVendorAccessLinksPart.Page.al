@@ -1,5 +1,8 @@
 namespace Addmecode.VendorCollaborationHub;
 
+/// <summary>
+/// Shows access-link history and link-management actions within a vendor request.
+/// </summary>
 page 50111 "AMC Vendor Access Links Part"
 {
     ApplicationArea = All;

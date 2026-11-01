@@ -2,6 +2,9 @@ namespace Addmecode.VendorCollaborationHub;
 
 using System.Integration;
 
+/// <summary>
+/// Publishes the external business event announcing a submitted vendor proposal.
+/// </summary>
 codeunit 50108 "AMC Business Events"
 {
   [ExternalBusinessEvent('VendorProposalSubmitted', 'Vendor proposal submitted', 'Raised when a vendor submits a proposal for a purchase order.', EventCategory::"AMC Vendor Collaboration", '1.0')]

@@ -1,5 +1,8 @@
 namespace Addmecode.VendorCollaborationHub;
 
+/// <summary>
+/// Configures collaboration activation, numbering, portal links, notifications and proposal validation policies.
+/// </summary>
 page 50100 "AMC Collaboration Setup"
 {
     ApplicationArea = All;

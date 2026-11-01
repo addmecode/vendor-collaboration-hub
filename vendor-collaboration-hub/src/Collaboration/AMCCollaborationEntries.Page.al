@@ -1,5 +1,8 @@
 namespace Addmecode.VendorCollaborationHub;
 
+/// <summary>
+/// Provides a read-only administrative list of collaboration audit entries.
+/// </summary>
 page 50112 "AMC Collaboration Entries"
 {
   ApplicationArea = All;

@@ -1,5 +1,8 @@
 namespace Addmecode.VendorCollaborationHub;
 
+/// <summary>
+/// Displays the lines of the vendor proposal shown by its parent document.
+/// </summary>
 page 50108 "AMC Vendor Proposal Subform"
 {
     ApplicationArea = All;

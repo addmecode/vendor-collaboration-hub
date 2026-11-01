@@ -1,5 +1,8 @@
 namespace Addmecode.VendorCollaborationHub;
 
+/// <summary>
+/// Displays the snapshotted purchase lines of the request shown by its parent document.
+/// </summary>
 page 50104 "AMC Vendor Request Subform"
 {
     ApplicationArea = All;
