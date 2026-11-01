@@ -588,11 +588,11 @@ share one ID space per type and must fit in the same 50 slots together.
 | Codeunit | 26 | 15 | 41 | 50100–50125, 50130–50144 | 9 |
 | Page | 18 | 0 | 18 | 50100–50111 (UI), 50120–50125 (API) | 32 |
 | PageExtension | 5 | 0 | 5 | 50100–50104 | 45 |
-| PermissionSet | 4 | 0 | 4 | 50100–50103 | 46 |
+| PermissionSet | 4 | 1 | 5 | 50100–50103, 50130 | 45 |
 | Interface | 1 | 0 | 1 | *no ID consumed* | — |
 
-**87 objects, 41 in the busiest type.** Codeunits are the constraint, which is
-correct — that is where the behaviour lives, and it is where splitting things up
+**Codeunits are the constraint in the allocation above**, which is correct —
+that is where the behaviour lives, and it is where splitting things up
 actually buys something.
 
 Allocation convention inside each type: the app takes `50100–50129`, the test app
@@ -1159,6 +1159,13 @@ extension-model answer.
 | `AMC Collaboration Buyer` | 50101 | includes Read; RIM on Request/Request Line/Proposal/Proposal Line; RIM on Vendor Access Token; I on Collaboration Entry; X on `AMC Request Mgt`, `AMC Proposal Decision Svc`, `AMC Apply Proposal Svc`, `AMC Order Lock Mgt`, `AMC Access Token Mgt`, `AMC Vendor Notification`, `AMC Unknown Line Handler` |
 | `AMC Collaboration Admin` | 50102 | includes Buyer; RIMD on Setup; R on `No. Series`; execute access to `AMC Assisted Setup` and the standard `No. Series` lookup page |
 | `AMC Api Integration` | 50103 | R on Request/Request Line; RI on Proposal/Proposal Line; **Rm** on Vendor Access Token (direct read, indirect modify via `registerAccess` only); I on Collaboration Entry; R on Purchase Header/Line, Vendor, Item; X on `AMC Proposal Mgt`, `AMC Proposal Validator`, `AMC Validation Result`, `AMC Idempotency Mgt`, `AMC Access Token Mgt`, `AMC Unknown Line Handler` — **no D anywhere, no Setup, no access to the decision, apply, notification or order-version codeunits** |
+
+The separate Test app defines `AMC Collab Tests` (PermissionSet 50130), with
+execute-only access to its 19 test and helper codeunits. It grants no table-data
+permissions, includes no application roles, and is not included in any production
+permission set. The test user still needs separately assigned application and
+test-runner permissions; this set does not elevate data access or replace
+lower-permission security tests.
 
 `AMC Api Integration` is assigned to the Entra application used by the Function,
 shared by all vendors. It grants direct `R` on the listed request, proposal,

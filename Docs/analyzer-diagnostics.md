@@ -2,15 +2,12 @@
 
 Stan: 2026-11-01. Wyniki kompilacji z analizatorami skonfigurowanymi w projektach `vendor-collaboration-hub` (App) i `Test`.
 
-Łącznie: **0 błędów, 83 ostrzeżenia i 649 informacji**. Liczby w tabelach oznaczają wystąpienia komunikatów. **PC0037: 0 wystąpień.**
-
-Weryfikacja po poprawkach: oba projekty skompilowane z analizatorami z konfiguracji VS Code (App: 72 pliki AL, Test: 19), po odświeżeniu zależności App w Test. Usunięto z zestawienia rozwiązane zgłoszenia; nie wyłączano reguł. Nie publikowano aplikacji ani nie uruchamiano testów w sandboxie.
+Łącznie: **0 błędów, 64 ostrzeżenia i 649 informacji**. Liczby w tabelach oznaczają wystąpienia komunikatów. **PC0037: 0 wystąpień.**
 
 ## Warning — według kodu reguły
 
 | Kod | Opis | App | Test | Razem |
 |---|---|---:|---:|---:|
-| `AC0010` | Obiekt nie jest objęty PermissionSet | 0 | 19 | 19 |
 | `AL1025`* | Pliki XML wyników nie pasują do rozpoznanej definicji | 0 | 18 | 18 |
 | `AS0081` | Ostrzeżenie dotyczące `internalsVisibleTo` | 1 | 0 | 1 |
 | `AS0092` | Brak konfiguracji Application Insights | 1 | 1 | 2 |
@@ -18,7 +15,7 @@ Weryfikacja po poprawkach: oba projekty skompilowane z analizatorami z konfigura
 | `LC0090` | Zbyt wysoka złożoność poznawcza | 1 | 0 | 1 |
 | `PC0027` | Walidacja lub triggery na rekordzie tymczasowym | 5 | 32 | 37 |
 
-\* `AL1025` pochodzi z **kompilatora**, nie analizatora. Zatem 83 ostrzeżenia obejmują **65 z analizatorów i 18 z kompilatora**.
+\* `AL1025` pochodzi z **kompilatora**, nie analizatora. Zatem 64 ostrzeżenia obejmują **46 z analizatorów i 18 z kompilatora**.
 
 ## Info — według kodu reguły
 
