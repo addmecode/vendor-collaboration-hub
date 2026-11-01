@@ -79,11 +79,7 @@ codeunit 50126 "AMC API Token Scope"
         if (StrLen(GuidText) = 38) and (GuidText[1] = '{') and (GuidText[38] = '}') then
             GuidText := CopyStr(GuidText, 2, 36);
 
-        if (StrLen(GuidText) <> 36) or
-          (GuidText[9] <> '-') or
-          (GuidText[14] <> '-') or
-          (GuidText[19] <> '-') or
-          (GuidText[24] <> '-') then
+        if not this.HasGuidSeparators(GuidText) then
             exit(false);
 
         GuidText := DelChr(GuidText, '=', '-');
@@ -91,6 +87,17 @@ codeunit 50126 "AMC API Token Scope"
             exit(false);
 
         exit(Evaluate(TokenSystemId, Value));
+    end;
+
+    local procedure HasGuidSeparators(Value: Text): Boolean
+    begin
+        if StrLen(Value) <> 36 then
+            exit(false);
+
+        exit((Value[9] = '-') and
+             (Value[14] = '-') and
+             (Value[19] = '-') and
+             (Value[24] = '-'));
     end;
 
     local procedure IsTokenHash(Value: Text): Boolean

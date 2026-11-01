@@ -182,13 +182,18 @@ codeunit 50101 "AMC Proposal Mgt"
     PreviousRequestLineNo := 0;
     PreviousSequenceNo := 0;
     repeat
-      if (ProposalLine."Request Line No." <= 0) or (ProposalLine."Sequence No." <= 0) or
-         (HasPreviousLine and (PreviousRequestLineNo = ProposalLine."Request Line No.") and (PreviousSequenceNo = ProposalLine."Sequence No.")) then
+      if this.HasInvalidLineSequence(ProposalLine, HasPreviousLine, PreviousRequestLineNo, PreviousSequenceNo) then
         Result.AddError(PayloadCodeLbl, ProposalLine."Request Line No.", ProposalLine."Sequence No.", SequenceErr);
       HasPreviousLine := true;
       PreviousRequestLineNo := ProposalLine."Request Line No.";
       PreviousSequenceNo := ProposalLine."Sequence No.";
     until ProposalLine.Next() = 0;
+  end;
+
+  local procedure HasInvalidLineSequence(ProposalLine: Record "AMC Vendor Proposal Line"; HasPreviousLine: Boolean; PreviousRequestLineNo: Integer; PreviousSequenceNo: Integer): Boolean
+  begin
+    exit((ProposalLine."Request Line No." <= 0) or (ProposalLine."Sequence No." <= 0) or
+         (HasPreviousLine and (PreviousRequestLineNo = ProposalLine."Request Line No.") and (PreviousSequenceNo = ProposalLine."Sequence No.")));
   end;
 
   local procedure SupersedePreviousProposals(VendorProposal: Record "AMC Vendor Proposal")

@@ -93,20 +93,34 @@ table 50102 "AMC Vendor Request Line"
     }
 
     trigger OnModify()
+    begin
+        this.VerifySnapshotUnchanged();
+    end;
+
+    local procedure VerifySnapshotUnchanged()
     var
         PersistedVendorRequestLine: Record "AMC Vendor Request Line";
         RequestLineSnapshotCannotBeChangedErr: Label 'Vendor request line snapshot fields cannot be changed.';
     begin
-        //todo: is this check needed?
         if PersistedVendorRequestLine.Get(this."Request No.", this."Line No.") and
-           ((this."Purchase Line No." <> PersistedVendorRequestLine."Purchase Line No.") or
-            (this."Item No." <> PersistedVendorRequestLine."Item No.") or
-            (this."Variant Code" <> PersistedVendorRequestLine."Variant Code") or
-            (this.Description <> PersistedVendorRequestLine.Description) or
-            (this."Location Code" <> PersistedVendorRequestLine."Location Code") or
-            (this."Unit of Measure Code" <> PersistedVendorRequestLine."Unit of Measure Code") or
-            (this."Requested Quantity" <> PersistedVendorRequestLine."Requested Quantity") or
-            (this."Requested Delivery Date" <> PersistedVendorRequestLine."Requested Delivery Date")) then
+           (this.HasChangedItemSnapshot(PersistedVendorRequestLine) or
+            this.HasChangedDeliverySnapshot(PersistedVendorRequestLine)) then
             Error(RequestLineSnapshotCannotBeChangedErr);
+    end;
+
+    local procedure HasChangedItemSnapshot(PersistedVendorRequestLine: Record "AMC Vendor Request Line"): Boolean
+    begin
+        exit((this."Purchase Line No." <> PersistedVendorRequestLine."Purchase Line No.") or
+             (this."Item No." <> PersistedVendorRequestLine."Item No.") or
+             (this."Variant Code" <> PersistedVendorRequestLine."Variant Code") or
+             (this.Description <> PersistedVendorRequestLine.Description));
+    end;
+
+    local procedure HasChangedDeliverySnapshot(PersistedVendorRequestLine: Record "AMC Vendor Request Line"): Boolean
+    begin
+        exit((this."Location Code" <> PersistedVendorRequestLine."Location Code") or
+             (this."Unit of Measure Code" <> PersistedVendorRequestLine."Unit of Measure Code") or
+             (this."Requested Quantity" <> PersistedVendorRequestLine."Requested Quantity") or
+             (this."Requested Delivery Date" <> PersistedVendorRequestLine."Requested Delivery Date"));
     end;
 }

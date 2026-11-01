@@ -59,15 +59,7 @@ codeunit 50102 "AMC Proposal Validator"
       exit;
     end;
 
-    if (VendorProposalLine."Line Type" <> VendorProposalLine."Line Type"::"Change Quantity") and
-     (VendorProposalLine."Proposed Quantity" <= 0) then
-      this.AddLineError(Result, this.QuantityMustBePositiveCodeLbl, VendorProposalLine, this.QuantityMustBePositiveErr);
-
-    if (VendorProposalLine."Line Type" <> VendorProposalLine."Line Type"::"Split Delivery") and
-     (VendorProposalLine."Line Type" <> VendorProposalLine."Line Type"::"Change Quantity") and
-     (VendorProposalLine."Proposed Quantity" > VendorRequestLine."Outstanding Quantity") then
-      this.AddLineError(Result, this.QuantityExceedsOutstandingCodeLbl, VendorProposalLine,
-        StrSubstNo(this.QuantityExceedsOutstandingErr, VendorProposalLine."Proposed Quantity", VendorRequestLine."Outstanding Quantity", VendorRequestLine."Line No."));
+    this.ValidateLineQuantity(VendorProposalLine, VendorRequestLine, Result);
 
     if (VendorProposalLine."Line Type" <> VendorProposalLine."Line Type"::"Change Date") and
        (VendorProposalLine."Proposed Delivery Date" < WorkDate()) then
@@ -79,6 +71,19 @@ codeunit 50102 "AMC Proposal Validator"
     this.ValidateSubstitution(VendorProposalLine, VendorRequestLine, CollaborationSetup, Result);
     LineHandler := VendorProposalLine."Line Type";
     LineHandler.Validate(VendorProposalLine, VendorRequestLine, Result);
+  end;
+
+  local procedure ValidateLineQuantity(VendorProposalLine: Record "AMC Vendor Proposal Line"; VendorRequestLine: Record "AMC Vendor Request Line"; var Result: Codeunit "AMC Validation Result")
+  begin
+    if (VendorProposalLine."Line Type" <> VendorProposalLine."Line Type"::"Change Quantity") and
+     (VendorProposalLine."Proposed Quantity" <= 0) then
+      this.AddLineError(Result, this.QuantityMustBePositiveCodeLbl, VendorProposalLine, this.QuantityMustBePositiveErr);
+
+    if (VendorProposalLine."Line Type" <> VendorProposalLine."Line Type"::"Split Delivery") and
+     (VendorProposalLine."Line Type" <> VendorProposalLine."Line Type"::"Change Quantity") and
+     (VendorProposalLine."Proposed Quantity" > VendorRequestLine."Outstanding Quantity") then
+      this.AddLineError(Result, this.QuantityExceedsOutstandingCodeLbl, VendorProposalLine,
+        StrSubstNo(this.QuantityExceedsOutstandingErr, VendorProposalLine."Proposed Quantity", VendorRequestLine."Outstanding Quantity", VendorRequestLine."Line No."));
   end;
 
   local procedure ValidateReasonCode(VendorProposalLine: Record "AMC Vendor Proposal Line"; CollaborationSetup: Record "AMC Collaboration Setup"; var Result: Codeunit "AMC Validation Result")

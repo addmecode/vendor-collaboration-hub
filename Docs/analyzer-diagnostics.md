@@ -2,19 +2,15 @@
 
 Stan: 2026-11-01. Wyniki kompilacji z analizatorami skonfigurowanymi w projektach `vendor-collaboration-hub` (App) i `Test`.
 
-Łącznie: **0 błędów, 27 ostrzeżeń i 649 informacji**. Liczby w tabelach oznaczają wystąpienia komunikatów. **PC0037: 0 wystąpień.**
+Łącznie: **0 błędów, 4 ostrzeżenia i 647 informacji**. Liczby w tabelach oznaczają wystąpienia komunikatów. **PC0037: 0 wystąpień.**
 
 ## Warning — według kodu reguły
 
 | Kod | Opis | App | Test | Razem |
 |---|---|---:|---:|---:|
-| `AL1025`* | Pliki XML wyników nie pasują do rozpoznanej definicji | 0 | 18 | 18 |
 | `AS0081` | Ostrzeżenie dotyczące `internalsVisibleTo` | 1 | 0 | 1 |
 | `AS0092` | Brak konfiguracji Application Insights | 1 | 1 | 2 |
-| `LC0010` | Zbyt wysoka złożoność cyklomatyczna | 5 | 0 | 5 |
 | `LC0090` | Zbyt wysoka złożoność poznawcza | 1 | 0 | 1 |
-
-\* `AL1025` pochodzi z **kompilatora**, nie analizatora. Zatem 27 ostrzeżeń obejmuje **9 z analizatorów i 18 z kompilatora**.
 
 ## Info — według kodu reguły
 
@@ -25,7 +21,7 @@ Stan: 2026-11-01. Wyniki kompilacji z analizatorami skonfigurowanymi w projektac
 | `DC0004` | Publiczna procedura bez dokumentacji XML | 85 | 15 | 100 |
 | `DC0007` | Publiczny obiekt bez dokumentacji XML | 62 | 2 | 64 |
 | `LC0031` | `LockTable()` zamiast `ReadIsolation(UpdLock)` | 4 | 0 | 4 |
-| `PC0030` | Brak `SetLoadFields` przed odczytem | 22 | 38 | 60 |
+| `PC0030` | Brak `SetLoadFields` przed odczytem | 20 | 38 | 58 |
 
 ## Pozostawione świadomie — AC0019
 

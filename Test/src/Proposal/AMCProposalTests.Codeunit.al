@@ -266,6 +266,7 @@ codeunit 50133 "AMC Proposal Tests"
 
         // Then
         this.Assert.AreEqual(3, ValidationResult.GetErrorCount(), 'Validation must collect every independent failure.');
+        this.Assert.AreEqual('VCH-VAL-0012,VCH-VAL-0040,VCH-VAL-0020', ValidationResult.GetErrorCodeList(), 'Validation must preserve quantity, reason and handler-date error ordering.');
         this.Assert.IsTrue(StrPos(ValidationResult.AsErrorText(), 'VCH-VAL-0012') > 0, 'Text validation output must include the quantity error.');
         this.Assert.IsTrue(StrPos(ValidationResult.AsErrorText(), 'VCH-VAL-0020') > 0, 'Text validation output must include the date error.');
         this.Assert.IsTrue(StrPos(ValidationResult.AsErrorText(), 'VCH-VAL-0040') > 0, 'Text validation output must include the reason error.');
