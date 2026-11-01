@@ -49,6 +49,7 @@ codeunit 50138 "AMC Split Delivery Tests"
     this.Assert.AreEqual(FirstProposalLine."Proposal No.", PurchaseLine."AMC Origin Proposal No.", 'The origin line must be stamped with the first split proposal.');
     this.Assert.AreEqual(400, SplitPurchaseLine.Quantity, 'The later split must create the remaining quantity.');
     this.Assert.AreEqual(SecondDate, SplitPurchaseLine."Promised Receipt Date", 'The later split must use its proposed delivery date.');
+    this.Assert.IsTrue(PurchaseLine."Dimension Set ID" > 0, 'The source must contain a real dimension set before its dimensions are copied.');
     this.Assert.AreEqual(PurchaseLine."Dimension Set ID", SplitPurchaseLine."Dimension Set ID", 'The split line must copy the origin dimensions.');
     this.Assert.AreEqual(SecondProposalLine."Proposal No.", SplitPurchaseLine."AMC Origin Proposal No.", 'The split line must be stamped with its proposal.');
     this.Assert.AreEqual(SecondProposalLine."Line No.", SplitPurchaseLine."AMC Origin Proposal Line No.", 'The split line must be stamped with its proposal line.');
@@ -131,8 +132,10 @@ codeunit 50138 "AMC Split Delivery Tests"
     DimensionValue.Validate(Name, DimensionValueCode);
     DimensionValue.Insert(false);
     TempDimensionSetEntry.Init();
-    TempDimensionSetEntry.Validate("Dimension Code", DimensionCode);
-    TempDimensionSetEntry.Validate("Dimension Value Code", DimensionValueCode);
+    // Copy the freshly created valid value, including the ID normally set by field validation.
+    TempDimensionSetEntry."Dimension Code" := DimensionValue."Dimension Code";
+    TempDimensionSetEntry."Dimension Value Code" := DimensionValue.Code;
+    TempDimensionSetEntry."Dimension Value ID" := DimensionValue."Dimension Value ID";
     TempDimensionSetEntry.Insert(false);
     this.TestLibrary.PrepareManualNumbering();
     Vendor.Init();

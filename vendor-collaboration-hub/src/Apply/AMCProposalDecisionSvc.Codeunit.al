@@ -22,11 +22,12 @@ codeunit 50103 "AMC Proposal Decision Svc"
     this.VerifyApprovalAllowed(VendorProposal);
 
     TempDecisionContext.Init();
-    TempDecisionContext.Validate("No.", VendorProposal."No.");
-    TempDecisionContext.Validate(Status, TempDecisionContext.Status::Approved);
-    TempDecisionContext.Validate("Decision Reason", DecisionReason);
-    TempDecisionContext.Validate("Decision User ID", CopyStr(UserId(), 1, MaxStrLen(TempDecisionContext."Decision User ID")));
-    TempDecisionContext.Validate("Correlation Id", VendorProposal."Correlation Id");
+    // This is an in-memory command envelope; the worker validates and persists the decision.
+    TempDecisionContext."No." := VendorProposal."No.";
+    TempDecisionContext.Status := TempDecisionContext.Status::Approved;
+    TempDecisionContext."Decision Reason" := DecisionReason;
+    TempDecisionContext."Decision User ID" := CopyStr(UserId(), 1, MaxStrLen(TempDecisionContext."Decision User ID"));
+    TempDecisionContext."Correlation Id" := VendorProposal."Correlation Id";
     OrderLockMgt.GetSuppressionContext(PreviousPurchaseOrderNo, PreviousRequestNo);
     StartedAt := CurrentDateTime();
 

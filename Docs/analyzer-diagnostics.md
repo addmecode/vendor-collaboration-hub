@@ -2,7 +2,7 @@
 
 Stan: 2026-11-01. Wyniki kompilacji z analizatorami skonfigurowanymi w projektach `vendor-collaboration-hub` (App) i `Test`.
 
-Łącznie: **0 błędów, 64 ostrzeżenia i 649 informacji**. Liczby w tabelach oznaczają wystąpienia komunikatów. **PC0037: 0 wystąpień.**
+Łącznie: **0 błędów, 27 ostrzeżeń i 649 informacji**. Liczby w tabelach oznaczają wystąpienia komunikatów. **PC0037: 0 wystąpień.**
 
 ## Warning — według kodu reguły
 
@@ -13,9 +13,8 @@ Stan: 2026-11-01. Wyniki kompilacji z analizatorami skonfigurowanymi w projektac
 | `AS0092` | Brak konfiguracji Application Insights | 1 | 1 | 2 |
 | `LC0010` | Zbyt wysoka złożoność cyklomatyczna | 5 | 0 | 5 |
 | `LC0090` | Zbyt wysoka złożoność poznawcza | 1 | 0 | 1 |
-| `PC0027` | Walidacja lub triggery na rekordzie tymczasowym | 5 | 32 | 37 |
 
-\* `AL1025` pochodzi z **kompilatora**, nie analizatora. Zatem 64 ostrzeżenia obejmują **46 z analizatorów i 18 z kompilatora**.
+\* `AL1025` pochodzi z **kompilatora**, nie analizatora. Zatem 27 ostrzeżeń obejmuje **9 z analizatorów i 18 z kompilatora**.
 
 ## Info — według kodu reguły
 

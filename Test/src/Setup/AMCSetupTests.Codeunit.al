@@ -37,79 +37,79 @@ codeunit 50130 "AMC Setup Tests"
     [Test]
     procedure GivenMissingRequestNoSeries_WhenEnabling_ThenValidationFails()
     var
-        TempCollaborationSetup: Record "AMC Collaboration Setup" temporary;
+        CollaborationSetup: Record "AMC Collaboration Setup";
     begin
         // Given
-        this.PrepareCompleteSetup(TempCollaborationSetup);
-        TempCollaborationSetup.Validate("Request Nos.", '');
+        this.PrepareCompleteSetup(CollaborationSetup);
+        CollaborationSetup.Validate("Request Nos.", '');
 
         // When
-        asserterror TempCollaborationSetup.Validate(Enabled, true);
+        asserterror CollaborationSetup.Validate(Enabled, true);
 
         // Then
-        this.AssertFieldMustHaveValueError(TempCollaborationSetup.FieldCaption("Request Nos."));
+        this.AssertFieldMustHaveValueError(CollaborationSetup.FieldCaption("Request Nos."));
     end;
 
     [Test]
     procedure GivenMissingProposalNoSeries_WhenEnabling_ThenValidationFails()
     var
-        TempCollaborationSetup: Record "AMC Collaboration Setup" temporary;
+        CollaborationSetup: Record "AMC Collaboration Setup";
     begin
         // Given
-        this.PrepareCompleteSetup(TempCollaborationSetup);
-        TempCollaborationSetup.Validate("Proposal Nos.", '');
+        this.PrepareCompleteSetup(CollaborationSetup);
+        CollaborationSetup.Validate("Proposal Nos.", '');
 
         // When
-        asserterror TempCollaborationSetup.Validate(Enabled, true);
+        asserterror CollaborationSetup.Validate(Enabled, true);
 
         // Then
-        this.AssertFieldMustHaveValueError(TempCollaborationSetup.FieldCaption("Proposal Nos."));
+        this.AssertFieldMustHaveValueError(CollaborationSetup.FieldCaption("Proposal Nos."));
     end;
 
     [Test]
     procedure GivenMissingPortalBaseUrl_WhenEnabling_ThenValidationFails()
     var
-        TempCollaborationSetup: Record "AMC Collaboration Setup" temporary;
+        CollaborationSetup: Record "AMC Collaboration Setup";
     begin
         // Given
-        this.PrepareCompleteSetup(TempCollaborationSetup);
-        TempCollaborationSetup.Validate("Portal Base URL", '');
+        this.PrepareCompleteSetup(CollaborationSetup);
+        CollaborationSetup.Validate("Portal Base URL", '');
 
         // When
-        asserterror TempCollaborationSetup.Validate(Enabled, true);
+        asserterror CollaborationSetup.Validate(Enabled, true);
 
         // Then
-        this.AssertFieldMustHaveValueError(TempCollaborationSetup.FieldCaption("Portal Base URL"));
+        this.AssertFieldMustHaveValueError(CollaborationSetup.FieldCaption("Portal Base URL"));
     end;
 
     [Test]
     procedure GivenMissingPortalSupportEmail_WhenEnabling_ThenValidationFails()
     var
-        TempCollaborationSetup: Record "AMC Collaboration Setup" temporary;
+        CollaborationSetup: Record "AMC Collaboration Setup";
     begin
         // Given
-        this.PrepareCompleteSetup(TempCollaborationSetup);
-        TempCollaborationSetup.Validate("Portal Support E-Mail", '');
+        this.PrepareCompleteSetup(CollaborationSetup);
+        CollaborationSetup.Validate("Portal Support E-Mail", '');
 
         // When
-        asserterror TempCollaborationSetup.Validate(Enabled, true);
+        asserterror CollaborationSetup.Validate(Enabled, true);
 
         // Then
-        this.AssertFieldMustHaveValueError(TempCollaborationSetup.FieldCaption("Portal Support E-Mail"));
+        this.AssertFieldMustHaveValueError(CollaborationSetup.FieldCaption("Portal Support E-Mail"));
     end;
 
     [Test]
     procedure GivenInvalidPortalBaseUrl_WhenEnabling_ThenValidationFails()
     var
-        TempCollaborationSetup: Record "AMC Collaboration Setup" temporary;
+        CollaborationSetup: Record "AMC Collaboration Setup";
         InvalidUriErr: Label 'The URI is not valid.';
     begin
         // Given
-        this.PrepareCompleteSetup(TempCollaborationSetup);
-        TempCollaborationSetup.Validate("Portal Base URL", 'portal.contoso.com');
+        this.PrepareCompleteSetup(CollaborationSetup);
+        CollaborationSetup.Validate("Portal Base URL", 'portal.contoso.com');
 
         // When
-        asserterror TempCollaborationSetup.Validate(Enabled, true);
+        asserterror CollaborationSetup.Validate(Enabled, true);
 
         // Then
         this.Assert.ExpectedError(InvalidUriErr);
@@ -118,97 +118,97 @@ codeunit 50130 "AMC Setup Tests"
     [Test]
     procedure GivenInvalidPortalSupportEmail_WhenEnabling_ThenValidationFails()
     var
-        TempCollaborationSetup: Record "AMC Collaboration Setup" temporary;
+        CollaborationSetup: Record "AMC Collaboration Setup";
         InvalidEmailAddressErr: Label 'The email address "%1" is not valid.', Comment = '%1 = invalid e-mail address';
     begin
         // Given
-        this.PrepareCompleteSetup(TempCollaborationSetup);
-        TempCollaborationSetup.Validate("Portal Support E-Mail", 'support.contoso.com');
+        this.PrepareCompleteSetup(CollaborationSetup);
+        CollaborationSetup.Validate("Portal Support E-Mail", 'support.contoso.com');
 
         // When
-        asserterror TempCollaborationSetup.Validate(Enabled, true);
+        asserterror CollaborationSetup.Validate(Enabled, true);
 
         // Then
-        this.Assert.ExpectedError(StrSubstNo(InvalidEmailAddressErr, TempCollaborationSetup."Portal Support E-Mail"));
+        this.Assert.ExpectedError(StrSubstNo(InvalidEmailAddressErr, CollaborationSetup."Portal Support E-Mail"));
     end;
 
     [Test]
     procedure GivenNonPositiveResponseDays_WhenEnabling_ThenValidationFails()
     var
-        TempCollaborationSetup: Record "AMC Collaboration Setup" temporary;
+        CollaborationSetup: Record "AMC Collaboration Setup";
     begin
         // Given
-        this.PrepareCompleteSetup(TempCollaborationSetup);
-        TempCollaborationSetup.Validate("Default Response Days", 0);
+        this.PrepareCompleteSetup(CollaborationSetup);
+        CollaborationSetup.Validate("Default Response Days", 0);
 
         // When
-        asserterror TempCollaborationSetup.Validate(Enabled, true);
+        asserterror CollaborationSetup.Validate(Enabled, true);
 
         // Then
-        this.AssertFieldMustBeGreaterThanZeroError(TempCollaborationSetup.FieldCaption("Default Response Days"));
+        this.AssertFieldMustBeGreaterThanZeroError(CollaborationSetup.FieldCaption("Default Response Days"));
     end;
 
     [Test]
     procedure GivenNonPositiveLinkValidityDays_WhenEnabling_ThenValidationFails()
     var
-        TempCollaborationSetup: Record "AMC Collaboration Setup" temporary;
+        CollaborationSetup: Record "AMC Collaboration Setup";
     begin
         // Given
-        this.PrepareCompleteSetup(TempCollaborationSetup);
-        TempCollaborationSetup.Validate("Link Validity Days", 0);
+        this.PrepareCompleteSetup(CollaborationSetup);
+        CollaborationSetup.Validate("Link Validity Days", 0);
 
         // When
-        asserterror TempCollaborationSetup.Validate(Enabled, true);
+        asserterror CollaborationSetup.Validate(Enabled, true);
 
         // Then
-        this.AssertFieldMustBeGreaterThanZeroError(TempCollaborationSetup.FieldCaption("Link Validity Days"));
+        this.AssertFieldMustBeGreaterThanZeroError(CollaborationSetup.FieldCaption("Link Validity Days"));
     end;
 
     [Test]
     procedure GivenLinkValidityDaysShorterThanResponseDays_WhenEnabling_ThenValidationFails()
     var
-        TempCollaborationSetup: Record "AMC Collaboration Setup" temporary;
+        CollaborationSetup: Record "AMC Collaboration Setup";
     begin
         // Given
-        this.PrepareCompleteSetup(TempCollaborationSetup);
-        TempCollaborationSetup.Validate("Link Validity Days", TempCollaborationSetup."Default Response Days" - 1);
+        this.PrepareCompleteSetup(CollaborationSetup);
+        CollaborationSetup.Validate("Link Validity Days", CollaborationSetup."Default Response Days" - 1);
 
         // When
-        asserterror TempCollaborationSetup.Validate(Enabled, true);
+        asserterror CollaborationSetup.Validate(Enabled, true);
 
         // Then
-        this.AssertFieldMustBeGreaterThanOrEqualToError(TempCollaborationSetup.FieldCaption("Link Validity Days"), TempCollaborationSetup.FieldCaption("Default Response Days"));
+        this.AssertFieldMustBeGreaterThanOrEqualToError(CollaborationSetup.FieldCaption("Link Validity Days"), CollaborationSetup.FieldCaption("Default Response Days"));
     end;
 
     [Test]
     procedure GivenNonPositiveMaxSplitsPerLine_WhenEnabling_ThenValidationFails()
     var
-        TempCollaborationSetup: Record "AMC Collaboration Setup" temporary;
+        CollaborationSetup: Record "AMC Collaboration Setup";
     begin
         // Given
-        this.PrepareCompleteSetup(TempCollaborationSetup);
-        TempCollaborationSetup.Validate("Max Splits per Line", 0);
+        this.PrepareCompleteSetup(CollaborationSetup);
+        CollaborationSetup.Validate("Max Splits per Line", 0);
 
         // When
-        asserterror TempCollaborationSetup.Validate(Enabled, true);
+        asserterror CollaborationSetup.Validate(Enabled, true);
 
         // Then
-        this.AssertFieldMustBeGreaterThanZeroError(TempCollaborationSetup.FieldCaption("Max Splits per Line"));
+        this.AssertFieldMustBeGreaterThanZeroError(CollaborationSetup.FieldCaption("Max Splits per Line"));
     end;
 
     [Test]
     procedure GivenCompleteSetup_WhenEnabling_ThenSetupIsEnabled()
     var
-        TempCollaborationSetup: Record "AMC Collaboration Setup" temporary;
+        CollaborationSetup: Record "AMC Collaboration Setup";
     begin
         // Given
-        this.PrepareCompleteSetup(TempCollaborationSetup);
+        this.PrepareCompleteSetup(CollaborationSetup);
 
         // When
-        TempCollaborationSetup.Validate(Enabled, true);
+        CollaborationSetup.Validate(Enabled, true);
 
         // Then
-        this.Assert.IsTrue(TempCollaborationSetup.Enabled, 'Vendor collaboration must be enabled.');
+        this.Assert.IsTrue(CollaborationSetup.Enabled, 'Vendor collaboration must be enabled.');
     end;
 
     [Test]
@@ -262,15 +262,15 @@ codeunit 50130 "AMC Setup Tests"
         CollaborationSetup: Record "AMC Collaboration Setup";
         InitialCollaborationSetup: Record "AMC Collaboration Setup";
         JobQueueEntry: Record "Job Queue Entry";
-        TempCollaborationSetup: Record "AMC Collaboration Setup" temporary;
+        PreparedCollaborationSetup: Record "AMC Collaboration Setup";
         CollaborationSetupPage: Page "AMC Collaboration Setup";
         AssistedSetup: TestPage "AMC Assisted Setup";
         AssistedSetupNotAvailableErr: Label 'Vendor Collaboration is already enabled. Use the %1 page to change the configuration.', Comment = '%1 = page caption';
     begin
         // Given
         this.PrepareAssistedSetupPrerequisites();
-        this.PrepareCompleteSetup(TempCollaborationSetup);
-        CollaborationSetup := TempCollaborationSetup;
+        this.PrepareCompleteSetup(PreparedCollaborationSetup);
+        CollaborationSetup := PreparedCollaborationSetup;
         CollaborationSetup.Validate(Enabled, true);
         CollaborationSetup.Modify(true);
         Commit(); // Keep the enabled fixture outside the expected page-opening error's rollback.
@@ -333,15 +333,20 @@ codeunit 50130 "AMC Setup Tests"
         this.Assert.AreEqual(InitialCollaborationSetup."Telemetry Verbosity", CollaborationSetup."Telemetry Verbosity", 'Closing assisted setup must not change telemetry verbosity.');
     end;
 
-    local procedure PrepareCompleteSetup(var TempCollaborationSetup: Record "AMC Collaboration Setup" temporary)
+    local procedure PrepareCompleteSetup(var CollaborationSetup: Record "AMC Collaboration Setup")
     var
         TestLibrary: Codeunit "AMC Test Library";
     begin
-        TempCollaborationSetup.GetSetup();
-        TempCollaborationSetup.Validate("Request Nos.", TestLibrary.CreateNumberSeries());
-        TempCollaborationSetup.Validate("Proposal Nos.", TestLibrary.CreateNumberSeries());
-        TempCollaborationSetup.Validate("Portal Base URL", 'https://portal.contoso.com');
-        TempCollaborationSetup.Validate("Portal Support E-Mail", 'support@contoso.com');
+        // Use an uninserted normal buffer so activation tests exercise the real field trigger without setup writes.
+        CollaborationSetup.Init();
+        CollaborationSetup.Validate("Default Response Days", 7);
+        CollaborationSetup.Validate("Max Splits per Line", 3);
+        CollaborationSetup.Validate("Require Reason Code", true);
+        CollaborationSetup.Validate("Link Validity Days", 14);
+        CollaborationSetup.Validate("Request Nos.", TestLibrary.CreateNumberSeries());
+        CollaborationSetup.Validate("Proposal Nos.", TestLibrary.CreateNumberSeries());
+        CollaborationSetup.Validate("Portal Base URL", 'https://portal.contoso.com');
+        CollaborationSetup.Validate("Portal Support E-Mail", 'support@contoso.com');
     end;
 
     local procedure AssertFieldMustBeGreaterThanZeroError(FieldCaption: Text)

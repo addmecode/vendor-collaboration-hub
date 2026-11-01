@@ -180,8 +180,8 @@ codeunit 50144 "AMC Vendor Notification Tests"
   begin
     // Given
     TempVendorRequest.Init();
-    TempVendorRequest.Validate("No.", this.CreateUniqueCode());
-    TempVendorRequest.Validate("Language Code", Language.GetLanguageCode(Language.GetDefaultApplicationLanguageId()));
+    TempVendorRequest."No." := this.CreateUniqueCode();
+    TempVendorRequest."Language Code" := Language.GetLanguageCode(Language.GetDefaultApplicationLanguageId());
     OriginalLanguageId := GlobalLanguage();
     Commit(); // End the arrange transaction before the expected builder error and language-restoration checks.
 

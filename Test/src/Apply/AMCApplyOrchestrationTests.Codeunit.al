@@ -118,9 +118,9 @@ codeunit 50134 "AMC Apply Orchestration Tests"
         // Given
         this.CreateProposalForApply(PurchaseHeader, VendorProposal, ProposalNo);
         TempDecisionContext.Init();
-        TempDecisionContext.Validate("No.", ProposalNo);
-        TempDecisionContext.Validate(Status, TempDecisionContext.Status::"In Review");
-        TempDecisionContext.Validate("Decision User ID", CopyStr(UserId(), 1, MaxStrLen(TempDecisionContext."Decision User ID")));
+        TempDecisionContext."No." := ProposalNo;
+        TempDecisionContext.Status := TempDecisionContext.Status::"In Review";
+        TempDecisionContext."Decision User ID" := CopyStr(UserId(), 1, MaxStrLen(TempDecisionContext."Decision User ID"));
         Commit(); // The Boolean Codeunit.Run call requires no pending writes and rolls back only the worker attempt.
 
         // When
