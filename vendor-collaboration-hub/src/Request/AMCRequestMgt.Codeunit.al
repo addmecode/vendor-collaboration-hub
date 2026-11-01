@@ -31,14 +31,16 @@ codeunit 50100 "AMC Request Mgt"
         OrderNo := PurchaseHeader."No.";
         // Keep transaction-wide isolation for the caller and nested purchase-header guard buffers.
         PurchaseHeader.LockTable();
-        PurchaseHeader.Get(PurchaseHeader."Document Type"::Order, OrderNo);
+        if not PurchaseHeader.Get(PurchaseHeader."Document Type"::Order, OrderNo) then
+            Error(this.RequiredRecordNotFoundErr, PurchaseHeader.TableCaption());
 
         this.VerifyPurchaseOrderCanCreateRequest(PurchaseHeader);
 
         CollaborationSetup.GetSetup();
         this.VerifyCollaborationEnabled(CollaborationSetup);
 
-        Vendor.Get(PurchaseHeader."Buy-from Vendor No.");
+        if not Vendor.Get(PurchaseHeader."Buy-from Vendor No.") then
+            Error(this.RequiredRecordNotFoundErr, Vendor.TableCaption());
         this.VerifyVendorCollaborationEnabled(Vendor);
         this.VerifyNoActiveRequest(PurchaseHeader."No.");
 
@@ -61,7 +63,8 @@ codeunit 50100 "AMC Request Mgt"
     var
         VendorRequest: Record "AMC Vendor Request";
     begin
-        VendorRequest.Get(RequestNo);
+        if not VendorRequest.Get(RequestNo) then
+            Error(this.RequiredRecordNotFoundErr, VendorRequest.TableCaption());
         Page.Run(Page::"AMC Vendor Request", VendorRequest);
     end;
 
@@ -88,7 +91,8 @@ codeunit 50100 "AMC Request Mgt"
         PurchaseOrderNo := PurchaseHeader."No.";
         // Cancellation and its nested order-lock checks must share the transaction's isolation state.
         PurchaseHeader.LockTable();
-        PurchaseHeader.Get(PurchaseHeader."Document Type"::Order, PurchaseOrderNo);
+        if not PurchaseHeader.Get(PurchaseHeader."Document Type"::Order, PurchaseOrderNo) then
+            Error(this.RequiredRecordNotFoundErr, PurchaseHeader.TableCaption());
         RequestNo := PurchaseHeader."AMC Active Request No.";
         if RequestNo = '' then
             Error(NoActiveRequestErr, PurchaseOrderNo);
@@ -143,7 +147,8 @@ codeunit 50100 "AMC Request Mgt"
         RequestNo := VendorRequest."No.";
         // Preserve isolation in nested buffers; this transaction state ends at the standard Email commit.
         VendorRequest.LockTable();
-        VendorRequest.Get(RequestNo);
+        if not VendorRequest.Get(RequestNo) then
+            Error(this.RequiredRecordNotFoundErr, VendorRequest.TableCaption());
         if not (VendorRequest.Status in [VendorRequest.Status::Draft, VendorRequest.Status::"Awaiting Vendor"]) then
             Error(InvalidSendStatusErr, VendorRequest."No.");
         if VendorRequest.Status = VendorRequest.Status::"Awaiting Vendor" then
@@ -156,7 +161,8 @@ codeunit 50100 "AMC Request Mgt"
         end;
         VendorRequest.Validate("Sent Date Time", CurrentDateTime());
         VendorRequest.Modify(true);
-        PurchaseHeader.Get(PurchaseHeader."Document Type"::Order, VendorRequest."Purchase Order No.");
+        if not PurchaseHeader.Get(PurchaseHeader."Document Type"::Order, VendorRequest."Purchase Order No.") then
+            Error(this.RequiredRecordNotFoundErr, PurchaseHeader.TableCaption());
         OrderLockMgt.SetSuppressionContext(PurchaseHeader."No.", VendorRequest."No.", PreviousPurchaseOrderNo, PreviousRequestNo);
         if not this.TryUpdatePurchaseOrderCollaborationStatus(PurchaseHeader, VendorRequest.Status) then begin
             LastErrorText := GetLastErrorText();
@@ -332,4 +338,7 @@ codeunit 50100 "AMC Request Mgt"
             until PurchaseLine.Next() = 0;
         exit(LineCount);
     end;
+
+    var
+        RequiredRecordNotFoundErr: Label 'The %1 record required for the vendor request could not be found. Refresh the document and try again.', Comment = '%1 = table caption';
 }

@@ -27,7 +27,7 @@ codeunit 50134 "AMC Apply Orchestration Tests"
     begin
         // Given
         this.CreateProposalForApply(PurchaseHeader, VendorProposal, ProposalNo);
-        VendorProposalLine.Get(ProposalNo, 10000);
+        this.Assert.IsTrue(VendorProposalLine.Get(ProposalNo, 10000), 'The expected vendor proposal line record must exist.');
         VendorProposalLine.Validate("Line Type", VendorProposalLine."Line Type"::"Change Date");
         VendorProposalLine.Modify(false);
         Commit();
@@ -35,20 +35,20 @@ codeunit 50134 "AMC Apply Orchestration Tests"
         // When
         ApplySucceeded := DecisionSvc.Approve(VendorProposal, 'Approved for test.');
         if not ApplySucceeded then
-            VendorProposal.Get(ProposalNo);
+            this.Assert.IsTrue(VendorProposal.Get(ProposalNo), 'The expected vendor proposal record must exist.');
         this.Assert.IsTrue(ApplySucceeded, StrSubstNo(ApprovalFailedErr, VendorProposal."Last Error Message"));
 
         // Then
-        VendorProposal.Get(ProposalNo);
+        this.Assert.IsTrue(VendorProposal.Get(ProposalNo), 'The expected vendor proposal record must exist.');
         this.Assert.AreEqual(VendorProposal.Status::Applied, VendorProposal.Status, 'A successful decision must apply the proposal.');
         this.Assert.AreNotEqual(0DT, VendorProposal."Decision Date Time", 'A successful decision must be stamped.');
         this.Assert.AreEqual('Approved for test.', VendorProposal."Decision Reason", 'A successful decision must retain its audit reason.');
-        PurchaseHeader.Get(PurchaseHeader."Document Type"::Order, PurchaseHeader."No.");
+        this.Assert.IsTrue(PurchaseHeader.Get(PurchaseHeader."Document Type"::Order, PurchaseHeader."No."), 'The expected purchase header record must exist.');
         this.Assert.AreEqual(PurchaseHeader.Status::Released, PurchaseHeader.Status, 'Applying a proposal must release the purchase order.');
         this.Assert.AreEqual('', PurchaseHeader."AMC Active Request No.", 'Applying a proposal must unlock the purchase order.');
-        VendorRequest.Get(VendorProposal."Request No.");
+        this.Assert.IsTrue(VendorRequest.Get(VendorProposal."Request No."), 'The expected vendor request record must exist.');
         this.Assert.AreEqual(VendorRequest.Status::Closed, VendorRequest.Status, 'Applying a proposal must close its request.');
-        VendorRequestLine.Get(VendorProposal."Request No.", 10000);
+        this.Assert.IsTrue(VendorRequestLine.Get(VendorProposal."Request No.", 10000), 'The expected vendor request line record must exist.');
         this.Assert.AreEqual(10, VendorRequestLine."Confirmed Quantity", 'Applying a confirmed line must recalculate confirmed quantity.');
         this.Assert.AreEqual(0, VendorRequestLine."Outstanding Quantity", 'Applying a confirmed line must clear outstanding quantity.');
         this.AssertProposalHasEntry(ProposalNo, "AMC Collab Entry Type"::ProposalApproved);
@@ -73,9 +73,9 @@ codeunit 50134 "AMC Apply Orchestration Tests"
         DecisionSvc.Reject(VendorProposal, 'Rejected for test.');
 
         // Then
-        VendorProposal.Get(ProposalNo);
+        this.Assert.IsTrue(VendorProposal.Get(ProposalNo), 'The expected vendor proposal record must exist.');
         this.Assert.AreEqual(VendorProposal.Status::Rejected, VendorProposal.Status, 'Rejecting must set a terminal rejected status.');
-        PurchaseHeader.Get(PurchaseHeader."Document Type"::Order, PurchaseHeader."No.");
+        this.Assert.IsTrue(PurchaseHeader.Get(PurchaseHeader."Document Type"::Order, PurchaseHeader."No."), 'The expected purchase header record must exist.');
         this.Assert.AreEqual(PurchaseHeader.Status::Open, PurchaseHeader.Status, 'Rejecting must not release the purchase order.');
         this.Assert.AreNotEqual('', PurchaseHeader."AMC Active Request No.", 'Rejecting must not unlock the purchase order.');
         PurchaseLine.SetRange("Document Type", PurchaseHeader."Document Type");
@@ -143,9 +143,9 @@ codeunit 50134 "AMC Apply Orchestration Tests"
     begin
         // Given
         this.CreateProposalForApply(PurchaseHeader, VendorProposal, ProposalNo);
-        PurchaseLine.Get(PurchaseHeader."Document Type", PurchaseHeader."No.", 10000);
+        this.Assert.IsTrue(PurchaseLine.Get(PurchaseHeader."Document Type", PurchaseHeader."No.", 10000), 'The expected purchase line record must exist.');
         OriginalPromisedReceiptDate := PurchaseLine."Promised Receipt Date";
-        VendorProposalLine.Get(ProposalNo, 10000);
+        this.Assert.IsTrue(VendorProposalLine.Get(ProposalNo, 10000), 'The expected vendor proposal line record must exist.');
         VendorProposalLine.Validate("Line Type", VendorProposalLine."Line Type"::"Change Date");
         VendorProposalLine.Validate("Proposed Delivery Date", WorkDate() + 10);
         VendorProposalLine.Modify(false);
@@ -156,16 +156,16 @@ codeunit 50134 "AMC Apply Orchestration Tests"
         this.Assert.IsFalse(DecisionSvc.Approve(VendorProposal, 'Approve with deterministic failure.'), 'A later unknown handler must fail the atomic apply.');
 
         // Then
-        VendorProposal.Get(ProposalNo);
+        this.Assert.IsTrue(VendorProposal.Get(ProposalNo), 'The expected vendor proposal record must exist.');
         this.Assert.AreEqual(VendorProposal.Status::"Apply Failed", VendorProposal.Status, 'A failed worker must persist Apply Failed after rollback.');
         this.Assert.AreNotEqual('', VendorProposal."Last Error Message", 'A failed worker must persist its error message.');
         this.Assert.IsTrue(StrPos(VendorProposal."Last Error Message", 'VCH-APL-0006') > 0, 'A failed unknown handler must preserve its domain error.');
-        PurchaseHeader.Get(PurchaseHeader."Document Type"::Order, PurchaseHeader."No.");
+        this.Assert.IsTrue(PurchaseHeader.Get(PurchaseHeader."Document Type"::Order, PurchaseHeader."No."), 'The expected purchase header record must exist.');
         this.Assert.AreEqual(PurchaseHeader.Status::Open, PurchaseHeader.Status, 'A failed worker must not release the purchase order.');
         this.Assert.AreNotEqual('', PurchaseHeader."AMC Active Request No.", 'A failed worker must keep the purchase order locked.');
-        PurchaseLine.Get(PurchaseHeader."Document Type", PurchaseHeader."No.", 10000);
+        this.Assert.IsTrue(PurchaseLine.Get(PurchaseHeader."Document Type", PurchaseHeader."No.", 10000), 'The expected purchase line record must exist.');
         this.Assert.AreEqual(OriginalPromisedReceiptDate, PurchaseLine."Promised Receipt Date", 'A later handler failure must roll back the earlier purchase-line mutation.');
-        VendorProposalLine.Get(ProposalNo, 10000);
+        this.Assert.IsTrue(VendorProposalLine.Get(ProposalNo, 10000), 'The expected vendor proposal line record must exist.');
         this.Assert.IsFalse(VendorProposalLine.Applied, 'A later handler failure must roll back prior applied flags.');
         this.AssertProposalHasNoEntry(ProposalNo, "AMC Collab Entry Type"::ProposalApproved);
         this.AssertProposalHasEntry(ProposalNo, "AMC Collab Entry Type"::ProposalApplyFailed);
@@ -187,7 +187,7 @@ codeunit 50134 "AMC Apply Orchestration Tests"
         this.InsertUnknownProposalLine(ProposalNo, 20000, 2);
         Commit();
         this.Assert.IsFalse(DecisionSvc.Approve(VendorProposal, 'First attempt fails.'), 'The first attempt must fail on the unknown handler.');
-        VendorProposalLine.Get(ProposalNo, 20000);
+        this.Assert.IsTrue(VendorProposalLine.Get(ProposalNo, 20000), 'The expected vendor proposal line record must exist.');
         VendorProposalLine.Validate("Line Type", VendorProposalLine."Line Type"::Confirm);
         VendorProposalLine.Validate("Proposed Quantity", 10);
         VendorProposalLine.Validate("Proposed Delivery Date", WorkDate() + 1);
@@ -197,11 +197,11 @@ codeunit 50134 "AMC Apply Orchestration Tests"
         // When
         ApplySucceeded := DecisionSvc.Approve(VendorProposal, 'Retry after correction.');
         if not ApplySucceeded then
-            VendorProposal.Get(ProposalNo);
+            this.Assert.IsTrue(VendorProposal.Get(ProposalNo), 'The expected vendor proposal record must exist.');
         this.Assert.IsTrue(ApplySucceeded, StrSubstNo(RetryFailedErr, VendorProposal."Last Error Message"));
 
         // Then
-        VendorProposal.Get(ProposalNo);
+        this.Assert.IsTrue(VendorProposal.Get(ProposalNo), 'The expected vendor proposal record must exist.');
         this.Assert.AreEqual(VendorProposal.Status::Applied, VendorProposal.Status, 'A corrected retry must apply the proposal.');
         this.Assert.AreEqual(2, VendorProposal."Apply Attempt Count", 'A retry must record exactly two attempts.');
     end;

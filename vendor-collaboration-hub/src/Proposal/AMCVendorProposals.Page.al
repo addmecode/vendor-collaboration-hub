@@ -71,12 +71,14 @@ page 50105 "AMC Vendor Proposals"
         VendorRequest: Record "AMC Vendor Request";
         ProposalMgt: Codeunit "AMC Proposal Mgt";
         ProposalNo: Code[20];
+        ProposalNotFoundErr: Label 'The created vendor proposal could not be found. Refresh the list and try again.';
     begin
         if Page.RunModal(Page::"AMC Vendor Requests", VendorRequest) <> Action::LookupOK then
             exit;
 
         ProposalNo := ProposalMgt.CreateDraftFromRequest(VendorRequest);
-        VendorProposal.Get(ProposalNo);
+        if not VendorProposal.Get(ProposalNo) then
+            Error(ProposalNotFoundErr);
         Page.Run(Page::"AMC Vendor Proposal", VendorProposal);
     end;
 }

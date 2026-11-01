@@ -26,7 +26,8 @@ codeunit 50114 "AMC Split Delivery Handler" implements "AMC IProposalLineHandler
       exit;
     end;
 
-    OriginPurchaseLine.Get(PurchaseHeader."Document Type", PurchaseHeader."No.", RequestLine."Purchase Line No.");
+    if not OriginPurchaseLine.Get(PurchaseHeader."Document Type", PurchaseHeader."No.", RequestLine."Purchase Line No.") then
+      Error(this.RequiredRecordNotFoundErr, OriginPurchaseLine.TableCaption());
     OriginPurchaseLine.Validate(Quantity, ProposalLine."Proposed Quantity");
     OriginPurchaseLine.Validate("Promised Receipt Date", ProposalLine."Proposed Delivery Date");
     OriginPurchaseLine.Validate("AMC Origin Proposal No.", ProposalLine."Proposal No.");
@@ -38,8 +39,10 @@ codeunit 50114 "AMC Split Delivery Handler" implements "AMC IProposalLineHandler
   var
     VendorProposal: Record "AMC Vendor Proposal";
   begin
-    VendorProposal.Get(ProposalLine."Proposal No.");
-    RequestLine.Get(VendorProposal."Request No.", ProposalLine."Request Line No.");
+    if not VendorProposal.Get(ProposalLine."Proposal No.") then
+      Error(this.RequiredRecordNotFoundErr, VendorProposal.TableCaption());
+    if not RequestLine.Get(VendorProposal."Request No.", ProposalLine."Request Line No.") then
+      Error(this.RequiredRecordNotFoundErr, RequestLine.TableCaption());
   end;
 
   local procedure GetPreviousSplitPurchaseLine(ProposalLine: Record "AMC Vendor Proposal Line"; PurchaseHeader: Record "Purchase Header"; var PreviousPurchaseLine: Record "Purchase Line"): Boolean
@@ -60,4 +63,7 @@ codeunit 50114 "AMC Split Delivery Handler" implements "AMC IProposalLineHandler
     PreviousPurchaseLine.SetRange("AMC Origin Proposal Line No.", PreviousProposalLine."Line No.");
     exit(PreviousPurchaseLine.FindFirst());
   end;
+
+  var
+    RequiredRecordNotFoundErr: Label 'VCH-DAT-0001: The %1 record required to process the proposal could not be found.', Comment = '%1 = table caption';
 }

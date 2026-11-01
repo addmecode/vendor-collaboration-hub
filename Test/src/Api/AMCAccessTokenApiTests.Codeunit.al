@@ -26,7 +26,7 @@ codeunit 50146 "AMC Access Token API Tests"
     // When
     ApiTokenScope.ApplyTokenScope(VendorAccessTokenView, false);
     this.Assert.AreEqual(1, VendorAccessTokenView.Count(), 'An exact token hash must not return a second token.');
-    VendorAccessTokenView.FindFirst();
+    this.Assert.IsTrue(VendorAccessTokenView.FindFirst(), 'The expected vendor access token view record must exist.');
 
     // Then
     this.Assert.AreEqual(VendorAccessToken."Token Hash", VendorAccessTokenView."Token Hash", 'The projection must retain the matching token hash.');
@@ -72,7 +72,7 @@ codeunit 50146 "AMC Access Token API Tests"
 
     // When
     ApiTokenScope.ApplyTokenScope(VendorAccessTokenView, false);
-    VendorAccessTokenView.FindFirst();
+    this.Assert.IsTrue(VendorAccessTokenView.FindFirst(), 'The expected vendor access token view record must exist.');
 
     // Then
     this.Assert.AreEqual(VendorAccessToken."Token Hash", VendorAccessTokenView."Token Hash", 'An exact SystemId must resolve the matching token.');
@@ -103,7 +103,7 @@ codeunit 50146 "AMC Access Token API Tests"
     // When
     ApiTokenScope.ApplyTokenScope(VendorAccessTokenView, false);
     this.Assert.AreEqual(1, VendorAccessTokenView.Count(), 'Additional broad filters must not bypass the exact token hash scope.');
-    VendorAccessTokenView.FindFirst();
+    this.Assert.IsTrue(VendorAccessTokenView.FindFirst(), 'The expected vendor access token view record must exist.');
 
     // Then
     this.Assert.AreEqual(VendorAccessToken."Token Hash", VendorAccessTokenView."Token Hash", 'The protected token hash scope must be preserved.');

@@ -30,7 +30,7 @@ codeunit 50140 "AMC Cancel Remainder Tests"
     CancelRemainderHandler.Apply(ProposalLine, PurchaseHeader);
 
     // Then
-    PurchaseLine.Get(PurchaseHeader."Document Type", PurchaseHeader."No.", 10000);
+    this.Assert.IsTrue(PurchaseLine.Get(PurchaseHeader."Document Type", PurchaseHeader."No.", 10000), 'The expected purchase line record must exist.');
     this.Assert.AreEqual(400, PurchaseLine.Quantity, 'Cancelling the remainder must retain the received quantity.');
     this.Assert.AreEqual(ProposalLine."Proposal No.", PurchaseLine."AMC Origin Proposal No.", 'The cancelled line must be stamped with the proposal.');
     this.Assert.AreEqual(ProposalLine."Line No.", PurchaseLine."AMC Origin Proposal Line No.", 'The cancelled line must be stamped with the proposal line.');

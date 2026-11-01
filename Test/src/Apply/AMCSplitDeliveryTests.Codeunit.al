@@ -42,8 +42,8 @@ codeunit 50138 "AMC Split Delivery Tests"
     SplitDeliveryHandler.Apply(SecondProposalLine, PurchaseHeader);
 
     // Then
-    PurchaseLine.Get(PurchaseHeader."Document Type", PurchaseHeader."No.", 10000);
-    SplitPurchaseLine.Get(PurchaseHeader."Document Type", PurchaseHeader."No.", 15000);
+    this.Assert.IsTrue(PurchaseLine.Get(PurchaseHeader."Document Type", PurchaseHeader."No.", 10000), 'The expected purchase line record must exist.');
+    this.Assert.IsTrue(SplitPurchaseLine.Get(PurchaseHeader."Document Type", PurchaseHeader."No.", 15000), 'The expected split purchase line record must exist.');
     this.Assert.AreEqual(600, PurchaseLine.Quantity, 'The first split must update the origin quantity.');
     this.Assert.AreEqual(FirstDate, PurchaseLine."Promised Receipt Date", 'The first split must update the origin promised date.');
     this.Assert.AreEqual(FirstProposalLine."Proposal No.", PurchaseLine."AMC Origin Proposal No.", 'The origin line must be stamped with the first split proposal.');
@@ -84,7 +84,7 @@ codeunit 50138 "AMC Split Delivery Tests"
     // Then
     this.Assert.IsFalse(ApplySucceeded, 'A later split without a free line number must fail.');
     this.Assert.IsTrue(StrPos(ErrorText, 'VCH-APL-0005') > 0, 'The no-gap failure must use the controlled application error code.');
-    ExistingPurchaseLine.Get(PurchaseHeader."Document Type", PurchaseHeader."No.", 10001);
+    this.Assert.IsTrue(ExistingPurchaseLine.Get(PurchaseHeader."Document Type", PurchaseHeader."No.", 10001), 'The expected existing purchase line record must exist.');
     this.Assert.AreEqual(10001, ExistingPurchaseLine."Line No.", 'The existing adjacent line must not be renumbered.');
     this.Assert.IsFalse(SplitPurchaseLine.Get(PurchaseHeader."Document Type", PurchaseHeader."No.", 15000), 'No split line must be inserted when no gap is available.');
   end;

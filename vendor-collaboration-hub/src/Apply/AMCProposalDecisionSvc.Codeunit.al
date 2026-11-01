@@ -17,7 +17,8 @@ codeunit 50103 "AMC Proposal Decision Svc"
     PreviousRequestNo: Code[20];
     StartedAt: DateTime;
   begin
-    VendorProposal.Get(VendorProposal."No.");
+    if not VendorProposal.Get(VendorProposal."No.") then
+      Error(this.ProposalNotFoundErr);
     this.VerifyApprovalAllowed(VendorProposal);
 
     TempDecisionContext.Init();
@@ -39,14 +40,16 @@ codeunit 50103 "AMC Proposal Decision Svc"
     end;
 
     OrderLockMgt.RestoreSuppressionContext(PreviousPurchaseOrderNo, PreviousRequestNo);
-    VendorProposal.Get(VendorProposal."No.");
+    if not VendorProposal.Get(VendorProposal."No.") then
+      Error(this.ProposalNotFoundErr);
     if ApplySucceeded then begin
       Telemetry.LogProposalApplied(VendorProposal."No.", VendorProposal."Request No.", VendorProposal."Purchase Order No.", this.GetProposalLineCount(VendorProposal."No."), CurrentDateTime() - StartedAt);
       exit(true);
     end;
 
     this.RecordApplyFailure(VendorProposal, ErrorCode, ErrorMessage);
-    VendorProposal.Get(VendorProposal."No.");
+    if not VendorProposal.Get(VendorProposal."No.") then
+      Error(this.ProposalNotFoundErr);
     Telemetry.LogProposalApplyFailed(VendorProposal."No.", VendorProposal."Request No.", VendorProposal."Purchase Order No.", ErrorCode, CurrentDateTime() - StartedAt);
     exit(false);
   end;
@@ -57,7 +60,8 @@ codeunit 50103 "AMC Proposal Decision Svc"
     ProposalMgt: Codeunit "AMC Proposal Mgt";
     ProposalRejectedDescriptionLbl: Label 'Vendor proposal rejected.';
   begin
-    VendorProposal.Get(VendorProposal."No.");
+    if not VendorProposal.Get(VendorProposal."No.") then
+      Error(this.ProposalNotFoundErr);
     this.VerifyInReview(VendorProposal);
     VendorProposal.Validate("Decision Date Time", CurrentDateTime());
     VendorProposal.Validate("Decision User ID", UserId());
@@ -72,7 +76,8 @@ codeunit 50103 "AMC Proposal Decision Svc"
     ProposalMgt: Codeunit "AMC Proposal Mgt";
     ChangesRequestedDescriptionLbl: Label 'Changes requested for vendor proposal.';
   begin
-    VendorProposal.Get(VendorProposal."No.");
+    if not VendorProposal.Get(VendorProposal."No.") then
+      Error(this.ProposalNotFoundErr);
     this.VerifyInReview(VendorProposal);
     VendorProposal.Validate("Decision Date Time", CurrentDateTime());
     VendorProposal.Validate("Decision User ID", UserId());
@@ -131,4 +136,7 @@ codeunit 50103 "AMC Proposal Decision Svc"
 
     exit(CopyStr(ErrorMessage, ErrorCodeStart, 12));
   end;
+
+  var
+    ProposalNotFoundErr: Label 'The vendor proposal could not be found. Refresh the document and try again.';
 }

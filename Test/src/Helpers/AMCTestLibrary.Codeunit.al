@@ -17,6 +17,7 @@ using Microsoft.Purchases.Document;
 using Microsoft.Purchases.Setup;
 using Microsoft.Purchases.Vendor;
 using System.Security.User;
+using System.TestLibraries.Utilities;
 
 codeunit 50149 "AMC Test Library"
 {
@@ -212,6 +213,7 @@ codeunit 50149 "AMC Test Library"
     GLAccount: Record "G/L Account";
     GLSetup: Record "General Ledger Setup";
     UserSetup: Record "User Setup";
+    Assert: Codeunit "Library Assert";
   begin
     this.PrepareManualNumbering();
     this.EnsurePostingSetup();
@@ -233,7 +235,7 @@ codeunit 50149 "AMC Test Library"
       VendorPostingGroup.Validate("Payables Account", GLAccount."No.");
       VendorPostingGroup.Insert(false);
     end;
-    Vendor.Get(VendorNo);
+    Assert.IsTrue(Vendor.Get(VendorNo), 'The expected vendor record must exist.');
     Vendor.Validate("Vendor Posting Group", VendorPostingGroup.Code);
     Vendor.Validate("Gen. Bus. Posting Group", 'AMC-TEST');
     Vendor.Validate("VAT Bus. Posting Group", 'AMC-TEST');

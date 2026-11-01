@@ -67,7 +67,7 @@ codeunit 50141 "AMC Order Lock Tests"
         NewPurchaseLine.Validate(Description, 'New line');
         this.LockPurchaseOrder(PurchaseHeader, RequestNo);
         Commit();
-        PurchaseLine.Get(PurchaseHeader."Document Type", PurchaseHeader."No.", 10000);
+        this.Assert.IsTrue(PurchaseLine.Get(PurchaseHeader."Document Type", PurchaseHeader."No.", 10000), 'The expected purchase line record must exist.');
         PurchaseLine.Validate(Description, 'Changed description');
 
         // When
@@ -109,7 +109,7 @@ codeunit 50141 "AMC Order Lock Tests"
         this.Assert.ExpectedError(StrSubstNo(this.PurchaseOrderLockedErr, PurchaseOrderNo, RequestNo));
 
         // When
-        PurchaseHeader.Get(PurchaseHeader."Document Type"::Order, PurchaseOrderNo);
+        this.Assert.IsTrue(PurchaseHeader.Get(PurchaseHeader."Document Type"::Order, PurchaseOrderNo), 'The expected purchase header record must exist.');
         asserterror ReleasePurchaseDocument.ReleasePurchaseHeader(PurchaseHeader, false);
 
         // Then
@@ -146,7 +146,7 @@ codeunit 50141 "AMC Order Lock Tests"
         PurchaseHeader.Modify(true);
 
         // Then
-        PurchaseHeader.Get(PurchaseHeader."Document Type", PurchaseHeader."No.");
+        this.Assert.IsTrue(PurchaseHeader.Get(PurchaseHeader."Document Type", PurchaseHeader."No."), 'The expected purchase header record must exist.');
         this.Assert.AreEqual('Changed reference', PurchaseHeader."Your Reference", 'The unlocked purchase order header must be modifiable.');
     end;
 
@@ -166,7 +166,7 @@ codeunit 50141 "AMC Order Lock Tests"
         PurchaseOrderNo := PurchaseHeader."No.";
         Commit();
         OrderLockMgt.SetSuppressionContext(PurchaseOrderNo, 'OTHER-REQUEST', PreviousPurchaseOrderNo, PreviousRequestNo);
-        PersistedPurchaseHeader.Get(PersistedPurchaseHeader."Document Type"::Order, PurchaseOrderNo);
+        this.Assert.IsTrue(PersistedPurchaseHeader.Get(PersistedPurchaseHeader."Document Type"::Order, PurchaseOrderNo), 'The expected persisted purchase header record must exist.');
 
         // When
         asserterror OrderLockMgt.VerifyPurchaseHeaderCanBeModified(PersistedPurchaseHeader);
@@ -177,7 +177,7 @@ codeunit 50141 "AMC Order Lock Tests"
 
         // When
         OrderLockMgt.SetSuppressionContext('OTHER-ORDER', RequestNo, PreviousPurchaseOrderNo, PreviousRequestNo);
-        PersistedPurchaseHeader.Get(PersistedPurchaseHeader."Document Type"::Order, PurchaseOrderNo);
+        this.Assert.IsTrue(PersistedPurchaseHeader.Get(PersistedPurchaseHeader."Document Type"::Order, PurchaseOrderNo), 'The expected persisted purchase header record must exist.');
         asserterror OrderLockMgt.VerifyPurchaseHeaderCanBeModified(PersistedPurchaseHeader);
 
         // Then
@@ -188,7 +188,7 @@ codeunit 50141 "AMC Order Lock Tests"
         OrderLockMgt.SetSuppressionContext(PurchaseOrderNo, RequestNo, PreviousPurchaseOrderNo, PreviousRequestNo);
         PurchaseHeader.Validate("Your Reference", 'Suppressed reference');
         PurchaseHeader.Modify(true);
-        PersistedPurchaseHeader.Get(PersistedPurchaseHeader."Document Type"::Order, PurchaseOrderNo);
+        this.Assert.IsTrue(PersistedPurchaseHeader.Get(PersistedPurchaseHeader."Document Type"::Order, PurchaseOrderNo), 'The expected persisted purchase header record must exist.');
         OrderLockMgt.VerifyPurchaseOrderCanBeReleased(PersistedPurchaseHeader);
 
         // Then
@@ -202,14 +202,14 @@ codeunit 50141 "AMC Order Lock Tests"
         OrderLockMgt.RestoreSuppressionContext(PreviousPurchaseOrderNo, PreviousRequestNo);
 
         // When
-        PersistedPurchaseHeader.Get(PersistedPurchaseHeader."Document Type"::Order, PurchaseOrderNo);
+        this.Assert.IsTrue(PersistedPurchaseHeader.Get(PersistedPurchaseHeader."Document Type"::Order, PurchaseOrderNo), 'The expected persisted purchase header record must exist.');
         OrderLockMgt.SetSuppressionContext(PurchaseOrderNo, RequestNo, PreviousPurchaseOrderNo, PreviousRequestNo);
         asserterror OrderLockMgt.VerifyPurchaseOrderCanBePosted(PersistedPurchaseHeader);
 
         // Then
         this.Assert.ExpectedError(StrSubstNo(this.PurchaseOrderLockedErr, PurchaseOrderNo, RequestNo));
         OrderLockMgt.RestoreSuppressionContext(PreviousPurchaseOrderNo, PreviousRequestNo);
-        PersistedPurchaseHeader.Get(PersistedPurchaseHeader."Document Type"::Order, PurchaseOrderNo);
+        this.Assert.IsTrue(PersistedPurchaseHeader.Get(PersistedPurchaseHeader."Document Type"::Order, PurchaseOrderNo), 'The expected persisted purchase header record must exist.');
         asserterror OrderLockMgt.VerifyPurchaseHeaderCanBeModified(PersistedPurchaseHeader);
 
         // Then
@@ -226,7 +226,7 @@ codeunit 50141 "AMC Order Lock Tests"
     begin
         // Given
         this.CreateLockedPurchaseOrder(PurchaseHeader, RequestNo);
-        VendorRequest.Get(RequestNo);
+        this.Assert.IsTrue(VendorRequest.Get(RequestNo), 'The expected vendor request record must exist.');
         RequestMgt.SetStatus(VendorRequest, VendorRequest.Status::"Vendor Responded");
         RequestMgt.SetStatus(VendorRequest, VendorRequest.Status::"In Review");
 
@@ -234,9 +234,9 @@ codeunit 50141 "AMC Order Lock Tests"
         RequestMgt.Cancel(PurchaseHeader);
 
         // Then
-        PurchaseHeader.Get(PurchaseHeader."Document Type", PurchaseHeader."No.");
+        this.Assert.IsTrue(PurchaseHeader.Get(PurchaseHeader."Document Type", PurchaseHeader."No."), 'The expected purchase header record must exist.');
         this.Assert.AreEqual('', PurchaseHeader."AMC Active Request No.", 'Cancelling the request must clear the active request from the purchase order.');
-        VendorRequest.Get(RequestNo);
+        this.Assert.IsTrue(VendorRequest.Get(RequestNo), 'The expected vendor request record must exist.');
         this.Assert.AreEqual(VendorRequest.Status::Cancelled, VendorRequest.Status, 'Cancelling the request must set its status to Cancelled.');
     end;
 

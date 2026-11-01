@@ -32,7 +32,7 @@ codeunit 50137 "AMC Change Date Handler Tests"
     ChangeDateHandler.Apply(ProposalLine, PurchaseHeader);
 
     // Then
-    PurchaseLine.Get(PurchaseHeader."Document Type", PurchaseHeader."No.", PurchaseLine."Line No.");
+    this.Assert.IsTrue(PurchaseLine.Get(PurchaseHeader."Document Type", PurchaseHeader."No.", PurchaseLine."Line No."), 'The expected purchase line record must exist.');
     this.Assert.AreEqual(ProposedDate, PurchaseLine."Promised Receipt Date", 'Applying a date change must update the promised receipt date.');
   end;
 
@@ -61,7 +61,7 @@ codeunit 50137 "AMC Change Date Handler Tests"
     // Then
     this.Assert.IsFalse(ApplySucceeded, 'A past proposed delivery date must be rejected.');
     this.Assert.IsTrue(StrPos(ErrorText, 'VCH-VAL-0020') > 0, 'A past proposed delivery date must return the delivery date validation code.');
-    PurchaseLine.Get(PurchaseHeader."Document Type", PurchaseHeader."No.", PurchaseLine."Line No.");
+    this.Assert.IsTrue(PurchaseLine.Get(PurchaseHeader."Document Type", PurchaseHeader."No.", PurchaseLine."Line No."), 'The expected purchase line record must exist.');
     this.Assert.AreEqual(OriginalPromisedDate, PurchaseLine."Promised Receipt Date", 'A rejected date change must not change the promised receipt date.');
   end;
 
@@ -90,7 +90,7 @@ codeunit 50137 "AMC Change Date Handler Tests"
     // Then
     this.Assert.IsFalse(ApplySucceeded, 'A blank proposed delivery date must be rejected.');
     this.Assert.IsTrue(StrPos(ErrorText, 'VCH-VAL-0020') > 0, 'A blank proposed delivery date must return the delivery date validation code.');
-    PurchaseLine.Get(PurchaseHeader."Document Type", PurchaseHeader."No.", PurchaseLine."Line No.");
+    this.Assert.IsTrue(PurchaseLine.Get(PurchaseHeader."Document Type", PurchaseHeader."No.", PurchaseLine."Line No."), 'The expected purchase line record must exist.');
     this.Assert.AreEqual(OriginalPromisedDate, PurchaseLine."Promised Receipt Date", 'A rejected blank date change must not change the promised receipt date.');
   end;
 

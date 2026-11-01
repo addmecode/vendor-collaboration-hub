@@ -43,7 +43,8 @@ codeunit 50112 "AMC Change Qty Handler" implements "AMC IProposalLineHandler"
     if Result.HasErrors() then
       Error(ErrorInfo.Create(Result.AsErrorText(), false));
 
-    PurchaseLine.Get(PurchaseHeader."Document Type", PurchaseHeader."No.", RequestLine."Purchase Line No.");
+    if not PurchaseLine.Get(PurchaseHeader."Document Type", PurchaseHeader."No.", RequestLine."Purchase Line No.") then
+      Error(this.RequiredRecordNotFoundErr, PurchaseLine.TableCaption());
     PurchaseLine.Validate(Quantity, ProposalLine."Proposed Quantity");
     PurchaseLine.Modify(true);
   end;
@@ -52,16 +53,20 @@ codeunit 50112 "AMC Change Qty Handler" implements "AMC IProposalLineHandler"
   var
     VendorProposal: Record "AMC Vendor Proposal";
   begin
-    VendorProposal.Get(ProposalLine."Proposal No.");
-    PurchaseLine.Get(PurchaseLine."Document Type"::Order, VendorProposal."Purchase Order No.", RequestLine."Purchase Line No.");
+    if not VendorProposal.Get(ProposalLine."Proposal No.") then
+      Error(this.RequiredRecordNotFoundErr, VendorProposal.TableCaption());
+    if not PurchaseLine.Get(PurchaseLine."Document Type"::Order, VendorProposal."Purchase Order No.", RequestLine."Purchase Line No.") then
+      Error(this.RequiredRecordNotFoundErr, PurchaseLine.TableCaption());
   end;
 
   local procedure GetRequestLine(var ProposalLine: Record "AMC Vendor Proposal Line"; var RequestLine: Record "AMC Vendor Request Line")
   var
     VendorProposal: Record "AMC Vendor Proposal";
   begin
-    VendorProposal.Get(ProposalLine."Proposal No.");
-    RequestLine.Get(VendorProposal."Request No.", ProposalLine."Request Line No.");
+    if not VendorProposal.Get(ProposalLine."Proposal No.") then
+      Error(this.RequiredRecordNotFoundErr, VendorProposal.TableCaption());
+    if not RequestLine.Get(VendorProposal."Request No.", ProposalLine."Request Line No.") then
+      Error(this.RequiredRecordNotFoundErr, RequestLine.TableCaption());
   end;
 
   local procedure AddValidationError(var Result: Codeunit "AMC Validation Result"; ProposalLine: Record "AMC Vendor Proposal Line"; ErrorCode: Code[20]; ErrorText: Text)
@@ -70,6 +75,7 @@ codeunit 50112 "AMC Change Qty Handler" implements "AMC IProposalLineHandler"
   end;
 
   var
+    RequiredRecordNotFoundErr: Label 'VCH-DAT-0001: The %1 record required to process the proposal could not be found.', Comment = '%1 = table caption';
     QuantityMustBePositiveCodeLbl: Label 'VCH-VAL-0010', Locked = true;
     QuantityBelowReceivedCodeLbl: Label 'VCH-VAL-0013', Locked = true;
     QuantityBelowReceivedNotInvoicedCodeLbl: Label 'VCH-VAL-0014', Locked = true;

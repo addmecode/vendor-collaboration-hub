@@ -29,20 +29,20 @@ codeunit 50133 "AMC Proposal Tests"
         // Given
         this.ConfigureProposalNoSeries();
         RequestNo := this.CreateRequest('VENDOR-ONE', 'PO-ONE');
-        VendorRequest.Get(RequestNo);
+        this.Assert.IsTrue(VendorRequest.Get(RequestNo), 'The expected vendor request record must exist.');
 
         // When
         ProposalNo := ProposalMgt.CreateDraftFromRequest(VendorRequest);
         SecondProposalNo := ProposalMgt.CreateDraftFromRequest(VendorRequest);
 
         // Then
-        VendorProposal.Get(ProposalNo);
+        this.Assert.IsTrue(VendorProposal.Get(ProposalNo), 'The expected vendor proposal record must exist.');
         this.Assert.AreEqual(RequestNo, VendorProposal."Request No.", 'The draft must refer to the selected request.');
         this.Assert.AreEqual(VendorRequest."Vendor No.", VendorProposal."Vendor No.", 'The draft must copy the vendor from the request.');
         this.Assert.AreEqual(VendorRequest."Purchase Order No.", VendorProposal."Purchase Order No.", 'The draft must copy the purchase order from the request.');
         this.Assert.AreEqual(VendorProposal.Status::Draft, VendorProposal.Status, 'A manually created proposal must start as Draft.');
         this.Assert.AreNotEqual('', VendorProposal."Idempotency Key", 'A manually created draft must have an internal idempotency key.');
-        SecondVendorProposal.Get(SecondProposalNo);
+        this.Assert.IsTrue(SecondVendorProposal.Get(SecondProposalNo), 'The expected second vendor proposal record must exist.');
         this.Assert.AreNotEqual(VendorProposal."Idempotency Key", SecondVendorProposal."Idempotency Key", 'Each manually created draft must have a distinct internal idempotency key.');
     end;
 
@@ -73,11 +73,11 @@ codeunit 50133 "AMC Proposal Tests"
     Vendor.Rename(NewVendorNo);
 
     // Then
-    VendorRequest.Get(RequestNo);
-    VendorProposal.Get(ProposalNo);
+    this.Assert.IsTrue(VendorRequest.Get(RequestNo), 'The expected vendor request record must exist.');
+    this.Assert.IsTrue(VendorProposal.Get(ProposalNo), 'The expected vendor proposal record must exist.');
     this.Assert.AreEqual(NewVendorNo, VendorRequest."Vendor No.", 'Vendor rename must propagate to the request relation.');
     this.Assert.AreEqual(VendorRequest."Vendor No.", VendorProposal."Vendor No.", 'Vendor rename must preserve request/proposal ownership consistency.');
-    OtherVendorProposal.Get(OtherVendorProposal."No.");
+    this.Assert.IsTrue(OtherVendorProposal.Get(OtherVendorProposal."No."), 'The expected other vendor proposal record must exist.');
     this.Assert.AreEqual(OtherVendorNo, OtherVendorProposal."Vendor No.", 'Vendor rename must not change another vendor proposal.');
   end;
 
@@ -99,7 +99,7 @@ codeunit 50133 "AMC Proposal Tests"
         this.InsertProposal(OtherVendorProposal, this.CreateIdentifier(), RequestNo, 'VENDOR-FIVE', 'PO-FOUR', 'duplicate-key', OtherVendorProposal.Status::Draft);
 
         // Then
-        OtherVendorProposal.Get(OtherVendorProposal."No.");
+        this.Assert.IsTrue(OtherVendorProposal.Get(OtherVendorProposal."No."), 'The expected other vendor proposal record must exist.');
         this.Assert.AreEqual('VENDOR-FIVE', OtherVendorProposal."Vendor No.", 'The same idempotency key must be allowed for a different vendor.');
     end;
 
@@ -115,7 +115,7 @@ codeunit 50133 "AMC Proposal Tests"
         RequestNo := this.CreateRequest('VENDOR-SIX', 'PO-SIX');
         ProposalNo := this.CreateDraft(RequestNo);
         this.InsertProposalLine(ProposalNo, 10000, 10000, VendorProposalLine."Line Type"::Confirm, 1, '', '', 10, 20260915D, '');
-        VendorProposal.Get(ProposalNo);
+        this.Assert.IsTrue(VendorProposal.Get(ProposalNo), 'The expected vendor proposal record must exist.');
 
         // When
         VendorProposal.Delete(true);
@@ -138,7 +138,7 @@ codeunit 50133 "AMC Proposal Tests"
         this.InsertProposal(VendorProposal, this.CreateIdentifier(), RequestNo, 'VENDOR-SEVEN', 'PO-SEVEN', 'submitted-key', VendorProposal.Status::Submitted);
         this.InsertProposal(VendorProposal, this.CreateIdentifier(), RequestNo, 'VENDOR-SEVEN', 'PO-SEVEN', 'review-key', VendorProposal.Status::"In Review");
         this.InsertProposal(VendorProposal, this.CreateIdentifier(), RequestNo, 'VENDOR-SEVEN', 'PO-SEVEN', 'applied-key', VendorProposal.Status::Applied);
-        VendorRequest.Get(RequestNo);
+        this.Assert.IsTrue(VendorRequest.Get(RequestNo), 'The expected vendor request record must exist.');
 
         // When
         VendorRequest.CalcFields("Open Proposal Count");
@@ -291,8 +291,8 @@ codeunit 50133 "AMC Proposal Tests"
     begin
         // Given
         ProposalNo := this.CreateValidationProposal(10);
-        VendorProposal.Get(ProposalNo);
-        VendorRequestLine.Get(VendorProposal."Request No.", 10000);
+        this.Assert.IsTrue(VendorProposal.Get(ProposalNo), 'The expected vendor proposal record must exist.');
+        this.Assert.IsTrue(VendorRequestLine.Get(VendorProposal."Request No.", 10000), 'The expected vendor request line record must exist.');
         PurchaseOrderNo := this.CreateIdentifier();
         this.TestLibrary.PrepareManualNumbering();
         PurchaseHeader.Init();
@@ -312,7 +312,7 @@ codeunit 50133 "AMC Proposal Tests"
         VendorProposalLine.Validate("Line Type", Enum::"AMC Proposal Line Type".FromInteger(99));
         VendorProposalLine.Validate("Sequence No.", 1);
         VendorProposalLine.Insert(false);
-        VendorProposalLine.Get(ProposalNo, VendorProposalLine."Line No.");
+        this.Assert.IsTrue(VendorProposalLine.Get(ProposalNo, VendorProposalLine."Line No."), 'The expected vendor proposal line record must exist.');
         LineHandler := VendorProposalLine."Line Type";
 
         // When
@@ -325,7 +325,7 @@ codeunit 50133 "AMC Proposal Tests"
         ErrorText := GetLastErrorText();
         this.Assert.IsFalse(ApplySucceeded, 'An unknown persisted line type must not apply.');
         this.Assert.IsTrue(StrPos(ErrorText, 'VCH-APL-0006') > 0, 'An unknown persisted line type must use the unknown apply code.');
-        PurchaseLine.Get(PurchaseHeader."Document Type", PurchaseHeader."No.", PurchaseLine."Line No.");
+        this.Assert.IsTrue(PurchaseLine.Get(PurchaseHeader."Document Type", PurchaseHeader."No.", PurchaseLine."Line No."), 'The expected purchase line record must exist.');
         this.Assert.AreEqual(10, PurchaseLine.Quantity, 'An unknown line type must not change purchase data.');
     end;
 
@@ -340,7 +340,7 @@ codeunit 50133 "AMC Proposal Tests"
     // Given
     RequestNo := this.CreateRequest('STATUS-VENDOR', 'STATUS-ORDER');
     ProposalNo := this.CreateDraft(RequestNo);
-    VendorProposal.Get(ProposalNo);
+    this.Assert.IsTrue(VendorProposal.Get(ProposalNo), 'The expected vendor proposal record must exist.');
 
     // When
     ProposalMgt.SetStatus(VendorProposal, VendorProposal.Status::Submitted);
@@ -349,7 +349,7 @@ codeunit 50133 "AMC Proposal Tests"
     ProposalMgt.SetStatus(VendorProposal, VendorProposal.Status::Applied);
 
     // Then
-    VendorProposal.Get(ProposalNo);
+    this.Assert.IsTrue(VendorProposal.Get(ProposalNo), 'The expected vendor proposal record must exist.');
     this.Assert.AreEqual(VendorProposal.Status::Applied, VendorProposal.Status, 'The approved proposal must be applied.');
   end;
 
@@ -364,14 +364,14 @@ codeunit 50133 "AMC Proposal Tests"
     // Given
     RequestNo := this.CreateRequest('SUPERSEDE-VENDOR', 'SUPERSEDE-ORDER');
     ProposalNo := this.CreateDraft(RequestNo);
-    VendorProposal.Get(ProposalNo);
+    this.Assert.IsTrue(VendorProposal.Get(ProposalNo), 'The expected vendor proposal record must exist.');
     ProposalMgt.SetStatus(VendorProposal, VendorProposal.Status::Submitted);
 
     // When
     ProposalMgt.SetStatus(VendorProposal, VendorProposal.Status::Superseded);
 
     // Then
-    VendorProposal.Get(ProposalNo);
+    this.Assert.IsTrue(VendorProposal.Get(ProposalNo), 'The expected vendor proposal record must exist.');
     this.Assert.AreEqual(VendorProposal.Status::Superseded, VendorProposal.Status, 'The submitted proposal must be superseded.');
   end;
 
@@ -387,7 +387,7 @@ codeunit 50133 "AMC Proposal Tests"
     // Given
     RequestNo := this.CreateRequest('INVALID-VENDOR', 'INVALID-ORDER');
     ProposalNo := this.CreateDraft(RequestNo);
-    VendorProposal.Get(ProposalNo);
+    this.Assert.IsTrue(VendorProposal.Get(ProposalNo), 'The expected vendor proposal record must exist.');
     Commit();
 
     // When
@@ -395,7 +395,7 @@ codeunit 50133 "AMC Proposal Tests"
 
     // Then
     this.Assert.ExpectedError(StrSubstNo(InvalidStatusTransitionErr, VendorProposal.Status::Draft, VendorProposal.Status::Applied));
-    VendorProposal.Get(ProposalNo);
+    this.Assert.IsTrue(VendorProposal.Get(ProposalNo), 'The expected vendor proposal record must exist.');
     this.Assert.AreEqual(VendorProposal.Status::Draft, VendorProposal.Status, 'An illegal transition must not change the proposal status.');
   end;
 
@@ -446,7 +446,8 @@ codeunit 50133 "AMC Proposal Tests"
 
     local procedure GetProposal(ProposalNo: Code[20]) VendorProposal: Record "AMC Vendor Proposal"
     begin
-        VendorProposal.Get(ProposalNo);
+        this.Assert.IsTrue(VendorProposal.Get(ProposalNo), 'The expected vendor proposal record must exist.');
+        exit(VendorProposal);
     end;
 
     [TryFunction]
@@ -520,7 +521,7 @@ codeunit 50133 "AMC Proposal Tests"
         ProposalMgt: Codeunit "AMC Proposal Mgt";
     begin
         this.ConfigureProposalNoSeries();
-        VendorRequest.Get(RequestNo);
+        this.Assert.IsTrue(VendorRequest.Get(RequestNo), 'The expected vendor request record must exist.');
         exit(ProposalMgt.CreateDraftFromRequest(VendorRequest));
     end;
 

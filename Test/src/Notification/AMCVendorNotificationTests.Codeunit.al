@@ -32,7 +32,7 @@ codeunit 50144 "AMC Vendor Notification Tests"
   begin
     // Given
     RequestNo := this.CreateVendorRequest('portal@contoso.com', 'vendor@contoso.com', 'buyer@contoso.com', '');
-    VendorRequest.Get(RequestNo);
+    this.Assert.IsTrue(VendorRequest.Get(RequestNo), 'The expected vendor request record must exist.');
     AccessLink := 'https://portal.contoso.com/request/' + RequestNo + '?token=abc&source=email';
     OriginalLanguageId := GlobalLanguage();
 
@@ -129,7 +129,7 @@ codeunit 50144 "AMC Vendor Notification Tests"
   begin
     // Given
     RequestNo := this.CreateVendorRequest('', '', 'buyer@contoso.com', '');
-    VendorRequest.Get(RequestNo);
+    this.Assert.IsTrue(VendorRequest.Get(RequestNo), 'The expected vendor request record must exist.');
     Commit();
 
     // When
@@ -152,7 +152,7 @@ codeunit 50144 "AMC Vendor Notification Tests"
   begin
     // Given
     RequestNo := this.CreateVendorRequest('', '', 'buyer@contoso.com', '');
-    VendorRequest.Get(RequestNo);
+    this.Assert.IsTrue(VendorRequest.Get(RequestNo), 'The expected vendor request record must exist.');
     Commit();
 
     // When

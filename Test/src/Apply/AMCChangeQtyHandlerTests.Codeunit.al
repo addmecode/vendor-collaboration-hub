@@ -31,7 +31,7 @@ codeunit 50136 "AMC Change Qty Handler Tests"
     ChangeQtyHandler.Apply(ProposalLine, PurchaseHeader);
 
     // Then
-    PurchaseLine.Get(PurchaseHeader."Document Type", PurchaseHeader."No.", PurchaseLine."Line No.");
+    this.Assert.IsTrue(PurchaseLine.Get(PurchaseHeader."Document Type", PurchaseHeader."No.", PurchaseLine."Line No."), 'The expected purchase line record must exist.');
     this.Assert.AreEqual(5, PurchaseLine.Quantity, 'Applying a valid quantity change must update the purchase line quantity.');
   end;
 

@@ -30,7 +30,7 @@ codeunit 50135 "AMC Confirm Handler Tests"
     ConfirmHandler.Apply(ProposalLine, PurchaseHeader);
 
     // Then
-    PurchaseLine.Get(PurchaseHeader."Document Type", PurchaseHeader."No.", PurchaseLine."Line No.");
+    this.Assert.IsTrue(PurchaseLine.Get(PurchaseHeader."Document Type", PurchaseHeader."No.", PurchaseLine."Line No."), 'The expected purchase line record must exist.');
     this.Assert.AreEqual(RequestDate, PurchaseLine."Promised Receipt Date", 'Confirming must set the promised receipt date to the request date.');
     this.Assert.IsTrue(PurchaseLine."AMC Vendor Confirmed", 'Confirming must mark the purchase line as vendor confirmed.');
   end;

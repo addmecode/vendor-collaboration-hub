@@ -19,10 +19,13 @@ codeunit 50117 "AMC Access Token Mgt"
         CollabLog: Codeunit "AMC Collab Log";
         RawToken: Text;
         IssuedAt: DateTime;
+        RequiredRecordNotFoundErr: Label 'The %1 record required to issue the vendor access link could not be found.', Comment = '%1 = table caption';
     begin
-        VendorRequest.Get(RequestNo);
+        if not VendorRequest.Get(RequestNo) then
+            Error(RequiredRecordNotFoundErr, VendorRequest.TableCaption());
         CollaborationSetup.GetSetup();
-        Vendor.Get(VendorRequest."Vendor No.");
+        if not Vendor.Get(VendorRequest."Vendor No.") then
+            Error(RequiredRecordNotFoundErr, Vendor.TableCaption());
         this.VerifyLinkValidity(Vendor, CollaborationSetup);
 
         RawToken := this.CreateRawToken();

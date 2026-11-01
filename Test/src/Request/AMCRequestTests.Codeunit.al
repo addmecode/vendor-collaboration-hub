@@ -40,12 +40,12 @@ codeunit 50131 "AMC Request Tests"
         RequestNo := RequestMgt.CreateFromOrder(PurchaseHeader);
 
         // Then
-        VendorRequest.Get(RequestNo);
+        this.Assert.IsTrue(VendorRequest.Get(RequestNo), 'The expected vendor request record must exist.');
         this.Assert.AreEqual(VendorRequest.Status::Draft, VendorRequest.Status, 'The request must be created as Draft.');
         this.Assert.AreEqual(VendorNo, VendorRequest."Vendor No.", 'The request must refer to the purchase order vendor.');
         this.Assert.AreEqual(PurchaseHeader."No.", VendorRequest."Purchase Order No.", 'The request must refer to its source purchase order.');
         this.Assert.AreEqual(PurchaseHeader."Assigned User ID", VendorRequest."Assigned User ID", 'The request must retain the assigned user from the purchase order.');
-        PurchaseHeader.Get(PurchaseHeader."Document Type"::Order, PurchaseHeader."No.");
+        this.Assert.IsTrue(PurchaseHeader.Get(PurchaseHeader."Document Type"::Order, PurchaseHeader."No."), 'The expected purchase header record must exist.');
         this.Assert.AreEqual(RequestNo, PurchaseHeader."AMC Active Request No.", 'The purchase order must point to the active request.');
         this.Assert.AreEqual(PurchaseHeader."AMC Collaboration Status"::Draft, PurchaseHeader."AMC Collaboration Status", 'The purchase order collaboration status must be Draft.');
         this.AssertRequestLine(RequestNo, 10000, 'ITEM-ONE', 'RED', 'First item', 'MAIN', 'PCS', 10, 20260915D);
@@ -79,8 +79,8 @@ codeunit 50131 "AMC Request Tests"
         PurchaseOrder.AMCCreateVendorRequest.Invoke();
 
         // Then
-        PurchaseHeader.Get(PurchaseHeader."Document Type"::Order, PurchaseHeader."No.");
-        VendorRequest.Get(PurchaseHeader."AMC Active Request No.");
+        this.Assert.IsTrue(PurchaseHeader.Get(PurchaseHeader."Document Type"::Order, PurchaseHeader."No."), 'The expected purchase header record must exist.');
+        this.Assert.IsTrue(VendorRequest.Get(PurchaseHeader."AMC Active Request No."), 'The expected vendor request record must exist.');
         this.Assert.AreEqual(PurchaseHeader."No.", VendorRequest."Purchase Order No.", 'The created request must refer to the source purchase order.');
         this.Assert.IsTrue(this.VendorRequestPageWasOpened, 'The created vendor request page must open when the buyer chooses Yes.');
     end;
@@ -107,8 +107,8 @@ codeunit 50131 "AMC Request Tests"
         PurchaseOrder.AMCCreateVendorRequest.Invoke();
 
         // Then
-        PurchaseHeader.Get(PurchaseHeader."Document Type"::Order, PurchaseHeader."No.");
-        VendorRequest.Get(PurchaseHeader."AMC Active Request No.");
+        this.Assert.IsTrue(PurchaseHeader.Get(PurchaseHeader."Document Type"::Order, PurchaseHeader."No."), 'The expected purchase header record must exist.');
+        this.Assert.IsTrue(VendorRequest.Get(PurchaseHeader."AMC Active Request No."), 'The expected vendor request record must exist.');
         this.Assert.AreEqual(PurchaseHeader."No.", VendorRequest."Purchase Order No.", 'The created request must refer to the source purchase order.');
         this.Assert.AreEqual(PurchaseHeader."AMC Collaboration Status"::Draft, PurchaseHeader."AMC Collaboration Status", 'The purchase order collaboration status must be Draft.');
         this.Assert.IsFalse(this.VendorRequestPageWasOpened, 'The created vendor request page must not open when the buyer chooses No.');
@@ -217,7 +217,7 @@ codeunit 50131 "AMC Request Tests"
         this.CreatePurchaseOrder(PurchaseHeader, VendorNo, PurchaseHeader.Status::Open);
         this.CreatePurchaseLine(PurchaseHeader, 10000, 'ITEM-ONE', '', 'Original description', 'MAIN', 'PCS', 10, 20260915D);
         RequestNo := RequestMgt.CreateFromOrder(PurchaseHeader);
-        PurchaseLine.Get(PurchaseHeader."Document Type", PurchaseHeader."No.", 10000);
+        this.Assert.IsTrue(PurchaseLine.Get(PurchaseHeader."Document Type", PurchaseHeader."No.", 10000), 'The expected purchase line record must exist.');
         PurchaseLine.Validate(Description, 'Changed description');
         Commit();
 
@@ -226,7 +226,7 @@ codeunit 50131 "AMC Request Tests"
 
         // Then
         this.AssertExpectedError(StrSubstNo(PurchaseOrderLockedErr, PurchaseHeader."No.", RequestNo));
-        VendorRequestLine.Get(RequestNo, 10000);
+        this.Assert.IsTrue(VendorRequestLine.Get(RequestNo, 10000), 'The expected vendor request line record must exist.');
         this.Assert.AreEqual('Original description', VendorRequestLine.Description, 'The request line must retain the original purchase line description.');
     end;
 
@@ -271,7 +271,7 @@ codeunit 50131 "AMC Request Tests"
         RequestNo := RequestMgt.CreateFromOrder(PurchaseHeader);
 
         // Then
-        VendorRequest.Get(RequestNo);
+        this.Assert.IsTrue(VendorRequest.Get(RequestNo), 'The expected vendor request record must exist.');
         this.Assert.AreEqual(VendorLanguageCode, VendorRequest."Language Code", 'The request must snapshot the vendor language code instead of the company language.');
 
         // Given
@@ -282,7 +282,7 @@ codeunit 50131 "AMC Request Tests"
         RequestNo := RequestMgt.CreateFromOrder(PurchaseHeader);
 
         // Then
-        VendorRequest.Get(RequestNo);
+        this.Assert.IsTrue(VendorRequest.Get(RequestNo), 'The expected vendor request record must exist.');
         this.Assert.AreEqual(CompanyLanguageCode, VendorRequest."Language Code", 'The request must use the company language when the vendor language is blank.');
     end;
 
@@ -322,7 +322,7 @@ codeunit 50131 "AMC Request Tests"
     RequestMgt.SetStatus(VendorRequest, VendorRequest.Status::Closed);
 
     // Then
-    VendorRequest.Get(RequestNo);
+    this.Assert.IsTrue(VendorRequest.Get(RequestNo), 'The expected vendor request record must exist.');
     this.Assert.AreEqual(VendorRequest.Status::Closed, VendorRequest.Status, 'The request must be closed after the review workflow.');
   end;
 
@@ -342,7 +342,7 @@ codeunit 50131 "AMC Request Tests"
     RequestMgt.SetStatus(VendorRequest, VendorRequest.Status::Cancelled);
 
     // Then
-    VendorRequest.Get(RequestNo);
+    this.Assert.IsTrue(VendorRequest.Get(RequestNo), 'The expected vendor request record must exist.');
     this.Assert.AreEqual(VendorRequest.Status::Cancelled, VendorRequest.Status, 'The awaiting vendor request must be cancelled.');
   end;
 
@@ -364,7 +364,7 @@ codeunit 50131 "AMC Request Tests"
 
     // Then
     this.AssertExpectedError(StrSubstNo(InvalidStatusTransitionErr, VendorRequest.Status::Draft, VendorRequest.Status::"In Review"));
-    VendorRequest.Get(RequestNo);
+    this.Assert.IsTrue(VendorRequest.Get(RequestNo), 'The expected vendor request record must exist.');
     this.Assert.AreEqual(VendorRequest.Status::Draft, VendorRequest.Status, 'An illegal transition must not change the request status.');
    end;
 
@@ -384,19 +384,19 @@ codeunit 50131 "AMC Request Tests"
         VendorNo := this.CreateVendor(true);
         this.CreatePurchaseOrder(PurchaseHeader, VendorNo, PurchaseHeader.Status::Open);
         RequestNo := RequestMgt.CreateFromOrder(PurchaseHeader);
-        VendorRequest.Get(RequestNo);
+        this.Assert.IsTrue(VendorRequest.Get(RequestNo), 'The expected vendor request record must exist.');
         // When
         this.SendRequestWithEmailHandOff(VendorRequest, true);
 
         // Then
-        VendorRequest.Get(RequestNo);
+        this.Assert.IsTrue(VendorRequest.Get(RequestNo), 'The expected vendor request record must exist.');
         this.Assert.AreEqual(VendorRequest.Status::"Awaiting Vendor", VendorRequest.Status, 'Sending must move the request to Awaiting Vendor.');
         this.Assert.AreNotEqual(0DT, VendorRequest."Sent Date Time", 'Sending must stamp the request sent time.');
-        PurchaseHeader.Get(PurchaseHeader."Document Type"::Order, PurchaseHeader."No.");
+        this.Assert.IsTrue(PurchaseHeader.Get(PurchaseHeader."Document Type"::Order, PurchaseHeader."No."), 'The expected purchase header record must exist.');
         this.Assert.AreEqual(PurchaseHeader."AMC Collaboration Status"::"Awaiting Vendor", PurchaseHeader."AMC Collaboration Status", 'Sending must update the purchase order collaboration status.');
         VendorAccessToken.SetRange("Request No.", RequestNo);
         this.Assert.AreEqual(1, VendorAccessToken.Count(), 'Sending must issue one access token.');
-        VendorAccessToken.FindFirst();
+        this.Assert.IsTrue(VendorAccessToken.FindFirst(), 'The expected vendor access token record must exist.');
         this.Assert.AreEqual(VendorAccessToken.Status::Active, VendorAccessToken.Status, 'The sent access token must be active.');
         this.Assert.AreEqual('vendor@contoso.com', VendorAccessToken."Sent To E-Mail", 'The sent access token must retain the recipient.');
         this.Assert.AreNotEqual(0DT, VendorAccessToken."Sent At", 'The sent access token must retain the send time.');
@@ -423,7 +423,7 @@ codeunit 50131 "AMC Request Tests"
         VendorNo := this.CreateVendor(true);
         this.CreatePurchaseOrder(PurchaseHeader, VendorNo, PurchaseHeader.Status::Open);
         RequestNo := RequestMgt.CreateFromOrder(PurchaseHeader);
-        VendorRequest.Get(RequestNo);
+        this.Assert.IsTrue(VendorRequest.Get(RequestNo), 'The expected vendor request record must exist.');
         Commit();
         this.BindEmailSendHandler(EmailSendHandler, false);
 
@@ -434,7 +434,7 @@ codeunit 50131 "AMC Request Tests"
 
         // Then
         this.AssertExpectedError(EmailNotSentErr);
-        VendorRequest.Get(RequestNo);
+        this.Assert.IsTrue(VendorRequest.Get(RequestNo), 'The expected vendor request record must exist.');
         this.Assert.AreEqual(VendorRequest.Status::Draft, VendorRequest.Status, 'A failed email hand-off must retain Draft status.');
         VendorAccessToken.SetRange("Request No.", RequestNo);
         this.Assert.IsTrue(VendorAccessToken.IsEmpty(), 'A failed email hand-off must not retain an issued token.');
@@ -455,12 +455,12 @@ codeunit 50131 "AMC Request Tests"
         // Given
         this.ConfigureEnabledSetup();
         VendorNo := this.CreateVendor(true);
-        Vendor.Get(VendorNo);
+        this.Assert.IsTrue(Vendor.Get(VendorNo), 'The expected vendor record must exist.');
         Vendor.Validate("E-Mail", '');
         Vendor.Modify(true);
         this.CreatePurchaseOrder(PurchaseHeader, VendorNo, PurchaseHeader.Status::Open);
         RequestNo := RequestMgt.CreateFromOrder(PurchaseHeader);
-        VendorRequest.Get(RequestNo);
+        this.Assert.IsTrue(VendorRequest.Get(RequestNo), 'The expected vendor request record must exist.');
         Commit();
 
         // When
@@ -468,7 +468,7 @@ codeunit 50131 "AMC Request Tests"
 
         // Then
         this.AssertExpectedError(StrSubstNo(VCHReq0003Err, VendorNo));
-        VendorRequest.Get(RequestNo);
+        this.Assert.IsTrue(VendorRequest.Get(RequestNo), 'The expected vendor request record must exist.');
         this.Assert.AreEqual(VendorRequest.Status::Draft, VendorRequest.Status, 'A request without a recipient must remain Draft.');
         VendorAccessToken.SetRange("Request No.", RequestNo);
         this.Assert.IsTrue(VendorAccessToken.IsEmpty(), 'A request without a recipient must not issue a token.');
@@ -493,29 +493,29 @@ codeunit 50131 "AMC Request Tests"
         VendorNo := this.CreateVendor(true);
         this.CreatePurchaseOrder(PurchaseHeader, VendorNo, PurchaseHeader.Status::Open);
         RequestNo := RequestMgt.CreateFromOrder(PurchaseHeader);
-        VendorRequest.Get(RequestNo);
+        this.Assert.IsTrue(VendorRequest.Get(RequestNo), 'The expected vendor request record must exist.');
         this.SendRequestWithEmailHandOff(VendorRequest, true);
         VendorAccessToken.SetRange("Request No.", RequestNo);
-        VendorAccessToken.FindFirst();
-        OldVendorAccessToken.Get(VendorAccessToken."Token Id");
+        this.Assert.IsTrue(VendorAccessToken.FindFirst(), 'The expected vendor access token record must exist.');
+        this.Assert.IsTrue(OldVendorAccessToken.Get(VendorAccessToken."Token Id"), 'The expected old vendor access token record must exist.');
 
         this.CreatePurchaseOrder(OtherPurchaseHeader, VendorNo, OtherPurchaseHeader.Status::Open);
         OtherRequestNo := RequestMgt.CreateFromOrder(OtherPurchaseHeader);
         OtherVendorAccessToken.SetRange("Token Hash", this.HashAndIssueToken(OtherRequestNo));
-        OtherVendorAccessToken.FindFirst();
+        this.Assert.IsTrue(OtherVendorAccessToken.FindFirst(), 'The expected other vendor access token record must exist.');
 
         // When
-        VendorRequest.Get(RequestNo);
+        this.Assert.IsTrue(VendorRequest.Get(RequestNo), 'The expected vendor request record must exist.');
         this.SendRequestWithEmailHandOff(VendorRequest, true);
 
         // Then
-        OldVendorAccessToken.Get(OldVendorAccessToken."Token Id");
+        this.Assert.IsTrue(OldVendorAccessToken.Get(OldVendorAccessToken."Token Id"), 'The expected old vendor access token record must exist.');
         this.Assert.AreEqual(OldVendorAccessToken.Status::Superseded, OldVendorAccessToken.Status, 'Re-sending must supersede the old request token.');
         VendorAccessToken.Reset();
         VendorAccessToken.SetRange("Request No.", RequestNo);
         VendorAccessToken.SetRange(Status, VendorAccessToken.Status::Active);
         this.Assert.AreEqual(1, VendorAccessToken.Count(), 'Re-sending must issue one new active token.');
-        OtherVendorAccessToken.Get(OtherVendorAccessToken."Token Id");
+        this.Assert.IsTrue(OtherVendorAccessToken.Get(OtherVendorAccessToken."Token Id"), 'The expected other vendor access token record must exist.');
         this.Assert.AreEqual(OtherVendorAccessToken.Status::Active, OtherVendorAccessToken.Status, 'Re-sending must not change tokens for other requests.');
     end;
 
@@ -538,12 +538,12 @@ codeunit 50131 "AMC Request Tests"
         CollaborationSetup.Validate("Link Validity Days", 14);
         CollaborationSetup.Modify(true);
         VendorNo := this.CreateVendor(true);
-        Vendor.Get(VendorNo);
+        this.Assert.IsTrue(Vendor.Get(VendorNo), 'The expected vendor record must exist.');
         Vendor.Validate("AMC Response Days", 15);
         Vendor.Modify(true);
         this.CreatePurchaseOrder(PurchaseHeader, VendorNo, PurchaseHeader.Status::Open);
         RequestNo := RequestMgt.CreateFromOrder(PurchaseHeader);
-        VendorRequest.Get(RequestNo);
+        this.Assert.IsTrue(VendorRequest.Get(RequestNo), 'The expected vendor request record must exist.');
         Commit();
 
         // When
@@ -551,7 +551,7 @@ codeunit 50131 "AMC Request Tests"
 
         // Then
         this.AssertExpectedError(StrSubstNo(VCHReq0002Err, 14, 15));
-        VendorRequest.Get(RequestNo);
+        this.Assert.IsTrue(VendorRequest.Get(RequestNo), 'The expected vendor request record must exist.');
         this.Assert.AreEqual(VendorRequest.Status::Draft, VendorRequest.Status, 'An invalid link lifetime must retain Draft status.');
         VendorAccessToken.SetRange("Request No.", RequestNo);
         this.Assert.IsTrue(VendorAccessToken.IsEmpty(), 'An invalid link lifetime must not issue a token.');
@@ -778,7 +778,7 @@ codeunit 50131 "AMC Request Tests"
     var
         VendorRequestLine: Record "AMC Vendor Request Line";
     begin
-        VendorRequestLine.Get(RequestNo, LineNo);
+        this.Assert.IsTrue(VendorRequestLine.Get(RequestNo, LineNo), 'The expected vendor request line record must exist.');
         this.Assert.AreEqual(LineNo, VendorRequestLine."Purchase Line No.", 'The request line must retain its source purchase line number.');
         this.Assert.AreEqual(ItemNo, VendorRequestLine."Item No.", 'The request line item must be snapshotted.');
         this.Assert.AreEqual(VariantCode, VendorRequestLine."Variant Code", 'The request line variant must be snapshotted.');

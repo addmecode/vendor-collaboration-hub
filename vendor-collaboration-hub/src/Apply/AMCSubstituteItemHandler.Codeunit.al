@@ -20,7 +20,8 @@ codeunit 50115 "AMC Substitute Item Handler" implements "AMC IProposalLineHandle
     PurchaseLineBuilder: Codeunit "AMC Purchase Line Builder";
   begin
     this.GetRequestLine(ProposalLine, RequestLine);
-    OriginPurchaseLine.Get(PurchaseHeader."Document Type", PurchaseHeader."No.", RequestLine."Purchase Line No.");
+    if not OriginPurchaseLine.Get(PurchaseHeader."Document Type", PurchaseHeader."No.", RequestLine."Purchase Line No.") then
+      Error(this.RequiredRecordNotFoundErr, OriginPurchaseLine.TableCaption());
     PurchaseLineBuilder.Build(OriginPurchaseLine, ProposalLine, ProposalLine."Proposed Item No.", ProposalLine."Proposed Variant Code", ProposalLine."Proposed Quantity", ProposalLine."Proposed Delivery Date", NewPurchaseLine);
 
     OriginPurchaseLine.Validate(Quantity, OriginPurchaseLine.Quantity - ProposalLine."Proposed Quantity");
@@ -33,7 +34,12 @@ codeunit 50115 "AMC Substitute Item Handler" implements "AMC IProposalLineHandle
   var
     VendorProposal: Record "AMC Vendor Proposal";
   begin
-    VendorProposal.Get(ProposalLine."Proposal No.");
-    RequestLine.Get(VendorProposal."Request No.", ProposalLine."Request Line No.");
+    if not VendorProposal.Get(ProposalLine."Proposal No.") then
+      Error(this.RequiredRecordNotFoundErr, VendorProposal.TableCaption());
+    if not RequestLine.Get(VendorProposal."Request No.", ProposalLine."Request Line No.") then
+      Error(this.RequiredRecordNotFoundErr, RequestLine.TableCaption());
   end;
+
+  var
+    RequiredRecordNotFoundErr: Label 'VCH-DAT-0001: The %1 record required to process the proposal could not be found.', Comment = '%1 = table caption';
 }

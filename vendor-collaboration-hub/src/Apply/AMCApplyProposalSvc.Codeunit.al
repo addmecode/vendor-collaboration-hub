@@ -23,18 +23,16 @@ codeunit 50104 "AMC Apply Proposal Svc"
     PurchaseHeader: Record "Purchase Header";
     VendorProposal: Record "AMC Vendor Proposal";
     VendorProposalLine: Record "AMC Vendor Proposal Line";
-    VendorRequest: Record "AMC Vendor Request";
     CollabLog: Codeunit "AMC Collab Log";
     OrderLockMgt: Codeunit "AMC Order Lock Mgt";
     ProposalMgt: Codeunit "AMC Proposal Mgt";
-    RequestMgt: Codeunit "AMC Request Mgt";
-    ReleasePurchaseDocument: Codeunit "Release Purchase Document";
     PreviousPurchaseOrderNo: Code[20];
     PreviousRequestNo: Code[20];
   begin
     this.VerifyDecisionContext(DecisionContext);
     VendorProposal.ReadIsolation(IsolationLevel::UpdLock);
-    VendorProposal.Get(DecisionContext."No.");
+    if not VendorProposal.Get(DecisionContext."No.") then
+      Error(this.RequiredRecordNotFoundErr, VendorProposal.TableCaption());
     this.VerifyApprovalAllowed(VendorProposal);
     this.ApproveProposal(VendorProposal, DecisionContext);
 
@@ -52,12 +50,7 @@ codeunit 50104 "AMC Apply Proposal Svc"
       until VendorProposalLine.Next() = 0;
 
     this.RecalculateRequestLines(VendorProposal."No.", VendorProposal."Request No.");
-    ReleasePurchaseDocument.ReleasePurchaseHeader(PurchaseHeader, false);
-    PurchaseHeader.Get(PurchaseHeader."Document Type"::Order, VendorProposal."Purchase Order No.");
-    if PurchaseHeader.Status <> PurchaseHeader.Status::Released then
-      Error(this.PurchaseOrderNotReleasedErr, PurchaseHeader."No.");
-    VendorRequest.Get(VendorProposal."Request No.");
-    RequestMgt.CloseAfterApply(VendorRequest, PurchaseHeader);
+    this.ReleaseOrderAndCloseRequest(VendorProposal, PurchaseHeader);
     this.SupersedeOtherOpenProposals(VendorProposal, ProposalMgt, CollabLog);
     VendorProposal.Validate("Applied Date Time", CurrentDateTime());
     ProposalMgt.SetStatus(VendorProposal, VendorProposal.Status::Applied);
@@ -112,15 +105,34 @@ codeunit 50104 "AMC Apply Proposal Svc"
   var
     VendorRequestLine: Record "AMC Vendor Request Line";
   begin
-    VendorRequestLine.Get(VendorProposal."Request No.", VendorProposalLine."Request Line No.");
-    PurchaseLine.Get(PurchaseLine."Document Type"::Order, VendorProposal."Purchase Order No.", VendorRequestLine."Purchase Line No.");
+    if not VendorRequestLine.Get(VendorProposal."Request No.", VendorProposalLine."Request Line No.") then
+      Error(this.RequiredRecordNotFoundErr, VendorRequestLine.TableCaption());
+    if not PurchaseLine.Get(PurchaseLine."Document Type"::Order, VendorProposal."Purchase Order No.", VendorRequestLine."Purchase Line No.") then
+      Error(this.RequiredRecordNotFoundErr, PurchaseLine.TableCaption());
+  end;
+
+  local procedure ReleaseOrderAndCloseRequest(VendorProposal: Record "AMC Vendor Proposal"; var PurchaseHeader: Record "Purchase Header")
+  var
+    VendorRequest: Record "AMC Vendor Request";
+    RequestMgt: Codeunit "AMC Request Mgt";
+    ReleasePurchaseDocument: Codeunit "Release Purchase Document";
+  begin
+    ReleasePurchaseDocument.ReleasePurchaseHeader(PurchaseHeader, false);
+    if not PurchaseHeader.Get(PurchaseHeader."Document Type"::Order, VendorProposal."Purchase Order No.") then
+      Error(this.PurchaseOrderNotFoundErr, VendorProposal."Purchase Order No.");
+    if PurchaseHeader.Status <> PurchaseHeader.Status::Released then
+      Error(this.PurchaseOrderNotReleasedErr, PurchaseHeader."No.");
+    if not VendorRequest.Get(VendorProposal."Request No.") then
+      Error(this.RequiredRecordNotFoundErr, VendorRequest.TableCaption());
+    RequestMgt.CloseAfterApply(VendorRequest, PurchaseHeader);
   end;
 
   local procedure LogPurchaseLineChanges(VendorProposal: Record "AMC Vendor Proposal"; VendorProposalLine: Record "AMC Vendor Proposal Line"; OriginalPurchaseLine: Record "Purchase Line"; CollabLog: Codeunit "AMC Collab Log")
   var
     UpdatedPurchaseLine: Record "Purchase Line";
   begin
-    UpdatedPurchaseLine.Get(OriginalPurchaseLine."Document Type", OriginalPurchaseLine."Document No.", OriginalPurchaseLine."Line No.");
+    if not UpdatedPurchaseLine.Get(OriginalPurchaseLine."Document Type", OriginalPurchaseLine."Document No.", OriginalPurchaseLine."Line No.") then
+      Error(this.RequiredRecordNotFoundErr, UpdatedPurchaseLine.TableCaption());
     if OriginalPurchaseLine.Quantity <> UpdatedPurchaseLine.Quantity then
       this.LogAppliedField(VendorProposal, VendorProposalLine, CollabLog, 'Quantity', Format(OriginalPurchaseLine.Quantity), Format(UpdatedPurchaseLine.Quantity));
     if OriginalPurchaseLine."Promised Receipt Date" <> UpdatedPurchaseLine."Promised Receipt Date" then
@@ -226,6 +238,7 @@ codeunit 50104 "AMC Apply Proposal Svc"
   end;
 
   var
+    RequiredRecordNotFoundErr: Label 'The %1 record required to apply the vendor proposal could not be found.', Comment = '%1 = table caption';
     ProposalNotApprovedErr: Label 'VCH-APL-0001: Vendor proposal must be approved before it can be applied.';
     PurchaseOrderNotFoundErr: Label 'VCH-APL-0002: Purchase order %1 does not exist.', Comment = '%1 = purchase order number';
     PurchaseOrderNotReleasedErr: Label 'Purchase order %1 could not be released.', Comment = '%1 = purchase order number';

@@ -2178,6 +2178,14 @@ or nested-insert guard runs. Such native BC errors may have no `VCH-` prefix or
 Function handles them through its generic unmapped-error fallback below; it does
 not parse native message text to invent a domain code or row marker.
 
+**Required processing data must exist.** `VCH-DAT-0001` identifies a missing
+required record in a proposal line handler or a failed reread of a newly created
+comment. It stops the operation immediately and rolls back its writes; it is a
+technical failure, not an aggregated business-validation result. Existing
+`VCH-VAL-*` business checks retain their codes. If this technical code crosses
+the API, the Function uses the generic unmapped-error fallback below, without a
+row-validation mapping or exposing the internal message to the vendor.
+
 Because a deep insert returns **one** OData error for the whole request, every
 line-level business failure must name its line in the message. The convention is
 `VCH-xxx-nnnn [line <sequence>/<requestLineNumber>]: <text>`, so the page can
@@ -2219,6 +2227,7 @@ the right call, and no validator or handler code changes when it does.
 | `VCH-STA-0001` | Illegal status transition | 400 |
 | `VCH-APL-0001..4` | Apply-time failures (see §7.1, §7.2) | 500 |
 | `VCH-APL-0006` | Unknown persisted line type reached apply; restore its extension or replace the proposal (§6.1) | — internal apply failure, shown in the BC client |
+| `VCH-DAT-0001` | Required proposal-processing data missing or newly created comment cannot be reread | Generic unmapped-error fallback |
 
 **Errors raised in the BC client show no code.** The `VCH-REQ-*` rows above name a
 condition for this document, for telemetry and for tests — not for the buyer, who
@@ -2228,8 +2237,8 @@ internal identifier in front of a person, which is the same rule as §1's on
 captions. The prefix exists only where a machine reads it: on the way out through
 the API.
 
-A machine-readable copy of this table lives in `docs/api/error-codes.md` and is
-generated from the labels in `AMC Proposal Validator`, so the codes cannot drift.
+A stable code catalog lives in `Docs/api/error-codes.md` and is maintained
+alongside the solution-owned error labels.
 
 The vendor never sees a `AMC-` code. The Function maps every one of them to a small
 vendor-facing set, because a message written for a developer is not a message

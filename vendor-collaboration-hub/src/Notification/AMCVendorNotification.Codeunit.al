@@ -32,7 +32,8 @@ codeunit 50118 "AMC Vendor Notification"
     IsHandled: Boolean;
     LinkSendFailedErr: Label 'The vendor access link email could not be sent: %1', Comment = '%1 = original error detail';
   begin
-    VendorRequest.Get(RequestNo);
+    if not VendorRequest.Get(RequestNo) then
+      Error(this.RequiredRecordNotFoundErr, VendorRequest.TableCaption());
     Recipient := this.GetRecipient(VendorRequest);
 
     RawToken := AccessTokenMgt.Issue(RequestNo);
@@ -67,7 +68,8 @@ codeunit 50118 "AMC Vendor Notification"
   var
     VendorRequest: Record "AMC Vendor Request";
   begin
-    VendorRequest.Get(RequestNo);
+    if not VendorRequest.Get(RequestNo) then
+      Error(this.RequiredRecordNotFoundErr, VendorRequest.TableCaption());
     this.Prepare(VendorRequest, AccessLink, EmailMessage);
   end;
 
@@ -103,7 +105,8 @@ codeunit 50118 "AMC Vendor Notification"
     MissingRecipientError: ErrorInfo;
     OpenVendorCardLbl: Label 'Open %1', Comment = '%1 = page caption';
   begin
-    Vendor.Get(VendorRequest."Vendor No.");
+    if not Vendor.Get(VendorRequest."Vendor No.") then
+      Error(this.RequiredRecordNotFoundErr, Vendor.TableCaption());
     if Vendor."AMC Portal Contact E-Mail" <> '' then
       exit(Vendor."AMC Portal Contact E-Mail");
     if Vendor."E-Mail" <> '' then
@@ -140,7 +143,8 @@ codeunit 50118 "AMC Vendor Notification"
     VendorAccessToken: Record "AMC Vendor Access Token";
   begin
     VendorAccessToken.SetRange("Token Hash", TokenHash);
-    VendorAccessToken.FindFirst();
+    if not VendorAccessToken.FindFirst() then
+      Error(this.RequiredRecordNotFoundErr, VendorAccessToken.TableCaption());
     VendorAccessToken.Validate("Sent To E-Mail", CopyStr(Recipient, 1, MaxStrLen(VendorAccessToken."Sent To E-Mail")));
     VendorAccessToken.Validate("Sent At", CurrentDateTime());
     VendorAccessToken.Modify(true);
@@ -165,7 +169,8 @@ codeunit 50118 "AMC Vendor Notification"
     if not TempReportSelections.FindSet() then
       exit;
 
-    PurchaseHeader.Get(PurchaseHeader."Document Type"::Order, VendorRequest."Purchase Order No.");
+    if not PurchaseHeader.Get(PurchaseHeader."Document Type"::Order, VendorRequest."Purchase Order No.") then
+      Error(this.RequiredRecordNotFoundErr, PurchaseHeader.TableCaption());
     PurchaseHeader.SetRecFilter();
     repeat
       Clear(TempBlob);
@@ -211,6 +216,7 @@ codeunit 50118 "AMC Vendor Notification"
   end;
 
   var
+    RequiredRecordNotFoundErr: Label 'The %1 record required to send the vendor notification could not be found.', Comment = '%1 = table caption';
     VCHReq0003Err: Label 'VCH-REQ-0003: Vendor %1 does not have a portal contact email address or email address.', Comment = '%1 = vendor number';
     EmailNotSentErr: Label 'The vendor access link email was not sent.';
     LinkSentDescriptionLbl: Label 'Vendor access link email sent.';

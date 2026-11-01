@@ -241,7 +241,7 @@ codeunit 50130 "AMC Setup Tests"
     begin
         // Given
         this.PrepareAssistedSetupPrerequisites();
-        CollaborationSetup.Get();
+        this.Assert.IsTrue(CollaborationSetup.Get(), 'The expected collaboration setup record must exist.');
         InitialCollaborationSetup := CollaborationSetup;
         AssistedSetup.OpenEdit();
 
@@ -249,7 +249,7 @@ codeunit 50130 "AMC Setup Tests"
         AssistedSetup.Close();
 
         // Then
-        CollaborationSetup.Get();
+        this.Assert.IsTrue(CollaborationSetup.Get(), 'The expected collaboration setup record must exist.');
         this.AssertCollaborationSetupIsUnchanged(InitialCollaborationSetup, CollaborationSetup);
         JobQueueEntry.SetRange("Object Type to Run", JobQueueEntry."Object Type to Run"::Codeunit);
         JobQueueEntry.SetRange("Object ID to Run", Codeunit::"AMC Token Expiry Job");
@@ -274,7 +274,7 @@ codeunit 50130 "AMC Setup Tests"
         CollaborationSetup.Validate(Enabled, true);
         CollaborationSetup.Modify(true);
         Commit(); // Keep the enabled fixture outside the expected page-opening error's rollback.
-        CollaborationSetup.Get();
+        this.Assert.IsTrue(CollaborationSetup.Get(), 'The expected collaboration setup record must exist.');
         InitialCollaborationSetup := CollaborationSetup;
 
         // When
@@ -282,7 +282,7 @@ codeunit 50130 "AMC Setup Tests"
 
         // Then
         this.Assert.ExpectedError(StrSubstNo(AssistedSetupNotAvailableErr, CollaborationSetupPage.Caption()));
-        CollaborationSetup.Get();
+        this.Assert.IsTrue(CollaborationSetup.Get(), 'The expected collaboration setup record must exist.');
         this.AssertCollaborationSetupIsUnchanged(InitialCollaborationSetup, CollaborationSetup);
         this.Assert.AreEqual(InitialCollaborationSetup.SystemModifiedAt, CollaborationSetup.SystemModifiedAt, 'Rejecting assisted setup must not write the enabled setup record.');
         JobQueueEntry.SetRange("Object Type to Run", JobQueueEntry."Object Type to Run"::Codeunit);

@@ -23,13 +23,13 @@ codeunit 50147 "AMC Write API Tests"
     // When
     this.TestLibrary.SubmitAnswer(VendorRequest, AccessToken.SystemId, IdempotencyKey, 400, false, Proposal);
     // Then
-    Proposal.Get(Proposal."No.");
+    this.Assert.IsTrue(Proposal.Get(Proposal."No."), 'The expected proposal record must exist.');
     this.Assert.AreEqual(Proposal.Status::Submitted, Proposal.Status, 'The API must never persist Draft.');
     this.Assert.IsFalse(Proposal."API Submission Pending", 'All nested lines must be finalized.');
     this.Assert.AreEqual(IdempotencyKey, Proposal."Idempotency Key", 'Register the client key only for a valid whole answer.');
     this.Assert.AreEqual(64, StrLen(Proposal."Payload Hash"), 'Persist the canonical SHA-256 hash.');
     this.Assert.IsTrue(Proposal."Submitted Date Time" <> 0DT, 'Stamp submission time.');
-    VendorRequest.Get(VendorRequest."No.");
+    this.Assert.IsTrue(VendorRequest.Get(VendorRequest."No."), 'The expected vendor request record must exist.');
     this.Assert.AreEqual(VendorRequest.Status::"Vendor Responded", VendorRequest.Status, 'Submission moves the request.');
     ProposalLine.SetRange("Proposal No.", Proposal."No.");
     this.Assert.AreEqual(3, ProposalLine.Count(), 'Both splits and the substitution must be saved.');
@@ -50,8 +50,8 @@ codeunit 50147 "AMC Write API Tests"
   begin
     // Given: two manually entered lines share a line number under different parents.
     this.TestLibrary.CreateWriteContext(VendorRequest, AccessToken);
-    Proposal.Get(ProposalMgt.CreateDraftFromRequest(VendorRequest));
-    OtherProposal.Get(ProposalMgt.CreateDraftFromRequest(VendorRequest));
+    this.Assert.IsTrue(Proposal.Get(ProposalMgt.CreateDraftFromRequest(VendorRequest)), 'The expected proposal record must exist.');
+    this.Assert.IsTrue(OtherProposal.Get(ProposalMgt.CreateDraftFromRequest(VendorRequest)), 'The expected other proposal record must exist.');
     ProposalLine.Init();
     ProposalLine.Validate("Proposal No.", Proposal."No.");
     ProposalLine.Validate("Line No.", 10000);
@@ -178,7 +178,7 @@ codeunit 50147 "AMC Write API Tests"
     BeforeEntryCount := Entry.Count();
     IdempotencyKey := Format(CreateGuid());
     // When / Then
-    Setup.Get();
+    this.Assert.IsTrue(Setup.Get(), 'The expected setup record must exist.');
     Setup.Validate(Enabled, false);
     Setup.Modify(false);
     Commit();
@@ -187,7 +187,7 @@ codeunit 50147 "AMC Write API Tests"
     this.AssertNoSubmissionWrites(VendorRequest, BeforeLineCount, BeforeEntryCount);
     Setup.Validate(Enabled, true);
     Setup.Modify(false);
-    Vendor.Get(VendorRequest."Vendor No.");
+    this.Assert.IsTrue(Vendor.Get(VendorRequest."Vendor No."), 'The expected vendor record must exist.');
     Vendor.Validate("AMC Collaboration Enabled", false);
     Vendor.Modify(false);
     Commit();

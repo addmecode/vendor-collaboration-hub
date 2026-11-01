@@ -32,6 +32,7 @@ codeunit 50105 "AMC Collab Log"
     TokenInvalidErr: Label 'VCH-AUT-0003: This access link is no longer valid.';
     SourceMismatchErr: Label 'VCH-AUT-0004: The comment source does not belong to the access link request and vendor.';
     CommentInvalidErr: Label 'VCH-VAL-0001: A comment requires an existing Request or Proposal source and non-empty text.';
+    EntryNotFoundErr: Label 'VCH-DAT-0001: The comment entry could not be read after it was created.';
   begin
     if (CollaborationEntry.Description = '') or
        not (CollaborationEntry."Source Type" in ["AMC Source Type"::Request, "AMC Source Type"::Proposal]) then
@@ -60,7 +61,8 @@ codeunit 50105 "AMC Collab Log"
     EntryId := this.InsertEntry(CollaborationEntry."Source Type", CollaborationEntry."Source No.", 0,
       "AMC Collab Entry Type"::Comment, "AMC Actor Type"::Vendor, CollaborationEntry."Actor Name", '',
       '', '', '', CollaborationEntry.Description, CollaborationEntry."Correlation Id");
-    CollaborationEntry.GetBySystemId(EntryId);
+    if not CollaborationEntry.GetBySystemId(EntryId) then
+      Error(EntryNotFoundErr);
   end;
 
     local procedure InsertEntry(SourceType: Enum "AMC Source Type"; SourceNo: Code[20]; SourceLineNo: Integer; EntryType: Enum "AMC Collab Entry Type"; ActorType: Enum "AMC Actor Type"; ActorName: Text[100]; UserId: Code[50]; FieldName: Text[80]; OldValue: Text[250]; NewValue: Text[250]; Description: Text[250]; CorrelationId: Guid): Guid

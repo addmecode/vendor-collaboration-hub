@@ -92,7 +92,8 @@ codeunit 50101 "AMC Proposal Mgt"
     SubmittedLbl: Label 'Vendor proposal submitted.';
     PendingRequiredErr: Label 'VCH-STA-0001: Only an active deep insert can submit a proposal through the API.';
   begin
-    VendorProposal.Get(VendorProposal."No.");
+    if not VendorProposal.Get(VendorProposal."No.") then
+      Error(PendingRequiredErr);
     if not VendorProposal."API Submission Pending" then
       Error(PendingRequiredErr);
     this.AssertApiIdentity(AccessTokenId, VendorProposal."Request No.", VendorProposal."Vendor No.");
@@ -213,9 +214,11 @@ codeunit 50101 "AMC Proposal Mgt"
         VendorProposal: Record "AMC Vendor Proposal";
         NoSeries: Codeunit "No. Series";
         ProposalNo: Code[20];
+        RequestNotFoundErr: Label 'The vendor request could not be found. Refresh the document and try again.';
         ManualIdempotencyKeyLbl: Label 'MANUAL-%1', Locked = true, Comment = '%1 = proposal number';
     begin
-        VendorRequest.Get(VendorRequest."No.");
+        if not VendorRequest.Get(VendorRequest."No.") then
+            Error(RequestNotFoundErr);
         CollaborationSetup.GetSetup();
 
         ProposalNo := NoSeries.GetNextNo(CollaborationSetup."Proposal Nos.");

@@ -39,8 +39,8 @@ codeunit 50139 "AMC Substitute Item Tests"
     SubstituteItemHandler.Apply(ProposalLine, PurchaseHeader);
 
     // Then
-    PurchaseLine.Get(PurchaseHeader."Document Type", PurchaseHeader."No.", 10000);
-    SubstitutePurchaseLine.Get(PurchaseHeader."Document Type", PurchaseHeader."No.", 15000);
+    this.Assert.IsTrue(PurchaseLine.Get(PurchaseHeader."Document Type", PurchaseHeader."No.", 10000), 'The expected purchase line record must exist.');
+    this.Assert.IsTrue(SubstitutePurchaseLine.Get(PurchaseHeader."Document Type", PurchaseHeader."No.", 15000), 'The expected substitute purchase line record must exist.');
     this.Assert.AreEqual(0, PurchaseLine.Quantity, 'The original purchase line must be cancelled.');
     this.Assert.AreEqual(ProposalLine."Proposal No.", PurchaseLine."AMC Origin Proposal No.", 'The cancelled origin line must be stamped with the proposal.');
     this.Assert.AreEqual('ITEM-B2', SubstitutePurchaseLine."No.", 'The inserted purchase line must use the registered substitute item.');
@@ -153,7 +153,7 @@ codeunit 50139 "AMC Substitute Item Tests"
     Item: Record Item;
   begin
     this.TestLibrary.EnsureItem(ItemNo, 'PCS');
-    Item.Get(ItemNo);
+    this.Assert.IsTrue(Item.Get(ItemNo), 'The expected item record must exist.');
     Item.Validate(Description, ItemNo);
     Item.Validate("Gen. Prod. Posting Group", GenProductPostingGroupCode);
     Item.Validate("Inventory Posting Group", InventoryPostingGroupCode);
