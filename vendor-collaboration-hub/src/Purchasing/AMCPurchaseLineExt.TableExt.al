@@ -8,17 +8,23 @@ tableextension 50101 "AMC Purchase Line Ext" extends "Purchase Line"
   {
     field(50100; "AMC Origin Proposal No."; Code[20])
     {
+      AllowInCustomizations = AsReadOnly;
       Caption = 'Origin Proposal No.';
+      ToolTip = 'Specifies the vendor proposal that created or changed this purchase order line.';
       DataClassification = CustomerContent;
     }
     field(50101; "AMC Origin Proposal Line No."; Integer)
     {
+      AllowInCustomizations = AsReadOnly;
       Caption = 'Origin Proposal Line No.';
+      ToolTip = 'Specifies the vendor proposal line that created or changed this purchase order line.';
       DataClassification = CustomerContent;
     }
     field(50102; "AMC Vendor Confirmed"; Boolean)
     {
+      AllowInCustomizations = AsReadOnly;
       Caption = 'Vendor Confirmed';
+      ToolTip = 'Specifies whether this purchase order line is confirmed by the vendor.';
       DataClassification = CustomerContent;
     }
   }

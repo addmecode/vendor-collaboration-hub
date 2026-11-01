@@ -4,6 +4,9 @@ using Microsoft.Foundation.NoSeries;
 using System.Email;
 using System.Integration;
 
+/// <summary>
+/// Stores company collaboration settings and validates configuration prerequisites when enabling collaboration.
+/// </summary>
 table 50100 "AMC Collaboration Setup"
 {
     Caption = 'Vendor Collaboration Setup';
@@ -14,13 +17,15 @@ table 50100 "AMC Collaboration Setup"
     {
         field(1; "Primary Key"; Code[10])
         {
+            AllowInCustomizations = Never;
             Caption = 'Primary Key';
-            DataClassification = SystemMetadata;
+            ToolTip = 'Specifies the key of the single collaboration setup record. The key is always blank.';
+            NotBlank = false;
         }
         field(2; Enabled; Boolean)
         {
             Caption = 'Enabled';
-            DataClassification = SystemMetadata;
+            ToolTip = 'Specifies whether vendor collaboration is enabled.';
 
             trigger OnValidate()
             begin
@@ -31,68 +36,69 @@ table 50100 "AMC Collaboration Setup"
         field(3; "Request Nos."; Code[20])
         {
             Caption = 'Request Nos.';
-            DataClassification = SystemMetadata;
+            ToolTip = 'Specifies the number series used for vendor requests.';
             TableRelation = "No. Series";
         }
         field(4; "Proposal Nos."; Code[20])
         {
             Caption = 'Proposal Nos.';
-            DataClassification = SystemMetadata;
+            ToolTip = 'Specifies the number series used for vendor proposals.';
             TableRelation = "No. Series";
         }
         field(5; "Default Response Days"; Integer)
         {
             Caption = 'Default Response Days';
-            DataClassification = SystemMetadata;
+            ToolTip = 'Specifies the default number of days a vendor has to respond.';
         }
         field(6; "Allow Item Substitution"; Boolean)
         {
             Caption = 'Allow Item Substitution';
-            DataClassification = SystemMetadata;
+            ToolTip = 'Specifies whether vendors can propose substitute items.';
         }
         field(7; "Allow Quantity Increase"; Boolean)
         {
             Caption = 'Allow Quantity Increase';
-            DataClassification = SystemMetadata;
+            ToolTip = 'Specifies whether vendors can propose quantities above the requested quantity.';
         }
         field(8; "Max Splits per Line"; Integer)
         {
             Caption = 'Max Splits per Line';
-            DataClassification = SystemMetadata;
+            ToolTip = 'Specifies the maximum number of proposed deliveries for one request line.';
         }
         field(9; "Require Reason Code"; Boolean)
         {
             Caption = 'Require Reason Code';
-            DataClassification = SystemMetadata;
+            ToolTip = 'Specifies whether non-confirmation proposal lines require a reason code.';
         }
         field(10; "Portal Base URL"; Text[250])
         {
             Caption = 'Portal Base URL';
-            DataClassification = SystemMetadata;
+            ToolTip = 'Specifies the base URL used to build vendor access links.';
             ExtendedDatatype = URL;
         }
         field(11; "Portal Support E-Mail"; Text[80])
         {
             Caption = 'Portal Support E-Mail';
+            ToolTip = 'Specifies the support email address shown when a vendor access link cannot be used.';
             DataClassification = CustomerContent;
             ExtendedDatatype = EMail;
         }
         field(12; "Link Validity Days"; Integer)
         {
             Caption = 'Link Validity Days';
-            DataClassification = SystemMetadata;
+            ToolTip = 'Specifies how many days a vendor access link remains valid.';
         }
         field(13; "Attach Order PDF"; Boolean)
         {
             Caption = 'Attach Order PDF';
-            DataClassification = SystemMetadata;
+            ToolTip = 'Specifies whether the purchase order PDF is attached to the vendor email.';
         }
-        field(14; "Telemetry Verbosity"; Option)
+        field(14; "Telemetry Verbosity"; Enum "AMC Telemetry Verbosity")
         {
             Caption = 'Telemetry Verbosity';
-            DataClassification = SystemMetadata;
-            OptionCaption = 'Normal,Warning,Error,Verbose';
-            OptionMembers = Normal,Warning,Error,Verbose;
+            ToolTip = 'Specifies the telemetry verbosity used by vendor collaboration.';
+            InitValue = Normal;
+            ValuesAllowed = Normal, Warning, Error, Verbose;
         }
     }
 
@@ -113,11 +119,15 @@ table 50100 "AMC Collaboration Setup"
     var
         PersistedCollaborationSetup: Record "AMC Collaboration Setup";
     begin
+        PersistedCollaborationSetup.SetLoadFields(Enabled);
         if PersistedCollaborationSetup.Get(Rec."Primary Key") then
             if Rec.Enabled and not PersistedCollaborationSetup.Enabled then
                 this.ValidateSetupForActivation();
     end;
 
+    /// <summary>
+    /// Loads the company setup record, inserting it with default initialization when it does not exist.
+    /// </summary>
     procedure GetSetup()
     begin
         if not this.Get() then begin
@@ -128,14 +138,14 @@ table 50100 "AMC Collaboration Setup"
 
     local procedure InitializeDefaults()
     begin
-        this.Enabled := false;
-        this."Default Response Days" := 7;
-        this."Allow Item Substitution" := false;
-        this."Allow Quantity Increase" := false;
-        this."Max Splits per Line" := 3;
-        this."Require Reason Code" := true;
-        this."Link Validity Days" := 14;
-        this."Telemetry Verbosity" := this."Telemetry Verbosity"::Normal;
+        this.Validate(Enabled, false);
+        this.Validate("Default Response Days", 7);
+        this.Validate("Allow Item Substitution", false);
+        this.Validate("Allow Quantity Increase", false);
+        this.Validate("Max Splits per Line", 3);
+        this.Validate("Require Reason Code", true);
+        this.Validate("Link Validity Days", 14);
+        this.Validate("Telemetry Verbosity", this."Telemetry Verbosity"::Normal);
     end;
 
     local procedure ValidateSetupForActivation()

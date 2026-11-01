@@ -3,6 +3,9 @@ namespace Addmecode.VendorCollaborationHub;
 using Microsoft.Foundation.NoSeries;
 using System.Environment.Configuration;
 
+/// <summary>
+/// Guides initial collaboration configuration and activation using existing number series.
+/// </summary>
 page 50101 "AMC Assisted Setup"
 {
     ApplicationArea = All;
@@ -20,17 +23,16 @@ page 50101 "AMC Assisted Setup"
             {
                 Caption = 'Welcome';
                 InstructionalText = 'Use this assisted setup to configure Vendor Collaboration. You will choose number series, define collaboration rules, specify portal and document settings, and choose whether to enable the feature.';
-                Visible = this.ShowWelcomeStep;
+                Visible = this.CurrentStep = 1;
             }
             group(NumberSeries)
             {
                 Caption = 'Number Series';
                 InstructionalText = 'Choose the number series that Vendor Collaboration uses for requests and proposals.';
-                Visible = this.ShowNumberSeriesStep;
+                Visible = this.CurrentStep = 2;
 
                 field("Request Nos."; this.RequestNoSeriesCode)
                 {
-                    ApplicationArea = All;
                     Editable = true;
                     ShowMandatory = true;
                     TableRelation = "No. Series";
@@ -39,7 +41,6 @@ page 50101 "AMC Assisted Setup"
                 }
                 field("Proposal Nos."; this.ProposalNoSeriesCode)
                 {
-                    ApplicationArea = All;
                     Editable = true;
                     ShowMandatory = true;
                     TableRelation = "No. Series";
@@ -51,41 +52,35 @@ page 50101 "AMC Assisted Setup"
             {
                 Caption = 'Collaboration Rules';
                 InstructionalText = 'Specify the default rules used when collaborating with vendors.';
-                Visible = this.ShowCollaborationRulesStep;
+                Visible = this.CurrentStep = 3;
 
                 field(DefaultResponseDays; this.DefaultResponseDays)
                 {
-                    ApplicationArea = All;
                     Caption = 'Default Response Days';
                     ToolTip = 'Specifies the default number of days that a vendor has to respond.';
                 }
                 field(LinkValidityDays; this.LinkValidityDays)
                 {
-                    ApplicationArea = All;
                     Caption = 'Link Validity Days';
                     ToolTip = 'Specifies the number of days that a vendor collaboration link remains valid.';
                 }
                 field(AllowItemSubstitution; this.AllowItemSubstitution)
                 {
-                    ApplicationArea = All;
                     Caption = 'Allow Item Substitution';
                     ToolTip = 'Specifies whether vendors can propose substitute items.';
                 }
                 field(AllowQuantityIncrease; this.AllowQuantityIncrease)
                 {
-                    ApplicationArea = All;
                     Caption = 'Allow Quantity Increase';
                     ToolTip = 'Specifies whether vendors can propose a higher quantity.';
                 }
                 field(MaxSplitsPerLine; this.MaxSplitsPerLine)
                 {
-                    ApplicationArea = All;
                     Caption = 'Max Splits per Line';
                     ToolTip = 'Specifies the maximum number of vendor proposals that can split one request line.';
                 }
                 field(RequireReasonCode; this.RequireReasonCode)
                 {
-                    ApplicationArea = All;
                     Caption = 'Require Reason Code';
                     ToolTip = 'Specifies whether a reason code is required for vendor responses.';
                 }
@@ -94,25 +89,24 @@ page 50101 "AMC Assisted Setup"
             {
                 Caption = 'Portal and Documents';
                 InstructionalText = 'Specify the portal details and documents available to vendors.';
-                Visible = this.ShowPortalAndDocumentsStep;
+                Visible = this.CurrentStep = 4;
 
                 field(PortalBaseUrl; this.PortalBaseUrl)
                 {
-                    ApplicationArea = All;
                     Caption = 'Portal Base URL';
                     ExtendedDatatype = URL;
+                    ShowMandatory = this.Enabled;
                     ToolTip = 'Specifies the base URL of the vendor collaboration portal.';
                 }
                 field(PortalSupportEmail; this.PortalSupportEmail)
                 {
-                    ApplicationArea = All;
                     Caption = 'Portal Support E-Mail';
                     ExtendedDatatype = EMail;
+                    ShowMandatory = this.Enabled;
                     ToolTip = 'Specifies the e-mail address that vendors can use to request support.';
                 }
                 field(AttachOrderPdf; this.AttachOrderPdf)
                 {
-                    ApplicationArea = All;
                     Caption = 'Attach Order PDF';
                     ToolTip = 'Specifies whether to attach the purchase order PDF to vendor communications.';
                 }
@@ -121,11 +115,10 @@ page 50101 "AMC Assisted Setup"
             {
                 Caption = 'Enable Vendor Collaboration';
                 InstructionalText = 'Select Enable to make Vendor Collaboration available when you finish the setup.';
-                Visible = this.ShowEnableStep;
+                Visible = this.CurrentStep = 5;
 
                 field(Enabled; this.Enabled)
                 {
-                    ApplicationArea = All;
                     Caption = 'Enable Vendor Collaboration';
                     ToolTip = 'Specifies whether Vendor Collaboration is enabled when the setup is completed.';
                 }
@@ -141,7 +134,7 @@ page 50101 "AMC Assisted Setup"
             {
                 ApplicationArea = All;
                 Caption = 'Back';
-                Enabled = this.CanGoBack;
+                Enabled = this.CurrentStep > 1;
                 Image = PreviousRecord;
                 InFooterBar = true;
                 ToolTip = 'Returns to the previous step.';
@@ -155,7 +148,7 @@ page 50101 "AMC Assisted Setup"
             {
                 ApplicationArea = All;
                 Caption = 'Next';
-                Enabled = this.CanGoNext;
+                Enabled = this.CurrentStep < 5;
                 Image = NextRecord;
                 InFooterBar = true;
                 ToolTip = 'Continues to the next step.';
@@ -169,7 +162,7 @@ page 50101 "AMC Assisted Setup"
             {
                 ApplicationArea = All;
                 Caption = 'Finish';
-                Enabled = this.ShowEnableStep;
+                Enabled = this.CurrentStep = 5;
                 Image = Approve;
                 InFooterBar = true;
                 ToolTip = 'Saves the selected settings and completes the setup.';
@@ -198,8 +191,8 @@ page 50101 "AMC Assisted Setup"
     begin
         if CollaborationSetup.Get() then begin
             if CollaborationSetup.Enabled then begin
-                AssistedSetupNotAvailableError.Message := StrSubstNo(AssistedSetupNotAvailableErr, CollaborationSetupPage.Caption());
-                AssistedSetupNotAvailableError.PageNo := Page::"AMC Collaboration Setup";
+                AssistedSetupNotAvailableError.Message(StrSubstNo(AssistedSetupNotAvailableErr, CollaborationSetupPage.Caption()));
+                AssistedSetupNotAvailableError.PageNo(Page::"AMC Collaboration Setup");
                 AssistedSetupNotAvailableError.AddNavigationAction(StrSubstNo(OpenCollaborationSetupLbl, CollaborationSetupPage.Caption()));
                 Error(AssistedSetupNotAvailableError);
             end;
@@ -226,27 +219,6 @@ page 50101 "AMC Assisted Setup"
     local procedure SetCurrentStep(NewStep: Integer; RefreshPage: Boolean)
     begin
         this.CurrentStep := NewStep;
-        this.ShowWelcomeStep := false;
-        this.ShowNumberSeriesStep := false;
-        this.ShowCollaborationRulesStep := false;
-        this.ShowPortalAndDocumentsStep := false;
-        this.ShowEnableStep := false;
-
-        case this.CurrentStep of
-            1:
-                this.ShowWelcomeStep := true;
-            2:
-                this.ShowNumberSeriesStep := true;
-            3:
-                this.ShowCollaborationRulesStep := true;
-            4:
-                this.ShowPortalAndDocumentsStep := true;
-            5:
-                this.ShowEnableStep := true;
-        end;
-
-        this.CanGoBack := this.CurrentStep > 1;
-        this.CanGoNext := this.CurrentStep < 5;
         if RefreshPage then
             CurrPage.Update(false);
     end;
@@ -272,17 +244,17 @@ page 50101 "AMC Assisted Setup"
 
     local procedure ApplySetupValues(var CollaborationSetup: Record "AMC Collaboration Setup")
     begin
-        CollaborationSetup."Request Nos." := this.RequestNoSeriesCode;
-        CollaborationSetup."Proposal Nos." := this.ProposalNoSeriesCode;
-        CollaborationSetup."Default Response Days" := this.DefaultResponseDays;
-        CollaborationSetup."Link Validity Days" := this.LinkValidityDays;
-        CollaborationSetup."Allow Item Substitution" := this.AllowItemSubstitution;
-        CollaborationSetup."Allow Quantity Increase" := this.AllowQuantityIncrease;
-        CollaborationSetup."Max Splits per Line" := this.MaxSplitsPerLine;
-        CollaborationSetup."Require Reason Code" := this.RequireReasonCode;
-        CollaborationSetup."Portal Base URL" := this.PortalBaseUrl;
-        CollaborationSetup."Portal Support E-Mail" := this.PortalSupportEmail;
-        CollaborationSetup."Attach Order PDF" := this.AttachOrderPdf;
+        CollaborationSetup.Validate("Request Nos.", this.RequestNoSeriesCode);
+        CollaborationSetup.Validate("Proposal Nos.", this.ProposalNoSeriesCode);
+        CollaborationSetup.Validate("Default Response Days", this.DefaultResponseDays);
+        CollaborationSetup.Validate("Link Validity Days", this.LinkValidityDays);
+        CollaborationSetup.Validate("Allow Item Substitution", this.AllowItemSubstitution);
+        CollaborationSetup.Validate("Allow Quantity Increase", this.AllowQuantityIncrease);
+        CollaborationSetup.Validate("Max Splits per Line", this.MaxSplitsPerLine);
+        CollaborationSetup.Validate("Require Reason Code", this.RequireReasonCode);
+        CollaborationSetup.Validate("Portal Base URL", this.PortalBaseUrl);
+        CollaborationSetup.Validate("Portal Support E-Mail", this.PortalSupportEmail);
+        CollaborationSetup.Validate("Attach Order PDF", this.AttachOrderPdf);
         CollaborationSetup.Validate(Enabled, this.Enabled);
     end;
 
@@ -306,8 +278,6 @@ page 50101 "AMC Assisted Setup"
         AllowItemSubstitution: Boolean;
         AllowQuantityIncrease: Boolean;
         AttachOrderPdf: Boolean;
-        CanGoBack: Boolean;
-        CanGoNext: Boolean;
         CurrentStep: Integer;
         DefaultResponseDays: Integer;
         Enabled: Boolean;
@@ -318,9 +288,4 @@ page 50101 "AMC Assisted Setup"
         ProposalNoSeriesCode: Code[20];
         RequestNoSeriesCode: Code[20];
         RequireReasonCode: Boolean;
-        ShowCollaborationRulesStep: Boolean;
-        ShowNumberSeriesStep: Boolean;
-        ShowPortalAndDocumentsStep: Boolean;
-        ShowEnableStep: Boolean;
-        ShowWelcomeStep: Boolean;
 }

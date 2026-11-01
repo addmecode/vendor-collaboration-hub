@@ -1,9 +1,14 @@
 namespace Addmecode.VendorCollaborationHub;
 
+/// <summary>
+/// Stores collaboration audit events, comments, actor identities and field-change details.
+/// </summary>
 table 50105 "AMC Collaboration Entry"
 {
     Caption = 'Collaboration Entry';
     DataClassification = CustomerContent;
+    DrillDownPageId = "AMC Collaboration Entries";
+    LookupPageId = "AMC Collaboration Entries";
 
     fields
     {
@@ -11,72 +16,73 @@ table 50105 "AMC Collaboration Entry"
         {
             AutoIncrement = true;
             Caption = 'Entry No.';
-            DataClassification = CustomerContent;
+            ToolTip = 'Specifies the unique number of this collaboration entry.';
         }
         field(2; "Source Type"; Enum "AMC Source Type")
         {
             Caption = 'Source Type';
-            DataClassification = CustomerContent;
+            ToolTip = 'Specifies whether this entry belongs to a request or a proposal.';
         }
         field(3; "Source No."; Code[20])
         {
             Caption = 'Source No.';
-            DataClassification = CustomerContent;
+            ToolTip = 'Specifies the request or proposal number for this entry.';
         }
         field(4; "Source Line No."; Integer)
         {
             Caption = 'Source Line No.';
-            DataClassification = CustomerContent;
+            ToolTip = 'Specifies the related source line, if any.';
         }
         field(5; "Entry Type"; Enum "AMC Collab Entry Type")
         {
             Caption = 'Entry Type';
-            DataClassification = CustomerContent;
+            ToolTip = 'Specifies the process event or comment recorded by this entry.';
         }
         field(6; "Actor Type"; Enum "AMC Actor Type")
         {
             Caption = 'Actor Type';
-            DataClassification = CustomerContent;
+            ToolTip = 'Specifies who performed the action.';
         }
         field(7; "Actor Name"; Text[100])
         {
             Caption = 'Actor Name';
-            DataClassification = CustomerContent;
+            ToolTip = 'Specifies the actor name recorded for this entry.';
         }
         field(8; "User ID"; Code[50])
         {
             Caption = 'User ID';
+            ToolTip = 'Specifies the Business Central user recorded for this entry.';
             DataClassification = EndUserIdentifiableInformation;
         }
         field(10; "Field Name"; Text[80])
         {
             Caption = 'Field Name';
-            DataClassification = CustomerContent;
+            ToolTip = 'Specifies the changed field, if any.';
         }
         field(11; "Old Value"; Text[250])
         {
             Caption = 'Old Value';
-            DataClassification = CustomerContent;
+            ToolTip = 'Specifies the value before the change, if any.';
         }
         field(12; "New Value"; Text[250])
         {
             Caption = 'New Value';
-            DataClassification = CustomerContent;
+            ToolTip = 'Specifies the value after the change, if any.';
         }
         field(13; Description; Text[250])
         {
             Caption = 'Description';
-            DataClassification = CustomerContent;
+            ToolTip = 'Specifies the comment or context recorded for this entry.';
         }
         field(14; "Correlation Id"; Guid)
         {
             Caption = 'Correlation Id';
-            DataClassification = CustomerContent;
+            ToolTip = 'Specifies the identifier that correlates this entry with telemetry.';
         }
         field(15; "Date Time"; DateTime)
         {
             Caption = 'Date Time';
-            DataClassification = CustomerContent;
+            ToolTip = 'Specifies when this entry was recorded.';
         }
     }
 

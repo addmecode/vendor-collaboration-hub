@@ -1,5 +1,8 @@
 namespace Addmecode.VendorCollaborationHub;
 
+/// <summary>
+/// Defines the proposal submission, review, decision and application lifecycle states.
+/// </summary>
 enum 50102 "AMC Proposal Status"
 {
     Extensible = true;

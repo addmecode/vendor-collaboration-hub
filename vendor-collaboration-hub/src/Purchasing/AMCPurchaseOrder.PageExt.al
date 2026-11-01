@@ -12,20 +12,18 @@ pageextension 50100 "AMC Purchase Order" extends "Purchase Order"
             {
                 ApplicationArea = All;
                 Editable = false;
-                ToolTip = 'Specifies the active vendor request for this purchase order.';
             }
             field(AMCCollaborationStatus; Rec."AMC Collaboration Status")
             {
                 ApplicationArea = All;
                 Editable = false;
-                ToolTip = 'Specifies the current vendor collaboration status for this purchase order.';
             }
         }
     }
 
     actions
     {
-        addlast(Processing)
+        addlast(processing)
         {
             action(AMCCreateVendorRequest)
             {
@@ -42,8 +40,9 @@ pageextension 50100 "AMC Purchase Order" extends "Purchase Order"
             action(AMCUnlockPurchaseOrder)
             {
                 ApplicationArea = All;
-                Caption = 'Unlock Purchase Order';
+                Caption = 'Unlock purchase order';
                 Enabled = Rec."AMC Active Request No." <> '';
+                Image = ReOpen;
                 ToolTip = 'Cancels the active vendor request and unlocks this purchase order.';
 
                 trigger OnAction()

@@ -2,12 +2,21 @@ namespace Addmecode.VendorCollaborationHub;
 
 using Microsoft.Purchases.Document;
 
+/// <summary>
+/// Validates and cancels the unreceived remainder of a purchase line.
+/// </summary>
 codeunit 50116 "AMC Cancel Remainder Handler" implements "AMC IProposalLineHandler"
 {
   Permissions = tabledata "AMC Vendor Proposal" = r,
                 tabledata "AMC Vendor Request Line" = r,
                 tabledata "Purchase Line" = rm;
 
+  /// <summary>
+  /// Appends an error when the source purchase line has no unreceived quantity to cancel.
+  /// </summary>
+  /// <param name="ProposalLine">Supplies the proposal identity and error coordinates.</param>
+  /// <param name="RequestLine">Identifies the source purchase line.</param>
+  /// <param name="Result">Receives the remainder error; missing required records raise an error.</param>
   procedure Validate(var ProposalLine: Record "AMC Vendor Proposal Line"; var RequestLine: Record "AMC Vendor Request Line"; var Result: Codeunit "AMC Validation Result")
   var
     PurchaseLine: Record "Purchase Line";
@@ -17,6 +26,11 @@ codeunit 50116 "AMC Cancel Remainder Handler" implements "AMC IProposalLineHandl
       Result.AddError(this.NoRemainderToCancelCodeLbl, ProposalLine."Request Line No.", ProposalLine."Sequence No.", this.NoRemainderToCancelErr);
   end;
 
+  /// <summary>
+  /// Rechecks the remainder and reduces the purchase-line quantity to its received quantity, stamping proposal origin.
+  /// </summary>
+  /// <param name="ProposalLine">Identifies the cancellation proposal and request line.</param>
+  /// <param name="PurchaseHeader">Identifies the target order under the caller's application context.</param>
   procedure Apply(var ProposalLine: Record "AMC Vendor Proposal Line"; var PurchaseHeader: Record "Purchase Header")
   var
     PurchaseLine: Record "Purchase Line";
@@ -26,9 +40,10 @@ codeunit 50116 "AMC Cancel Remainder Handler" implements "AMC IProposalLineHandl
     this.GetRequestLine(ProposalLine, RequestLine);
     this.Validate(ProposalLine, RequestLine, Result);
     if Result.HasErrors() then
-      Error(Result.AsErrorText());
+      Error(ErrorInfo.Create(Result.AsErrorText(), false));
 
-    PurchaseLine.Get(PurchaseHeader."Document Type", PurchaseHeader."No.", RequestLine."Purchase Line No.");
+    if not PurchaseLine.Get(PurchaseHeader."Document Type", PurchaseHeader."No.", RequestLine."Purchase Line No.") then
+      Error(this.RequiredRecordNotFoundErr, PurchaseLine.TableCaption());
     PurchaseLine.Validate(Quantity, PurchaseLine."Quantity Received");
     PurchaseLine.Validate("AMC Origin Proposal No.", ProposalLine."Proposal No.");
     PurchaseLine.Validate("AMC Origin Proposal Line No.", ProposalLine."Line No.");
@@ -39,19 +54,26 @@ codeunit 50116 "AMC Cancel Remainder Handler" implements "AMC IProposalLineHandl
   var
     VendorProposal: Record "AMC Vendor Proposal";
   begin
-    VendorProposal.Get(ProposalLine."Proposal No.");
-    PurchaseLine.Get(PurchaseLine."Document Type"::Order, VendorProposal."Purchase Order No.", RequestLine."Purchase Line No.");
+    VendorProposal.SetLoadFields("Purchase Order No.");
+    if not VendorProposal.Get(ProposalLine."Proposal No.") then
+      Error(this.RequiredRecordNotFoundErr, VendorProposal.TableCaption());
+    if not PurchaseLine.Get(PurchaseLine."Document Type"::Order, VendorProposal."Purchase Order No.", RequestLine."Purchase Line No.") then
+      Error(this.RequiredRecordNotFoundErr, PurchaseLine.TableCaption());
   end;
 
   local procedure GetRequestLine(var ProposalLine: Record "AMC Vendor Proposal Line"; var RequestLine: Record "AMC Vendor Request Line")
   var
     VendorProposal: Record "AMC Vendor Proposal";
   begin
-    VendorProposal.Get(ProposalLine."Proposal No.");
-    RequestLine.Get(VendorProposal."Request No.", ProposalLine."Request Line No.");
+    VendorProposal.SetLoadFields("Request No.");
+    if not VendorProposal.Get(ProposalLine."Proposal No.") then
+      Error(this.RequiredRecordNotFoundErr, VendorProposal.TableCaption());
+    if not RequestLine.Get(VendorProposal."Request No.", ProposalLine."Request Line No.") then
+      Error(this.RequiredRecordNotFoundErr, RequestLine.TableCaption());
   end;
 
   var
+    RequiredRecordNotFoundErr: Label 'VCH-DAT-0001: The %1 record required to process the proposal could not be found.', Comment = '%1 = table caption';
     NoRemainderToCancelCodeLbl: Label 'VCH-VAL-0013', Locked = true;
     NoRemainderToCancelErr: Label 'The purchase line has no remaining quantity to cancel.';
 }

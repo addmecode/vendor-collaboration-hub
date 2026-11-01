@@ -12,9 +12,22 @@ using System.TestLibraries.Utilities;
 codeunit 50139 "AMC Substitute Item Tests"
 {
   Subtype = Test;
+  Permissions = tabledata "AMC Vendor Proposal" = i,
+                tabledata "AMC Vendor Proposal Line" = im,
+                tabledata "AMC Vendor Request" = i,
+                tabledata "AMC Vendor Request Line" = i,
+                tabledata "Gen. Product Posting Group" = i,
+                tabledata "Inventory Posting Group" = i,
+                tabledata Item = rm,
+                tabledata "Item Substitution" = i,
+                tabledata "Purchase Line" = ri,
+                tabledata "VAT Product Posting Group" = i,
+                tabledata Vendor = i,
+                tabledata "Vendor Posting Group" = i;
 
   var
     Assert: Codeunit "Library Assert";
+    TestLibrary: Codeunit "AMC Test Library";
 
   [Test]
   procedure GivenRegisteredSubstitute_WhenSubstituteItemIsApplied_ThenSubstituteIsInsertedAndOriginIsCancelled()
@@ -29,17 +42,18 @@ codeunit 50139 "AMC Substitute Item Tests"
     // Given
     DeliveryDate := WorkDate() + 7;
     this.CreateSourceRecords(PurchaseHeader, PurchaseLine, ProposalLine);
-    ProposalLine."Proposed Item No." := 'ITEM-B2';
-    ProposalLine."Proposed Quantity" := 500;
-    ProposalLine."Proposed Delivery Date" := DeliveryDate;
+    ProposalLine.Validate("Proposed Item No.", 'ITEM-B2');
+    ProposalLine.Validate("Proposed Quantity", 500);
+    ProposalLine.Validate("Proposed Delivery Date", DeliveryDate);
     ProposalLine.Modify(false);
 
     // When
     SubstituteItemHandler.Apply(ProposalLine, PurchaseHeader);
 
     // Then
-    PurchaseLine.Get(PurchaseHeader."Document Type", PurchaseHeader."No.", 10000);
-    SubstitutePurchaseLine.Get(PurchaseHeader."Document Type", PurchaseHeader."No.", 15000);
+    this.Assert.IsTrue(PurchaseLine.Get(PurchaseHeader."Document Type", PurchaseHeader."No.", 10000), 'The expected purchase line record must exist.');
+    SubstitutePurchaseLine.SetLoadFields("No.", Quantity, "Promised Receipt Date", "AMC Origin Proposal Line No.");
+    this.Assert.IsTrue(SubstitutePurchaseLine.Get(PurchaseHeader."Document Type", PurchaseHeader."No.", 15000), 'The expected substitute purchase line record must exist.');
     this.Assert.AreEqual(0, PurchaseLine.Quantity, 'The original purchase line must be cancelled.');
     this.Assert.AreEqual(ProposalLine."Proposal No.", PurchaseLine."AMC Origin Proposal No.", 'The cancelled origin line must be stamped with the proposal.');
     this.Assert.AreEqual('ITEM-B2', SubstitutePurchaseLine."No.", 'The inserted purchase line must use the registered substitute item.');
@@ -78,75 +92,72 @@ codeunit 50139 "AMC Substitute Item Tests"
     VATProductPostingGroupCode := this.CreateIdentifier();
     VendorPostingGroupCode := this.CreateIdentifier();
     GenProductPostingGroup.Init();
-    GenProductPostingGroup.Code := GenProductPostingGroupCode;
-    GenProductPostingGroup.Description := GenProductPostingGroupCode;
+    GenProductPostingGroup.Validate(Code, GenProductPostingGroupCode);
+    GenProductPostingGroup.Validate(Description, GenProductPostingGroupCode);
     GenProductPostingGroup.Insert(false);
     InventoryPostingGroup.Init();
-    InventoryPostingGroup.Code := InventoryPostingGroupCode;
-    InventoryPostingGroup.Description := InventoryPostingGroupCode;
+    InventoryPostingGroup.Validate(Code, InventoryPostingGroupCode);
+    InventoryPostingGroup.Validate(Description, InventoryPostingGroupCode);
     InventoryPostingGroup.Insert(false);
     VATProductPostingGroup.Init();
-    VATProductPostingGroup.Code := VATProductPostingGroupCode;
-    VATProductPostingGroup.Description := VATProductPostingGroupCode;
+    VATProductPostingGroup.Validate(Code, VATProductPostingGroupCode);
+    VATProductPostingGroup.Validate(Description, VATProductPostingGroupCode);
     VATProductPostingGroup.Insert(false);
     VendorPostingGroup.Init();
-    VendorPostingGroup.Code := VendorPostingGroupCode;
-    VendorPostingGroup.Description := VendorPostingGroupCode;
+    VendorPostingGroup.Validate(Code, VendorPostingGroupCode);
+    VendorPostingGroup.Validate(Description, VendorPostingGroupCode);
     VendorPostingGroup.Insert(false);
     this.CreateItem('ITEM-B', GenProductPostingGroupCode, InventoryPostingGroupCode, VATProductPostingGroupCode);
     this.CreateItem('ITEM-B2', GenProductPostingGroupCode, InventoryPostingGroupCode, VATProductPostingGroupCode);
     ItemSubstitution.Init();
-    ItemSubstitution."No." := 'ITEM-B';
-    ItemSubstitution."Substitute No." := 'ITEM-B2';
+    ItemSubstitution.Validate("No.", 'ITEM-B');
+    ItemSubstitution.Validate("Substitute No.", 'ITEM-B2');
     ItemSubstitution.Insert(false);
+    this.TestLibrary.PrepareManualNumbering();
     Vendor.Init();
-    Vendor."No." := VendorNo;
-    Vendor.Name := VendorNo;
+    Vendor.Validate("No.", VendorNo);
+    Vendor.Validate(Name, VendorNo);
     Vendor.Validate("Vendor Posting Group", VendorPostingGroupCode);
     Vendor.Insert(false);
-    PurchaseHeader.Init();
-    PurchaseHeader."Document Type" := PurchaseHeader."Document Type"::Order;
-    PurchaseHeader."No." := PurchaseOrderNo;
-    PurchaseHeader.Validate("Buy-from Vendor No.", VendorNo);
-    PurchaseHeader.Insert(false);
+    this.TestLibrary.CreatePurchaseOrder(PurchaseHeader, PurchaseOrderNo, VendorNo);
     PurchaseLine.Init();
-    PurchaseLine."Document Type" := PurchaseHeader."Document Type";
-    PurchaseLine."Document No." := PurchaseHeader."No.";
-    PurchaseLine."Line No." := 10000;
+    PurchaseLine.Validate("Document Type", PurchaseHeader."Document Type");
+    PurchaseLine.Validate("Document No.", PurchaseHeader."No.");
+    PurchaseLine.Validate("Line No.", 10000);
     PurchaseLine.Validate("Buy-from Vendor No.", VendorNo);
     PurchaseLine.Validate("Pay-to Vendor No.", VendorNo);
-    PurchaseLine.Type := PurchaseLine.Type::Item;
-    PurchaseLine."No." := 'ITEM-B';
-    PurchaseLine.Quantity := 500;
+    PurchaseLine.Validate(Type, PurchaseLine.Type::Item);
+    PurchaseLine.Validate("No.", 'ITEM-B');
+    PurchaseLine.Validate(Quantity, 500);
     PurchaseLine.Insert(false);
     NextPurchaseLine.Init();
-    NextPurchaseLine."Document Type" := PurchaseHeader."Document Type";
-    NextPurchaseLine."Document No." := PurchaseHeader."No.";
-    NextPurchaseLine."Line No." := 20000;
+    NextPurchaseLine.Validate("Document Type", PurchaseHeader."Document Type");
+    NextPurchaseLine.Validate("Document No.", PurchaseHeader."No.");
+    NextPurchaseLine.Validate("Line No.", 20000);
     NextPurchaseLine.Insert(false);
     VendorRequest.Init();
-    VendorRequest."No." := RequestNo;
-    VendorRequest."Vendor No." := VendorNo;
-    VendorRequest."Purchase Order No." := PurchaseOrderNo;
+    VendorRequest.Validate("No.", RequestNo);
+    VendorRequest.Validate("Vendor No.", VendorNo);
+    VendorRequest.Validate("Purchase Order No.", PurchaseOrderNo);
     VendorRequest.Insert(false);
     RequestLine.Init();
-    RequestLine."Request No." := RequestNo;
-    RequestLine."Line No." := 10000;
-    RequestLine."Purchase Line No." := PurchaseLine."Line No.";
+    RequestLine.Validate("Request No.", RequestNo);
+    RequestLine.Validate("Line No.", 10000);
+    RequestLine.Validate("Purchase Line No.", PurchaseLine."Line No.");
     RequestLine.Insert(false);
     VendorProposal.Init();
-    VendorProposal."No." := ProposalNo;
-    VendorProposal."Request No." := RequestNo;
-    VendorProposal."Vendor No." := VendorNo;
-    VendorProposal."Purchase Order No." := PurchaseOrderNo;
-    VendorProposal."Idempotency Key" := ProposalNo;
+    VendorProposal.Validate("No.", ProposalNo);
+    VendorProposal.Validate("Request No.", RequestNo);
+    VendorProposal.Validate("Vendor No.", VendorNo);
+    VendorProposal.Validate("Purchase Order No.", PurchaseOrderNo);
+    VendorProposal.Validate("Idempotency Key", ProposalNo);
     VendorProposal.Insert(false);
     ProposalLine.Init();
-    ProposalLine."Proposal No." := ProposalNo;
-    ProposalLine."Line No." := 10000;
-    ProposalLine."Request Line No." := 10000;
-    ProposalLine."Line Type" := ProposalLine."Line Type"::"Substitute Item";
-    ProposalLine."Sequence No." := 1;
+    ProposalLine.Validate("Proposal No.", ProposalNo);
+    ProposalLine.Validate("Line No.", 10000);
+    ProposalLine.Validate("Request Line No.", 10000);
+    ProposalLine.Validate("Line Type", ProposalLine."Line Type"::"Substitute Item");
+    ProposalLine.Validate("Sequence No.", 1);
     ProposalLine.Insert(false);
   end;
 
@@ -154,13 +165,14 @@ codeunit 50139 "AMC Substitute Item Tests"
   var
     Item: Record Item;
   begin
-    Item.Init();
-    Item."No." := ItemNo;
-    Item.Description := ItemNo;
+    this.TestLibrary.EnsureItem(ItemNo, 'PCS');
+    this.Assert.IsTrue(Item.Get(ItemNo), 'The expected item record must exist.');
+    Item.Validate(Description, ItemNo);
     Item.Validate("Gen. Prod. Posting Group", GenProductPostingGroupCode);
     Item.Validate("Inventory Posting Group", InventoryPostingGroupCode);
     Item.Validate("VAT Prod. Posting Group", VATProductPostingGroupCode);
-    Item.Insert(false);
+    Item.Modify(false);
+    this.TestLibrary.EnsurePurchasePostingSetup(GenProductPostingGroupCode, InventoryPostingGroupCode, VATProductPostingGroupCode);
   end;
 
   local procedure CreateIdentifier(): Code[20]

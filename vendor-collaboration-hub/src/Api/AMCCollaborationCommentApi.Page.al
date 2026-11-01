@@ -1,5 +1,8 @@
 namespace Addmecode.VendorCollaborationHub;
 
+/// <summary>
+/// Exposes collaboration comments and validates token ownership when inserting vendor comments.
+/// </summary>
 page 50124 "AMC Collaboration Comment API"
 {
   PageType = API;

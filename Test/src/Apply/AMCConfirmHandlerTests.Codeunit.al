@@ -8,9 +8,16 @@ using System.TestLibraries.Utilities;
 codeunit 50135 "AMC Confirm Handler Tests"
 {
   Subtype = Test;
+  Permissions = tabledata "AMC Vendor Proposal" = i,
+                tabledata "AMC Vendor Proposal Line" = i,
+                tabledata "AMC Vendor Request" = i,
+                tabledata "AMC Vendor Request Line" = i,
+                tabledata "Purchase Line" = ri,
+                tabledata Vendor = i;
 
   var
     Assert: Codeunit "Library Assert";
+    TestLibrary: Codeunit "AMC Test Library";
 
   [Test]
   procedure GivenRequestDate_WhenConfirmIsApplied_ThenPurchaseLineIsConfirmedWithRequestDate()
@@ -29,7 +36,7 @@ codeunit 50135 "AMC Confirm Handler Tests"
     ConfirmHandler.Apply(ProposalLine, PurchaseHeader);
 
     // Then
-    PurchaseLine.Get(PurchaseHeader."Document Type", PurchaseHeader."No.", PurchaseLine."Line No.");
+    this.Assert.IsTrue(PurchaseLine.Get(PurchaseHeader."Document Type", PurchaseHeader."No.", PurchaseLine."Line No."), 'The expected purchase line record must exist.');
     this.Assert.AreEqual(RequestDate, PurchaseLine."Promised Receipt Date", 'Confirming must set the promised receipt date to the request date.');
     this.Assert.IsTrue(PurchaseLine."AMC Vendor Confirmed", 'Confirming must mark the purchase line as vendor confirmed.');
   end;
@@ -50,51 +57,48 @@ codeunit 50135 "AMC Confirm Handler Tests"
     RequestNo := this.CreateIdentifier();
     VendorNo := this.CreateIdentifier();
 
+    this.TestLibrary.PrepareManualNumbering();
     Vendor.Init();
-    Vendor."No." := VendorNo;
-    Vendor.Name := VendorNo;
+    Vendor.Validate("No.", VendorNo);
+    Vendor.Validate(Name, VendorNo);
     Vendor.Insert(false);
 
-    PurchaseHeader.Init();
-    PurchaseHeader."Document Type" := PurchaseHeader."Document Type"::Order;
-    PurchaseHeader."No." := PurchaseOrderNo;
-    PurchaseHeader."Buy-from Vendor No." := VendorNo;
-    PurchaseHeader.Insert(false);
+    this.TestLibrary.CreatePurchaseOrder(PurchaseHeader, PurchaseOrderNo, VendorNo);
 
     PurchaseLine.Init();
-    PurchaseLine."Document Type" := PurchaseHeader."Document Type";
-    PurchaseLine."Document No." := PurchaseHeader."No.";
-    PurchaseLine."Line No." := 10000;
-    PurchaseLine."Requested Receipt Date" := RequestDate;
+    PurchaseLine.Validate("Document Type", PurchaseHeader."Document Type");
+    PurchaseLine.Validate("Document No.", PurchaseHeader."No.");
+    PurchaseLine.Validate("Line No.", 10000);
+    PurchaseLine.Validate("Requested Receipt Date", RequestDate);
     PurchaseLine.Insert(false);
 
     VendorRequest.Init();
-    VendorRequest."No." := RequestNo;
-    VendorRequest."Vendor No." := VendorNo;
-    VendorRequest."Purchase Order No." := PurchaseOrderNo;
+    VendorRequest.Validate("No.", RequestNo);
+    VendorRequest.Validate("Vendor No.", VendorNo);
+    VendorRequest.Validate("Purchase Order No.", PurchaseOrderNo);
     VendorRequest.Insert(false);
 
     RequestLine.Init();
-    RequestLine."Request No." := RequestNo;
-    RequestLine."Line No." := 10000;
-    RequestLine."Purchase Line No." := PurchaseLine."Line No.";
-    RequestLine."Requested Delivery Date" := RequestDate;
+    RequestLine.Validate("Request No.", RequestNo);
+    RequestLine.Validate("Line No.", 10000);
+    RequestLine.Validate("Purchase Line No.", PurchaseLine."Line No.");
+    RequestLine.Validate("Requested Delivery Date", RequestDate);
     RequestLine.Insert(false);
 
     VendorProposal.Init();
-    VendorProposal."No." := ProposalNo;
-    VendorProposal."Request No." := RequestNo;
-    VendorProposal."Vendor No." := VendorNo;
-    VendorProposal."Purchase Order No." := PurchaseOrderNo;
-    VendorProposal."Idempotency Key" := ProposalNo;
+    VendorProposal.Validate("No.", ProposalNo);
+    VendorProposal.Validate("Request No.", RequestNo);
+    VendorProposal.Validate("Vendor No.", VendorNo);
+    VendorProposal.Validate("Purchase Order No.", PurchaseOrderNo);
+    VendorProposal.Validate("Idempotency Key", ProposalNo);
     VendorProposal.Insert(false);
 
     ProposalLine.Init();
-    ProposalLine."Proposal No." := ProposalNo;
-    ProposalLine."Line No." := 10000;
-    ProposalLine."Request Line No." := RequestLine."Line No.";
-    ProposalLine."Line Type" := ProposalLine."Line Type"::Confirm;
-    ProposalLine."Sequence No." := 1;
+    ProposalLine.Validate("Proposal No.", ProposalNo);
+    ProposalLine.Validate("Line No.", 10000);
+    ProposalLine.Validate("Request Line No.", RequestLine."Line No.");
+    ProposalLine.Validate("Line Type", ProposalLine."Line Type"::Confirm);
+    ProposalLine.Validate("Sequence No.", 1);
     ProposalLine.Insert(false);
   end;
 

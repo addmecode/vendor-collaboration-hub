@@ -3,6 +3,9 @@ namespace Addmecode.VendorCollaborationHub;
 using Microsoft.Foundation.AuditCodes;
 using Microsoft.Inventory.Item.Substitution;
 
+/// <summary>
+/// Aggregates request, quantity, delivery, reason, split and substitution validation errors for a proposal.
+/// </summary>
 codeunit 50102 "AMC Proposal Validator"
 {
   Permissions = tabledata "AMC Collaboration Setup" = r,
@@ -12,11 +15,17 @@ codeunit 50102 "AMC Proposal Validator"
                 tabledata "Item Substitution" = r,
                 tabledata "Reason Code" = r;
 
+  /// <summary>
+  /// Checks the request and setup, then appends shared and type-specific line validation errors without clearing existing results.
+  /// </summary>
+  /// <param name="VendorProposal">The proposal whose persisted lines are validated.</param>
+  /// <param name="Result">Receives validation errors in evaluation order.</param>
   procedure Validate(VendorProposal: Record "AMC Vendor Proposal"; var Result: Codeunit "AMC Validation Result")
   var
     CollaborationSetup: Record "AMC Collaboration Setup";
     VendorRequest: Record "AMC Vendor Request";
   begin
+    VendorRequest.SetLoadFields("Vendor No.", Status);
     if not VendorRequest.Get(VendorProposal."Request No.") then begin
       this.AddRequestError(Result, this.RequestNotOpenCodeLbl, this.RequestNotFoundErr);
       exit;
@@ -51,23 +60,15 @@ codeunit 50102 "AMC Proposal Validator"
 
   local procedure ValidateLine(VendorProposal: Record "AMC Vendor Proposal"; VendorProposalLine: Record "AMC Vendor Proposal Line"; CollaborationSetup: Record "AMC Collaboration Setup"; var SplitCounts: Dictionary of [Integer, Integer]; var SplitQuantities: Dictionary of [Integer, Decimal]; var Result: Codeunit "AMC Validation Result")
   var
-    LineHandler: Interface "AMC IProposalLineHandler";
     VendorRequestLine: Record "AMC Vendor Request Line";
+    LineHandler: Interface "AMC IProposalLineHandler";
   begin
     if not VendorRequestLine.Get(VendorProposal."Request No.", VendorProposalLine."Request Line No.") then begin
       this.AddLineError(Result, this.RequestLineNotFoundCodeLbl, VendorProposalLine, this.RequestLineNotFoundErr);
       exit;
     end;
 
-    if (VendorProposalLine."Line Type" <> VendorProposalLine."Line Type"::"Change Quantity") and
-     (VendorProposalLine."Proposed Quantity" <= 0) then
-      this.AddLineError(Result, this.QuantityMustBePositiveCodeLbl, VendorProposalLine, this.QuantityMustBePositiveErr);
-
-    if (VendorProposalLine."Line Type" <> VendorProposalLine."Line Type"::"Split Delivery") and
-     (VendorProposalLine."Line Type" <> VendorProposalLine."Line Type"::"Change Quantity") and
-     (VendorProposalLine."Proposed Quantity" > VendorRequestLine."Outstanding Quantity") then
-      this.AddLineError(Result, this.QuantityExceedsOutstandingCodeLbl, VendorProposalLine,
-        StrSubstNo(this.QuantityExceedsOutstandingErr, VendorProposalLine."Proposed Quantity", VendorRequestLine."Outstanding Quantity", VendorRequestLine."Line No."));
+    this.ValidateLineQuantity(VendorProposalLine, VendorRequestLine, Result);
 
     if (VendorProposalLine."Line Type" <> VendorProposalLine."Line Type"::"Change Date") and
        (VendorProposalLine."Proposed Delivery Date" < WorkDate()) then
@@ -81,6 +82,19 @@ codeunit 50102 "AMC Proposal Validator"
     LineHandler.Validate(VendorProposalLine, VendorRequestLine, Result);
   end;
 
+  local procedure ValidateLineQuantity(VendorProposalLine: Record "AMC Vendor Proposal Line"; VendorRequestLine: Record "AMC Vendor Request Line"; var Result: Codeunit "AMC Validation Result")
+  begin
+    if (VendorProposalLine."Line Type" <> VendorProposalLine."Line Type"::"Change Quantity") and
+     (VendorProposalLine."Proposed Quantity" <= 0) then
+      this.AddLineError(Result, this.QuantityMustBePositiveCodeLbl, VendorProposalLine, this.QuantityMustBePositiveErr);
+
+    if (VendorProposalLine."Line Type" <> VendorProposalLine."Line Type"::"Split Delivery") and
+     (VendorProposalLine."Line Type" <> VendorProposalLine."Line Type"::"Change Quantity") and
+     (VendorProposalLine."Proposed Quantity" > VendorRequestLine."Outstanding Quantity") then
+      this.AddLineError(Result, this.QuantityExceedsOutstandingCodeLbl, VendorProposalLine,
+        StrSubstNo(this.QuantityExceedsOutstandingErr, VendorProposalLine."Proposed Quantity", VendorRequestLine."Outstanding Quantity", VendorRequestLine."Line No."));
+  end;
+
   local procedure ValidateReasonCode(VendorProposalLine: Record "AMC Vendor Proposal Line"; CollaborationSetup: Record "AMC Collaboration Setup"; var Result: Codeunit "AMC Validation Result")
   var
     ReasonCode: Record "Reason Code";
@@ -92,9 +106,11 @@ codeunit 50102 "AMC Proposal Validator"
       exit;
     end;
 
-    if (VendorProposalLine."Reason Code" <> '') and not ReasonCode.Get(VendorProposalLine."Reason Code") then
-      this.AddLineError(Result, this.ReasonCodeRequiredCodeLbl, VendorProposalLine,
-        StrSubstNo(this.ReasonCodeNotFoundErr, VendorProposalLine."Reason Code"));
+    ReasonCode.SetLoadFields(Code);
+    if VendorProposalLine."Reason Code" <> '' then
+      if not ReasonCode.Get(VendorProposalLine."Reason Code") then
+        this.AddLineError(Result, this.ReasonCodeRequiredCodeLbl, VendorProposalLine,
+          StrSubstNo(this.ReasonCodeNotFoundErr, VendorProposalLine."Reason Code"));
   end;
 
   local procedure ValidateSplitCount(VendorProposalLine: Record "AMC Vendor Proposal Line"; CollaborationSetup: Record "AMC Collaboration Setup"; var SplitCounts: Dictionary of [Integer, Integer]; var Result: Codeunit "AMC Validation Result")

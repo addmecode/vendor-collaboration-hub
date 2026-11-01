@@ -1,5 +1,8 @@
 namespace Addmecode.VendorCollaborationHub;
 
+/// <summary>
+/// Identifies whether a collaboration entry was produced by a buyer, vendor or the system.
+/// </summary>
 enum 50105 "AMC Actor Type"
 {
     Extensible = true;

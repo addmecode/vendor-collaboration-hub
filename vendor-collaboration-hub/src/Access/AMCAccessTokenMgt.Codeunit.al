@@ -2,16 +2,18 @@ namespace Addmecode.VendorCollaborationHub;
 
 using Microsoft.Purchases.Vendor;
 using System.Security.Encryption;
-using System.Text;
-using System.Utilities;
 
+/// <summary>
+/// Validates request-bound access tokens and records their access and lifecycle history without storing bearer tokens.
+/// </summary>
 codeunit 50117 "AMC Access Token Mgt"
 {
     Permissions = tabledata "AMC Vendor Access Token" = rim,
                   tabledata "AMC Vendor Request" = r,
                   tabledata Vendor = r;
 
-    procedure Issue(RequestNo: Code[20]): Text
+    [NonDebuggable]
+    internal procedure Issue(RequestNo: Code[20]): Text
     var
         CollaborationSetup: Record "AMC Collaboration Setup";
         VendorAccessToken: Record "AMC Vendor Access Token";
@@ -20,29 +22,39 @@ codeunit 50117 "AMC Access Token Mgt"
         CollabLog: Codeunit "AMC Collab Log";
         RawToken: Text;
         IssuedAt: DateTime;
+        RequiredRecordNotFoundErr: Label 'The %1 record required to issue the vendor access link could not be found.', Comment = '%1 = table caption';
     begin
-        VendorRequest.Get(RequestNo);
+        VendorRequest.SetLoadFields("Vendor No.");
+        if not VendorRequest.Get(RequestNo) then
+            Error(RequiredRecordNotFoundErr, VendorRequest.TableCaption());
         CollaborationSetup.GetSetup();
-        Vendor.Get(VendorRequest."Vendor No.");
+        if not Vendor.Get(VendorRequest."Vendor No.") then
+            Error(RequiredRecordNotFoundErr, Vendor.TableCaption());
         this.VerifyLinkValidity(Vendor, CollaborationSetup);
 
         RawToken := this.CreateRawToken();
         IssuedAt := CurrentDateTime();
 
         VendorAccessToken.Init();
-        VendorAccessToken."Token Id" := CreateGuid();
-        VendorAccessToken."Request No." := VendorRequest."No.";
-        VendorAccessToken."Vendor No." := VendorRequest."Vendor No.";
-        VendorAccessToken."Token Hash" := this.HashToken(RawToken);
-        VendorAccessToken.Status := VendorAccessToken.Status::Active;
-        VendorAccessToken."Issued At" := IssuedAt;
-        VendorAccessToken."Expires At" := IssuedAt + this.GetTokenLifetime(CollaborationSetup."Link Validity Days");
+        VendorAccessToken.Validate("Token Id", Guid.CreateSequentialGuid());
+        VendorAccessToken.Validate("Request No.", VendorRequest."No.");
+        VendorAccessToken.Validate("Vendor No.", VendorRequest."Vendor No.");
+        VendorAccessToken.Validate("Token Hash", this.HashToken(RawToken));
+        VendorAccessToken.Validate(Status, VendorAccessToken.Status::Active);
+        VendorAccessToken.Validate("Issued At", IssuedAt);
+        VendorAccessToken.Validate("Expires At", IssuedAt + this.GetTokenLifetime(CollaborationSetup."Link Validity Days"));
         VendorAccessToken.Insert(true);
 
-        CollabLog.LogEvent("AMC Source Type"::Request, VendorRequest."No.", 0, "AMC Collab Entry Type"::LinkIssued, "AMC Actor Type"::Buyer, '', UserId(), this.LinkIssuedDescriptionLbl, CreateGuid());
+        CollabLog.LogEvent("AMC Source Type"::Request, VendorRequest."No.", 0, "AMC Collab Entry Type"::LinkIssued, "AMC Actor Type"::Buyer, '', CopyStr(UserId(), 1, 50), this.LinkIssuedDescriptionLbl, CreateGuid());
         exit(RawToken);
     end;
 
+    /// <summary>
+    /// Raises an error unless the token is active, unexpired and bound to the supplied request and vendor.
+    /// </summary>
+    /// <param name="TokenId">The token domain primary key, not its API SystemId.</param>
+    /// <param name="RequestNo">The expected request number.</param>
+    /// <param name="VendorNo">The expected vendor number.</param>
     procedure Assert(TokenId: Guid; RequestNo: Code[20]; VendorNo: Code[20])
     var
         VendorAccessToken: Record "AMC Vendor Access Token";
@@ -55,6 +67,10 @@ codeunit 50117 "AMC Access Token Mgt"
             Error(this.VCHAut0004Err);
     end;
 
+    /// <summary>
+    /// Validates an active token, updates its access timestamps and count, and logs a link-opened event.
+    /// </summary>
+    /// <param name="TokenId">The token domain primary key.</param>
     procedure RegisterAccess(TokenId: Guid)
     var
         VendorAccessToken: Record "AMC Vendor Access Token";
@@ -67,14 +83,19 @@ codeunit 50117 "AMC Access Token Mgt"
         this.AssertActive(VendorAccessToken);
         AccessedAt := CurrentDateTime();
         if VendorAccessToken."First Accessed At" = 0DT then
-            VendorAccessToken."First Accessed At" := AccessedAt;
-        VendorAccessToken."Last Accessed At" := AccessedAt;
-        VendorAccessToken."Access Count" += 1;
+            VendorAccessToken.Validate("First Accessed At", AccessedAt);
+        VendorAccessToken.Validate("Last Accessed At", AccessedAt);
+        VendorAccessToken.Validate("Access Count", VendorAccessToken."Access Count" + 1);
         VendorAccessToken.Modify(true);
 
         CollabLog.LogEvent("AMC Source Type"::Request, VendorAccessToken."Request No.", 0, "AMC Collab Entry Type"::LinkOpened, "AMC Actor Type"::Vendor, '', '', this.LinkOpenedDescriptionLbl, CreateGuid());
     end;
 
+    /// <summary>
+    /// Revokes an active token and records revocation metadata and history; missing or inactive tokens are ignored.
+    /// </summary>
+    /// <param name="TokenId">The token domain primary key.</param>
+    /// <param name="RevocationReason">The reason stored with the revocation.</param>
     procedure Revoke(TokenId: Guid; RevocationReason: Text[250])
     var
         VendorAccessToken: Record "AMC Vendor Access Token";
@@ -85,24 +106,34 @@ codeunit 50117 "AMC Access Token Mgt"
         if VendorAccessToken.Status <> VendorAccessToken.Status::Active then
             exit;
 
-        VendorAccessToken.Status := VendorAccessToken.Status::Revoked;
-        VendorAccessToken."Revoked At" := CurrentDateTime();
-        VendorAccessToken."Revoked By" := CopyStr(UserId(), 1, MaxStrLen(VendorAccessToken."Revoked By"));
-        VendorAccessToken."Revocation Reason" := RevocationReason;
-        VendorAccessToken.Modify(true);
+        VendorAccessToken.Validate(Status, VendorAccessToken.Status::Revoked);
+        VendorAccessToken.Validate("Revoked At", CurrentDateTime());
+        VendorAccessToken.Validate("Revoked By", CopyStr(UserId(), 1, MaxStrLen(VendorAccessToken."Revoked By")));
+        VendorAccessToken.Validate("Revocation Reason", RevocationReason);
+        VendorAccessToken.Modify(false);
         this.LogTokenLifecycle(VendorAccessToken, "AMC Collab Entry Type"::LinkRevoked, "AMC Actor Type"::Buyer, this.LinkRevokedDescriptionLbl);
     end;
 
+    /// <summary>
+    /// Revokes every active token belonging to a request.
+    /// </summary>
+    /// <param name="RequestNo">The request whose tokens are revoked.</param>
+    /// <param name="RevocationReason">The reason stored on each revoked token.</param>
     procedure RevokeRequestTokens(RequestNo: Code[20]; RevocationReason: Text[250])
     var
         VendorAccessToken: Record "AMC Vendor Access Token";
     begin
         VendorAccessToken.SetRange("Request No.", RequestNo);
         VendorAccessToken.SetRange(Status, VendorAccessToken.Status::Active);
+        VendorAccessToken.SetLoadFields("Token Id");
         while VendorAccessToken.FindFirst() do
             this.Revoke(VendorAccessToken."Token Id", RevocationReason);
     end;
 
+    /// <summary>
+    /// Marks a request's active tokens as superseded and logs their lifecycle changes.
+    /// </summary>
+    /// <param name="RequestNo">The request whose previous links are replaced.</param>
     procedure Supersede(RequestNo: Code[20])
     var
         VendorAccessToken: Record "AMC Vendor Access Token";
@@ -110,12 +141,15 @@ codeunit 50117 "AMC Access Token Mgt"
         VendorAccessToken.SetRange("Request No.", RequestNo);
         VendorAccessToken.SetRange(Status, VendorAccessToken.Status::Active);
         while VendorAccessToken.FindFirst() do begin //todo: findset
-            VendorAccessToken.Status := VendorAccessToken.Status::Superseded;
-            VendorAccessToken.Modify(true);
+            VendorAccessToken.Validate(Status, VendorAccessToken.Status::Superseded);
+            VendorAccessToken.Modify(false);
             this.LogTokenLifecycle(VendorAccessToken, "AMC Collab Entry Type"::LinkRevoked, "AMC Actor Type"::Buyer, this.LinkSupersededDescriptionLbl);
         end;
     end;
 
+    /// <summary>
+    /// Marks active tokens whose expiry is earlier than the current time as expired and logs each change.
+    /// </summary>
     procedure Expire()
     var
         VendorAccessToken: Record "AMC Vendor Access Token";
@@ -123,18 +157,26 @@ codeunit 50117 "AMC Access Token Mgt"
         VendorAccessToken.SetRange(Status, VendorAccessToken.Status::Active);
         VendorAccessToken.SetFilter("Expires At", '<%1', CurrentDateTime());
         while VendorAccessToken.FindFirst() do begin //todo: findset
-            VendorAccessToken.Status := VendorAccessToken.Status::Expired;
-            VendorAccessToken.Modify(true);
+            VendorAccessToken.Validate(Status, VendorAccessToken.Status::Expired);
+            VendorAccessToken.Modify(false);
             this.LogTokenLifecycle(VendorAccessToken, "AMC Collab Entry Type"::LinkExpired, "AMC Actor Type"::System, this.LinkExpiredDescriptionLbl);
         end;
     end;
 
+    /// <summary>
+    /// Computes the complete uppercase hexadecimal SHA-256 digest of a bearer token.
+    /// </summary>
+    /// <param name="RawToken">The bearer token to hash; callers must not log or persist this value.</param>
+    /// <returns>The 64-character token digest.</returns>
+    [NonDebuggable]
     procedure HashToken(RawToken: Text): Text[64]
     var
         CryptographyManagement: Codeunit "Cryptography Management";
-        HashAlgorithmType: Option MD5,SHA1,SHA256,SHA384,SHA512;
+        HashAlgorithmType: Enum "Hash Algorithm";
     begin
-        exit(UpperCase(CryptographyManagement.GenerateHash(RawToken, HashAlgorithmType::SHA256)));
+        // The standard hashing API still takes an Option; SHA256 has ordinal 2 in both types.
+        // SHA256 produces exactly 64 hexadecimal characters; the bound preserves the full digest.
+        exit(CopyStr(UpperCase(CryptographyManagement.GenerateHash(RawToken, HashAlgorithmType::SHA256.AsInteger())), 1, 64));
     end;
 
     local procedure AssertActive(VendorAccessToken: Record "AMC Vendor Access Token")
@@ -160,37 +202,22 @@ codeunit 50117 "AMC Access Token Mgt"
         exit(CollaborationSetup."Default Response Days");
     end;
 
+    [NonDebuggable]
     local procedure CreateRawToken(): Text
     var
         CryptographyManagement: Codeunit "Cryptography Management";
         EntropySource: Text;
-        HashAlgorithmType: Option MD5,SHA1,SHA256,SHA384,SHA512;
+        HashAlgorithmType: Enum "Hash Algorithm";
     begin
         EntropySource := Format(CreateGuid()) + Format(CreateGuid()) + Format(CreateGuid());
-        exit(this.HashToBase64Url(CryptographyManagement.GenerateHash(EntropySource, HashAlgorithmType::SHA256)));
+        // Convert only at the standard Option-based API boundary.
+        exit(this.NormalizeBase64Url(CryptographyManagement.GenerateHashAsBase64String(EntropySource, HashAlgorithmType::SHA256.AsInteger())));
     end;
 
-    local procedure HashToBase64Url(Hash: Text): Text
-    var
-        Base64Convert: Codeunit "Base64 Convert";
-        TempBlob: Codeunit "Temp Blob";
-        InStream: InStream;
-        OutStream: OutStream;
-        ByteValue: Byte;
-        Index: Integer;
+    [NonDebuggable]
+    local procedure NormalizeBase64Url(Base64Token: Text): Text
     begin
-        TempBlob.CreateOutStream(OutStream);
-        for Index := 1 to 32 do begin
-            ByteValue := this.HexDigitValue(Hash[(Index * 2) - 1]) * 16 + this.HexDigitValue(Hash[Index * 2]);
-            OutStream.Write(ByteValue);
-        end;
-        TempBlob.CreateInStream(InStream);
-        exit(Base64Convert.ToBase64Url(InStream));
-    end;
-
-    local procedure HexDigitValue(HexDigit: Char): Integer
-    begin
-        exit(StrPos('0123456789ABCDEF', UpperCase(Format(HexDigit))) - 1);
+        exit(DelChr(Base64Token.Replace('+', '-').Replace('/', '_'), '=', '='));
     end;
 
     local procedure GetTokenLifetime(LinkValidityDays: Integer): Duration
@@ -202,7 +229,7 @@ codeunit 50117 "AMC Access Token Mgt"
     var
         CollabLog: Codeunit "AMC Collab Log";
     begin
-        CollabLog.LogEvent("AMC Source Type"::Request, VendorAccessToken."Request No.", 0, EntryType, ActorType, '', UserId(), Description, CreateGuid());
+        CollabLog.LogEvent("AMC Source Type"::Request, VendorAccessToken."Request No.", 0, EntryType, ActorType, '', CopyStr(UserId(), 1, 50), Description, CreateGuid());
     end;
 
     var

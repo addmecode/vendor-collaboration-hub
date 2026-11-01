@@ -1,5 +1,8 @@
 namespace Addmecode.VendorCollaborationHub;
 
+/// <summary>
+/// Exposes a read-only token projection with guarded lookups and a bound action for recording access.
+/// </summary>
 page 50125 "AMC Vendor Access Token API"
 {
     APIPublisher = 'addmecode';
@@ -65,34 +68,28 @@ page 50125 "AMC Vendor Access Token API"
         exit(Rec.Find(Which));
     end;
 
-  [ServiceEnabled]
-  procedure RegisterAccess(var ActionContext: WebServiceActionContext)
-  var
-    AccessTokenMgt: Codeunit "AMC Access Token Mgt";
-    ApiTokenScope: Codeunit "AMC API Token Scope";
-    CollabLog: Codeunit "AMC Collab Log";
-    AccessedAt: DateTime;
-  begin
-    ApiTokenScope.ApplyTokenScope(Rec, true);
-    if not Rec.FindFirst() then
-      Error(this.TokenNotFoundErr);
+    /// <summary>
+    /// Records access to an active token selected by a guarded hash or bound SystemId lookup.
+    /// </summary>
+    /// <param name="ActionContext">Receives the updated token entity key and action result.</param>
+    [ServiceEnabled]
+    procedure RegisterAccess(var ActionContext: WebServiceActionContext)
+    var
+        AccessTokenMgt: Codeunit "AMC Access Token Mgt";
+        ApiTokenScope: Codeunit "AMC API Token Scope";
+    begin
+        ApiTokenScope.ApplyTokenScope(Rec, true);
+        if not Rec.FindFirst() then
+            Error(this.TokenNotFoundErr);
 
-    AccessTokenMgt.Assert(Rec."Token Id", Rec."Request No.", Rec."Vendor No.");
-    AccessedAt := CurrentDateTime();
-    if Rec."First Accessed At" = 0DT then
-      Rec."First Accessed At" := AccessedAt;
-    Rec."Last Accessed At" := AccessedAt;
-    Rec."Access Count" += 1;
-    Rec.Modify(true);
-    CollabLog.LogEvent("AMC Source Type"::Request, Rec."Request No.", 0, "AMC Collab Entry Type"::LinkOpened, "AMC Actor Type"::Vendor, '', '', this.LinkOpenedDescriptionLbl, CreateGuid());
+        AccessTokenMgt.RegisterAccess(Rec."Token Id");
 
-    ActionContext.SetObjectType(ObjectType::Page);
-    ActionContext.SetObjectId(Page::"AMC Vendor Access Token API");
-    ActionContext.AddEntityKey(Rec.FieldNo(SystemId), Rec.SystemId);
-    ActionContext.SetResultCode(WebServiceActionResultCode::Updated);
-  end;
+        ActionContext.SetObjectType(ObjectType::Page);
+        ActionContext.SetObjectId(Page::"AMC Vendor Access Token API");
+        ActionContext.AddEntityKey(Rec.FieldNo(SystemId), Rec.SystemId);
+        ActionContext.SetResultCode(WebServiceActionResultCode::Updated);
+    end;
 
-  var
-    LinkOpenedDescriptionLbl: Label 'Vendor access link opened.';
-    TokenNotFoundErr: Label 'VCH-API-0003: The vendor access token was not found.';
+    var
+        TokenNotFoundErr: Label 'VCH-API-0003: The vendor access token was not found.';
 }

@@ -472,7 +472,7 @@ Test app adds `"test"` dependencies on `Library Assert`, `Any`,
 
 ```text
 bc/vendor-collaboration-hub/src/
-  Setup/           AMCCollaborationSetup.Table.al | .Page.al          (GetSetup is on the table)
+  Setup/           AMCCollaborationSetup.Table.al | .Page.al | AMCTelemetryVerbosity.Enum.al (GetSetup is on the table)
   Request/         AMCVendorRequest(.Line).Table.al | 2 status enums | AMCRequestMgt.Codeunit.al | 3 pages
   Proposal/        AMCVendorProposal(.Line).Table.al | 2 enums | Mgt / Validator / DecisionSvc
                    AMCValidationResult.Codeunit.al | AMCIdempotencyMgt.Codeunit.al | 3 pages
@@ -583,16 +583,16 @@ share one ID space per type and must fit in the same 50 slots together.
 |---|---|---|---|---|---|
 | Table | 7 | 0 | 7 | 50100–50106 | 43 |
 | TableExtension | 3 | 0 | 3 | 50100–50102 | 47 |
-| Enum | 8 | 0 | 8 | 50100–50107 | 42 |
+| Enum | 9 | 0 | 9 | 50100–50108 | 41 |
 | EnumExtension | 1 | 0 | 1 | 50100 | 49 |
 | Codeunit | 26 | 15 | 41 | 50100–50125, 50130–50144 | 9 |
 | Page | 18 | 0 | 18 | 50100–50111 (UI), 50120–50125 (API) | 32 |
 | PageExtension | 5 | 0 | 5 | 50100–50104 | 45 |
-| PermissionSet | 4 | 0 | 4 | 50100–50103 | 46 |
+| PermissionSet | 4 | 1 | 5 | 50100–50103, 50130 | 45 |
 | Interface | 1 | 0 | 1 | *no ID consumed* | — |
 
-**86 objects, 41 in the busiest type.** Codeunits are the constraint, which is
-correct — that is where the behaviour lives, and it is where splitting things up
+**Codeunits are the constraint in the allocation above**, which is correct —
+that is where the behaviour lives, and it is where splitting things up
 actually buys something.
 
 Allocation convention inside each type: the app takes `50100–50129`, the test app
@@ -659,7 +659,7 @@ and for reasons that have nothing to do with counting:
 | Portal Support E-Mail | Text[80] | the one address shown when a link does not work. Static and identical for every failure, on purpose (§9.5) |
 | Link Validity Days | Integer | how long an access link stays usable; default 14. Must not be shorter than `Default Response Days` — a link that dies before the answer is due is a guaranteed support call, so the field validates it (§9.2) |
 | Attach Order PDF | Boolean | attach the standard purchase order report to the vendor e-mail |
-| Telemetry Verbosity | Enum `Verbosity` | standard enum |
+| Telemetry Verbosity | Enum `AMC Telemetry Verbosity` | Normal (default), Warning, Error, Verbose; application enum, not the built-in AL `Verbosity` type |
 
 ### Assisted Setup and number-series selection
 
@@ -911,6 +911,7 @@ that can be taken away again.
 | **`Token Hash`** | **unique** — the only lookup path the Function has |
 | `Request No., Status` | the active link of a request; used when re-sending |
 | `Status, Expires At` | the job that expires stale links |
+| `Vendor No.` | filter access links by vendor |
 
 Rules the table exists to enforce:
 
@@ -976,6 +977,15 @@ Deliberately **no** `AMC Confirmed Date` — that is `Promised Receipt Date` (§
 | `AMC Actor Type` | 50105 | yes | Buyer, Vendor, System, Integration |
 | `AMC Source Type` | 50106 | yes | Request, Proposal |
 | `AMC Access Token Status` | 50107 | yes | Active, Expired, Revoked, Superseded |
+| `AMC Telemetry Verbosity` | 50108 | no | blank (reserved), Normal, Warning, Error, Verbose |
+
+`AMC Telemetry Verbosity` is the persisted setup choice. The built-in AL
+`Verbosity` type used by `Session.LogMessage` is not an application enum for a
+table field; do not rely on numeric casts between the two types. The development
+change from `Option` to this enum deliberately has no data-migration code.
+Ordinal 0 is reserved for the blank enum value. The setup field has
+`InitValue = Normal` and restricts UI choices to the four nonblank levels through
+`ValuesAllowed`, so its default and selectable levels remain unchanged.
 
 One enum extension: `AMC Email Scenario Ext` (50100) adds a
 `AMC Vendor Collaboration` value to the standard `Email Scenario` enum, so an
@@ -1149,6 +1159,13 @@ extension-model answer.
 | `AMC Collaboration Buyer` | 50101 | includes Read; RIM on Request/Request Line/Proposal/Proposal Line; RIM on Vendor Access Token; I on Collaboration Entry; X on `AMC Request Mgt`, `AMC Proposal Decision Svc`, `AMC Apply Proposal Svc`, `AMC Order Lock Mgt`, `AMC Access Token Mgt`, `AMC Vendor Notification`, `AMC Unknown Line Handler` |
 | `AMC Collaboration Admin` | 50102 | includes Buyer; RIMD on Setup; R on `No. Series`; execute access to `AMC Assisted Setup` and the standard `No. Series` lookup page |
 | `AMC Api Integration` | 50103 | R on Request/Request Line; RI on Proposal/Proposal Line; **Rm** on Vendor Access Token (direct read, indirect modify via `registerAccess` only); I on Collaboration Entry; R on Purchase Header/Line, Vendor, Item; X on `AMC Proposal Mgt`, `AMC Proposal Validator`, `AMC Validation Result`, `AMC Idempotency Mgt`, `AMC Access Token Mgt`, `AMC Unknown Line Handler` — **no D anywhere, no Setup, no access to the decision, apply, notification or order-version codeunits** |
+
+The separate Test app defines `AMC Collab Tests` (PermissionSet 50130), with
+execute-only access to its 19 test and helper codeunits. It grants no table-data
+permissions, includes no application roles, and is not included in any production
+permission set. The test user still needs separately assigned application and
+test-runner permissions; this set does not elevate data access or replace
+lower-permission security tests.
 
 `AMC Api Integration` is assigned to the Entra application used by the Function,
 shared by all vendors. It grants direct `R` on the listed request, proposal,
@@ -1539,7 +1556,7 @@ the entire reason this layer exists.
 ```al
 [ExternalBusinessEvent('VendorProposalSubmitted', 'Vendor proposal submitted',
     'Raised when a vendor submits a proposal for a purchase order.', ...)]
-procedure VendorProposalSubmitted(ProposalNo: Code[20]; VendorNo: Code[20];
+internal procedure VendorProposalSubmitted(ProposalNo: Code[20]; VendorNo: Code[20];
                                   PurchaseOrderNo: Code[20]; RequestNo: Code[20])
 begin
 end;
@@ -2083,7 +2100,7 @@ AMC Api Vendor Proposal.OnInsertRecord
   4. Request exists, belongs to this vendor, is open?  else VCH-VAL-0001
   5. insert header + all nested lines
   6. AMC Proposal Validator.Validate(proposal, Result) Result.HasErrors ->
-                                                       Error(Result.AsErrorText)
+                                                       Error(ErrorInfo.Create(Result.AsErrorText(), false))
                                                        -> full rollback
   7. Status := Submitted, Submitted Date Time := now
   8. log ProposalReceived + ProposalSubmitted, telemetry VCH0201/VCH0203
@@ -2148,7 +2165,7 @@ request/proposal documents, not an AL-side read-session guard on this page.
 ## 8.4 Error contract
 
 BC returns OData errors and you cannot fully control `error.code`. Therefore every
-`Error()` that **can cross the API** starts with a stable code:
+solution-owned business `Error()` that **can cross the API** starts with a stable code:
 
 ```jsonc
 {
@@ -2161,8 +2178,23 @@ BC returns OData errors and you cannot fully control `error.code`. Therefore eve
 
 The Function parses the `VCH-xxx-nnnn` prefix, never the message text.
 
+**Platform/field validation comes first.** Standard BC relation validation can
+reject an invalid item, variant or reason reference before the business validator
+or nested-insert guard runs. Such native BC errors may have no `VCH-` prefix or
+`[line s/r]` marker and may abort without aggregating business failures. The
+Function handles them through its generic unmapped-error fallback below; it does
+not parse native message text to invent a domain code or row marker.
+
+**Required processing data must exist.** `VCH-DAT-0001` identifies a missing
+required record in a proposal line handler or a failed reread of a newly created
+comment. It stops the operation immediately and rolls back its writes; it is a
+technical failure, not an aggregated business-validation result. Existing
+`VCH-VAL-*` business checks retain their codes. If this technical code crosses
+the API, the Function uses the generic unmapped-error fallback below, without a
+row-validation mapping or exposing the internal message to the vendor.
+
 Because a deep insert returns **one** OData error for the whole request, every
-line-level failure must name its line in the message. The convention is
+line-level business failure must name its line in the message. The convention is
 `VCH-xxx-nnnn [line <sequence>/<requestLineNumber>]: <text>`, so the page can
 highlight the offending row in its editor:
 
@@ -2170,7 +2202,7 @@ highlight the offending row in its editor:
 VCH-VAL-0030 [line 1/20000]: Item ITEM-B2 is not a registered substitute for ITEM-B.
 ```
 
-**Validation does not stop at the first failure.** `AMC Validation Result` (§4.5)
+**Business validation, once reached, does not stop at the first failure.** `AMC Validation Result` (§4.5)
 collects every one of them, so a vendor who got three things wrong can be told about
 three things. What limits this is the transport, not the validator: a deep insert
 may return one OData error, so that path renders the first failure and puts the
@@ -2202,6 +2234,7 @@ the right call, and no validator or handler code changes when it does.
 | `VCH-STA-0001` | Illegal status transition | 400 |
 | `VCH-APL-0001..4` | Apply-time failures (see §7.1, §7.2) | 500 |
 | `VCH-APL-0006` | Unknown persisted line type reached apply; restore its extension or replace the proposal (§6.1) | — internal apply failure, shown in the BC client |
+| `VCH-DAT-0001` | Required proposal-processing data missing or newly created comment cannot be reread | Generic unmapped-error fallback |
 
 **Errors raised in the BC client show no code.** The `VCH-REQ-*` rows above name a
 condition for this document, for telemetry and for tests — not for the buyer, who
@@ -2211,8 +2244,8 @@ internal identifier in front of a person, which is the same rule as §1's on
 captions. The prefix exists only where a machine reads it: on the way out through
 the API.
 
-A machine-readable copy of this table lives in `docs/api/error-codes.md` and is
-generated from the labels in `AMC Proposal Validator`, so the codes cannot drift.
+A stable code catalog lives in `Docs/api/error-codes.md` and is maintained
+alongside the solution-owned error labels.
 
 The vendor never sees a `AMC-` code. The Function maps every one of them to a small
 vendor-facing set, because a message written for a developer is not a message
@@ -2342,7 +2375,7 @@ There is no system-wide guarantee that only a hash is stored.
 > Verify how your AL runtime exposes cryptographic randomness before coding. If a
 > random-bytes API is available, use it. Otherwise `CreateGuid()` is the platform's
 > CSPRNG in practice: concatenating three GUIDs and hashing the result with
-> `Cryptography Management.GenerateHash(..., HashAlgorithmType::SHA256)` derives a
+> `Cryptography Management.GenerateHash(..., HashAlgorithmType::SHA256.AsInteger())` derives a
 > 256-bit value from roughly 366 bits of input entropy. Confirm the hex casing that
 > `GenerateHash` returns and normalize it — the Function computes the same hash
 > independently, and a casing mismatch fails every lookup.
@@ -2768,9 +2801,9 @@ bc/test/src/
                AMCConfirmHandlerTests.Codeunit.al          50135
                AMCChangeQtyHandlerTests.Codeunit.al        50136
                AMCChangeDateHandlerTests.Codeunit.al       50137
-               AMCSplitDeliveryHandlerTests.Codeunit.al    50138
-               AMCSubstituteItemHandlerTests.Codeunit.al   50139
-               AMCCancelRemainderHandlerTests.Codeunit.al  50140
+               AMCSplitDeliveryTests.Codeunit.al           50138
+               AMCSubstituteItemTests.Codeunit.al          50139
+               AMCCancelRemainderTests.Codeunit.al         50140
   Locking/     AMCOrderLockTests.Codeunit.al               50141
   Api/         AMCApiTests.Codeunit.al                     50142
   Access/      AMCAccessTokenTests.Codeunit.al             50143

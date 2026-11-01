@@ -1,12 +1,15 @@
 namespace Addmecode.VendorCollaborationHub;
 
-using Microsoft.Purchases.Document;
-using Microsoft.Purchases.Vendor;
-using Microsoft.Inventory.Item;
-using Microsoft.Inventory.Item.Substitution;
 using Microsoft.Foundation.AuditCodes;
 using Microsoft.Foundation.NoSeries;
+using Microsoft.Inventory.Item;
+using Microsoft.Inventory.Item.Substitution;
+using Microsoft.Purchases.Document;
+using Microsoft.Purchases.Vendor;
 
+/// <summary>
+/// Grants integration access for collaboration reads and validated vendor writes, without per-vendor read isolation.
+/// </summary>
 permissionset 50103 "AMC API Integration"
 {
   Assignable = true;

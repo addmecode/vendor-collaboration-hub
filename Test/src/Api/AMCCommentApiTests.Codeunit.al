@@ -6,6 +6,10 @@ using System.TestLibraries.Utilities;
 codeunit 50148 "AMC Comment API Tests"
 {
   Subtype = Test;
+  Permissions = tabledata "AMC Collaboration Entry" = r,
+                tabledata "AMC Vendor Access Token" = m,
+                tabledata "AMC Vendor Proposal" = m,
+                tabledata "AMC Vendor Request" = m;
 
   [Test]
   procedure GivenRequestComment_WhenWriting_ThenCommentTypeAndVendorAuditFieldsAreForced()
@@ -18,13 +22,13 @@ codeunit 50148 "AMC Comment API Tests"
     // Given
     this.TestLibrary.CreateWriteContext(VendorRequest, AccessToken);
     this.InitializeComment(Entry, "AMC Source Type"::Request, VendorRequest."No.");
-    Entry."Entry Type" := Entry."Entry Type"::ProposalReceived;
-    Entry."Actor Type" := Entry."Actor Type"::Buyer;
-    Entry."User ID" := 'SPOOFED';
-    Entry."Source Line No." := 10000;
-    Entry."Field Name" := 'SPOOFED';
-    Entry."Old Value" := 'SPOOFED';
-    Entry."New Value" := 'SPOOFED';
+    Entry.Validate("Entry Type", Entry."Entry Type"::ProposalReceived);
+    Entry.Validate("Actor Type", Entry."Actor Type"::Buyer);
+    Entry.Validate("User ID", 'SPOOFED');
+    Entry.Validate("Source Line No.", 10000);
+    Entry.Validate("Field Name", 'SPOOFED');
+    Entry.Validate("Old Value", 'SPOOFED');
+    Entry.Validate("New Value", 'SPOOFED');
     // When
     CollabLog.WriteVendorComment(Entry, AccessToken.SystemId);
     // Then
@@ -81,7 +85,7 @@ codeunit 50148 "AMC Comment API Tests"
     // Expected errors roll back the current transaction; preserve the arrange baseline.
     Commit();
     this.TestLibrary.SubmitAnswer(ForeignRequest, ForeignToken.SystemId, Format(CreateGuid()), 400, false, ForeignProposal);
-    Commit();
+    Commit(); // Preserve the foreign proposal and audit baseline across both expected comment-authorization errors.
     BeforeCount := EntryView.Count();
     // When / Then
     this.InitializeComment(Entry, "AMC Source Type"::Request, ForeignRequest."No.");
@@ -108,14 +112,14 @@ codeunit 50148 "AMC Comment API Tests"
     // Given: matching vendor alone is not authorization for a different request.
     this.TestLibrary.CreateWriteContext(VendorRequest, AccessToken);
     this.TestLibrary.CreateWriteContext(ForeignRequest, ForeignToken);
-    Commit();
-    ForeignRequest."Vendor No." := VendorRequest."Vendor No.";
+    Commit(); // Separate the two request/token fixtures from the same-vendor ownership changes below.
+    ForeignRequest.Validate("Vendor No.", VendorRequest."Vendor No.");
     ForeignRequest.Modify(false);
-    ForeignToken."Vendor No." := VendorRequest."Vendor No.";
+    ForeignToken.Validate("Vendor No.", VendorRequest."Vendor No.");
     ForeignToken.Modify(false);
-    Commit();
+    Commit(); // Establish the same-vendor, foreign-request baseline before creating its proposal.
     this.TestLibrary.SubmitAnswer(ForeignRequest, ForeignToken.SystemId, Format(CreateGuid()), 400, false, ForeignProposal);
-    Commit();
+    Commit(); // Keep the foreign-request proposal available after the expected comment-authorization rollback.
     this.InitializeComment(Entry, "AMC Source Type"::Proposal, ForeignProposal."No.");
     // When / Then
     asserterror CollabLog.WriteVendorComment(Entry, AccessToken.SystemId);
@@ -136,11 +140,11 @@ codeunit 50148 "AMC Comment API Tests"
   begin
     // Given: isolate vendor ownership while keeping the proposal's request paired to the token.
     this.TestLibrary.CreateWriteContext(VendorRequest, AccessToken);
-    Commit();
+    Commit(); // Separate the paired request/token baseline from the deliberately foreign-vendor proposal.
     this.TestLibrary.SubmitAnswer(VendorRequest, AccessToken.SystemId, Format(CreateGuid()), 400, false, ForeignProposal);
-    ForeignProposal."Vendor No." := this.TestLibrary.NewCode();
+    ForeignProposal.Validate("Vendor No.", this.TestLibrary.NewCode());
     ForeignProposal.Modify(false);
-    Commit();
+    Commit(); // Preserve the mismatched proposal and audit baseline across the expected ownership error.
     BeforeCount := EntryView.Count();
     this.InitializeComment(Entry, "AMC Source Type"::Proposal, ForeignProposal."No.");
     // When / Then
@@ -162,24 +166,24 @@ codeunit 50148 "AMC Comment API Tests"
   begin
     // Given
     this.TestLibrary.CreateWriteContext(VendorRequest, AccessToken);
-    Commit();
+    Commit(); // Preserve request/token fixtures and the entry-count baseline across expected invalid-comment errors.
     BeforeCount := EntryView.Count();
     // When / Then
     this.InitializeComment(Entry, "AMC Source Type"::Proposal, 'MISSING');
     asserterror CollabLog.WriteVendorComment(Entry, AccessToken.SystemId);
     this.Assert.ExpectedError('VCH-VAL-0001');
     this.InitializeComment(Entry, "AMC Source Type"::Request, VendorRequest."No.");
-    Entry.Description := '';
+    Entry.Validate(Description, '');
     asserterror CollabLog.WriteVendorComment(Entry, AccessToken.SystemId);
     this.Assert.ExpectedError('VCH-VAL-0001');
     this.InitializeComment(Entry, "AMC Source Type"::Request, VendorRequest."No.");
-    Entry."Source Type" := "AMC Source Type".FromInteger(999999);
+    Entry.Validate("Source Type", "AMC Source Type".FromInteger(999999));
     asserterror CollabLog.WriteVendorComment(Entry, AccessToken.SystemId);
     this.Assert.ExpectedError('VCH-VAL-0001');
     this.InitializeComment(Entry, "AMC Source Type"::Request, VendorRequest."No.");
-    AccessToken.Status := AccessToken.Status::Revoked;
+    AccessToken.Validate(Status, AccessToken.Status::Revoked);
     AccessToken.Modify(false);
-    Commit();
+    Commit(); // Keep the token revoked when the expected token-validation error rolls back.
     asserterror CollabLog.WriteVendorComment(Entry, AccessToken.SystemId);
     this.Assert.ExpectedError('VCH-AUT-0003');
     this.Assert.AreEqual(BeforeCount, EntryView.Count(), 'Invalid comments must leave no entries.');
@@ -190,10 +194,10 @@ codeunit 50148 "AMC Comment API Tests"
   begin
     Clear(Entry);
     Entry.Init();
-    Entry."Source Type" := SourceType;
-    Entry."Source No." := SourceNo;
-    Entry."Actor Name" := 'anna.k@example.com';
-    Entry.Description := 'We can pull 400 pcs forward.';
+    Entry.Validate("Source Type", SourceType);
+    Entry.Validate("Source No.", SourceNo);
+    Entry.Validate("Actor Name", 'anna.k@example.com');
+    Entry.Validate(Description, 'We can pull 400 pcs forward.');
   end;
 
   var

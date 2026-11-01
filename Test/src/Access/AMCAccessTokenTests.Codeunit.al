@@ -2,15 +2,21 @@ namespace Addmecode.VendorCollaborationHub.Tests;
 
 using Addmecode.VendorCollaborationHub;
 using Microsoft.Purchases.Vendor;
-using System.Threading;
 using System.TestLibraries.Utilities;
+using System.Threading;
 
 codeunit 50143 "AMC Access Token Tests"
 {
     Subtype = Test;
+    Permissions = tabledata "AMC Collaboration Entry" = r,
+                  tabledata "AMC Vendor Access Token" = rm,
+                  tabledata "AMC Vendor Request" = i,
+                  tabledata "Job Queue Entry" = rd,
+                  tabledata Vendor = i;
 
     var
         Assert: Codeunit "Library Assert";
+        TestLibrary: Codeunit "AMC Test Library";
 
         ExistingTokenExpiryJobMessageCount: Integer;
 
@@ -66,7 +72,7 @@ codeunit 50143 "AMC Access Token Tests"
         AccessTokenMgt.RegisterAccess(VendorAccessToken."Token Id");
 
         // Then
-        VendorAccessToken.Get(VendorAccessToken."Token Id");
+        this.Assert.IsTrue(VendorAccessToken.Get(VendorAccessToken."Token Id"), 'The expected vendor access token record must exist.');
         this.Assert.AreEqual(1, VendorAccessToken."Access Count", 'Registering access must increment the access count.');
         this.Assert.AreNotEqual(0DT, VendorAccessToken."First Accessed At", 'Registering first access must stamp the first access time.');
         this.Assert.AreNotEqual(0DT, VendorAccessToken."Last Accessed At", 'Registering access must stamp the last access time.');
@@ -102,7 +108,7 @@ codeunit 50143 "AMC Access Token Tests"
 
         // Then
         this.Assert.ExpectedError(VCHAut0004Err);
-        VendorAccessToken.Get(VendorAccessToken."Token Id");
+        this.Assert.IsTrue(VendorAccessToken.Get(VendorAccessToken."Token Id"), 'The expected vendor access token record must exist.');
         this.Assert.AreEqual(0, VendorAccessToken."Access Count", 'A rejected assertion must not register access.');
         this.Assert.AreEqual(0DT, VendorAccessToken."Last Accessed At", 'A rejected assertion must not stamp access metadata.');
     end;
@@ -120,25 +126,25 @@ codeunit 50143 "AMC Access Token Tests"
         this.IssueToken(RequestNo, VendorAccessToken);
 
         // When
-        VendorAccessToken."Expires At" := CurrentDateTime();
+        VendorAccessToken.Validate("Expires At", CurrentDateTime());
         VendorAccessToken.Modify(true);
         this.AssertInvalidToken(AccessTokenMgt, VendorAccessToken, RequestNo, VendorNo);
 
-        VendorAccessToken."Expires At" := CurrentDateTime() + 60000;
-        VendorAccessToken.Status := VendorAccessToken.Status::Expired;
+        VendorAccessToken.Validate("Expires At", CurrentDateTime() + 60000);
+        VendorAccessToken.Validate(Status, VendorAccessToken.Status::Expired);
         VendorAccessToken.Modify(true);
         this.AssertInvalidToken(AccessTokenMgt, VendorAccessToken, RequestNo, VendorNo);
 
-        VendorAccessToken.Status := VendorAccessToken.Status::Revoked;
+        VendorAccessToken.Validate(Status, VendorAccessToken.Status::Revoked);
         VendorAccessToken.Modify(true);
         this.AssertInvalidToken(AccessTokenMgt, VendorAccessToken, RequestNo, VendorNo);
 
-        VendorAccessToken.Status := VendorAccessToken.Status::Superseded;
+        VendorAccessToken.Validate(Status, VendorAccessToken.Status::Superseded);
         VendorAccessToken.Modify(true);
         this.AssertInvalidToken(AccessTokenMgt, VendorAccessToken, RequestNo, VendorNo);
 
         // Then
-        VendorAccessToken.Get(VendorAccessToken."Token Id");
+        this.Assert.IsTrue(VendorAccessToken.Get(VendorAccessToken."Token Id"), 'The expected vendor access token record must exist.');
         this.Assert.AreEqual(0, VendorAccessToken."Access Count", 'Rejected tokens must not have access registered.');
         this.Assert.AreEqual(0DT, VendorAccessToken."Last Accessed At", 'Rejected tokens must not have access metadata stamped.');
     end;
@@ -159,12 +165,12 @@ codeunit 50143 "AMC Access Token Tests"
 
         // When
         VendorAccessLinks.OpenEdit();
-        VendorAccessLinks.GotoRecord(VendorAccessToken);
+        VendorAccessLinks.GoToRecord(VendorAccessToken);
         VendorAccessLinks.AMCRevokeLink.Invoke();
         VendorAccessLinks.Close();
 
         // Then
-        VendorAccessToken.Get(VendorAccessToken."Token Id");
+        this.Assert.IsTrue(VendorAccessToken.Get(VendorAccessToken."Token Id"), 'The expected vendor access token record must exist.');
         this.Assert.AreEqual(VendorAccessToken.Status::Revoked, VendorAccessToken.Status, 'Revoking must set the token status to Revoked.');
         this.Assert.AreNotEqual(0DT, VendorAccessToken."Revoked At", 'Revoking must stamp the revocation time.');
         this.Assert.AreEqual('Revoked by buyer from vendor access links.', VendorAccessToken."Revocation Reason", 'Revoking must retain the revocation reason.');
@@ -196,8 +202,8 @@ codeunit 50143 "AMC Access Token Tests"
         AccessTokenMgt.Supersede(RequestNo);
 
         // Then
-        VendorAccessToken.Get(VendorAccessToken."Token Id");
-        OtherVendorAccessToken.Get(OtherVendorAccessToken."Token Id");
+        this.Assert.IsTrue(VendorAccessToken.Get(VendorAccessToken."Token Id"), 'The expected vendor access token record must exist.');
+        this.Assert.IsTrue(OtherVendorAccessToken.Get(OtherVendorAccessToken."Token Id"), 'The expected other vendor access token record must exist.');
         this.Assert.AreEqual(VendorAccessToken.Status::Superseded, VendorAccessToken.Status, 'Superseding must affect the old request token.');
         this.Assert.AreEqual(OtherVendorAccessToken.Status::Active, OtherVendorAccessToken.Status, 'Superseding must not affect tokens for other requests.');
     end;
@@ -217,27 +223,27 @@ codeunit 50143 "AMC Access Token Tests"
         // Given
         OverdueRequestNo := this.CreateVendorRequest(VendorNo);
         this.IssueToken(OverdueRequestNo, OverdueVendorAccessToken);
-        OverdueVendorAccessToken."Expires At" := CurrentDateTime() - 60000;
+        OverdueVendorAccessToken.Validate("Expires At", CurrentDateTime() - 60000);
         OverdueVendorAccessToken.Modify(true);
 
         FutureRequestNo := this.CreateVendorRequest(VendorNo);
         this.IssueToken(FutureRequestNo, FutureVendorAccessToken);
-        FutureVendorAccessToken."Expires At" := CurrentDateTime() + 60000;
+        FutureVendorAccessToken.Validate("Expires At", CurrentDateTime() + 60000);
         FutureVendorAccessToken.Modify(true);
 
         InactiveRequestNo := this.CreateVendorRequest(VendorNo);
         this.IssueToken(InactiveRequestNo, InactiveVendorAccessToken);
-        InactiveVendorAccessToken."Expires At" := CurrentDateTime() - 60000;
-        InactiveVendorAccessToken.Status := InactiveVendorAccessToken.Status::Revoked;
+        InactiveVendorAccessToken.Validate("Expires At", CurrentDateTime() - 60000);
+        InactiveVendorAccessToken.Validate(Status, InactiveVendorAccessToken.Status::Revoked);
         InactiveVendorAccessToken.Modify(true);
 
         // When
         Codeunit.Run(Codeunit::"AMC Token Expiry Job");
 
         // Then
-        OverdueVendorAccessToken.Get(OverdueVendorAccessToken."Token Id");
-        FutureVendorAccessToken.Get(FutureVendorAccessToken."Token Id");
-        InactiveVendorAccessToken.Get(InactiveVendorAccessToken."Token Id");
+        this.Assert.IsTrue(OverdueVendorAccessToken.Get(OverdueVendorAccessToken."Token Id"), 'The expected overdue vendor access token record must exist.');
+        this.Assert.IsTrue(FutureVendorAccessToken.Get(FutureVendorAccessToken."Token Id"), 'The expected future vendor access token record must exist.');
+        this.Assert.IsTrue(InactiveVendorAccessToken.Get(InactiveVendorAccessToken."Token Id"), 'The expected inactive vendor access token record must exist.');
         this.Assert.AreEqual(OverdueVendorAccessToken.Status::Expired, OverdueVendorAccessToken.Status, 'Expiring must change overdue active tokens.');
         this.Assert.AreEqual(FutureVendorAccessToken.Status::Active, FutureVendorAccessToken.Status, 'Expiring must not change future tokens.');
         this.Assert.AreEqual(InactiveVendorAccessToken.Status::Revoked, InactiveVendorAccessToken.Status, 'Expiring must not change inactive tokens.');
@@ -263,7 +269,7 @@ codeunit 50143 "AMC Access Token Tests"
         JobQueueEntry.DeleteAll(true);
         CollaborationSetup.GetSetup();
         CollaborationSetupPage.OpenEdit();
-        CollaborationSetupPage.GotoRecord(CollaborationSetup);
+        CollaborationSetupPage.GoToRecord(CollaborationSetup);
 
         // When
         CollaborationSetupPage.AMCScheduleTokenExpiryJob.Invoke();
@@ -273,6 +279,15 @@ codeunit 50143 "AMC Access Token Tests"
         this.Assert.AreEqual(1, JobQueueEntry.Count(), 'Scheduling the token expiry job must create one job queue entry.');
         this.Assert.IsTrue(JobQueueEntry.FindFirst(), 'The created token expiry job must exist.');
         this.Assert.IsTrue(JobQueueEntry."Recurring Job", 'The token expiry job must recur.');
+        this.Assert.AreEqual(JobQueueEntry.Status::Ready, JobQueueEntry.Status, 'The expiry job must be scheduled Ready.');
+        this.Assert.AreEqual(1440, JobQueueEntry."No. of Minutes between Runs", 'The expiry job must run daily.');
+        this.Assert.IsTrue(JobQueueEntry."Run on Mondays", 'The expiry job must run on Mondays.');
+        this.Assert.IsTrue(JobQueueEntry."Run on Tuesdays", 'The expiry job must run on Tuesdays.');
+        this.Assert.IsTrue(JobQueueEntry."Run on Wednesdays", 'The expiry job must run on Wednesdays.');
+        this.Assert.IsTrue(JobQueueEntry."Run on Thursdays", 'The expiry job must run on Thursdays.');
+        this.Assert.IsTrue(JobQueueEntry."Run on Fridays", 'The expiry job must run on Fridays.');
+        this.Assert.IsTrue(JobQueueEntry."Run on Saturdays", 'The expiry job must run on Saturdays.');
+        this.Assert.IsTrue(JobQueueEntry."Run on Sundays", 'The expiry job must run on Sundays.');
         OriginalJobQueueEntry := JobQueueEntry;
 
         // When
@@ -283,6 +298,16 @@ codeunit 50143 "AMC Access Token Tests"
         this.Assert.AreEqual(1, JobQueueEntry.Count(), 'Scheduling the token expiry job repeatedly must retain one job queue entry.');
         this.Assert.IsTrue(JobQueueEntry.FindFirst(), 'The original token expiry job must still exist.');
         this.Assert.AreEqual(OriginalJobQueueEntry.ID, JobQueueEntry.ID, 'Scheduling again must preserve the original job queue entry.');
+        this.Assert.AreEqual(JobQueueEntry.Status::Ready, JobQueueEntry.Status, 'Repeated scheduling must retain Ready status.');
+        this.Assert.AreEqual(1440, JobQueueEntry."No. of Minutes between Runs", 'Repeated scheduling must retain daily recurrence.');
+        this.Assert.IsTrue(JobQueueEntry."Recurring Job", 'Repeated scheduling must retain recurrence.');
+        this.Assert.IsTrue(JobQueueEntry."Run on Mondays", 'Repeated scheduling must retain Mondays.');
+        this.Assert.IsTrue(JobQueueEntry."Run on Tuesdays", 'Repeated scheduling must retain Tuesdays.');
+        this.Assert.IsTrue(JobQueueEntry."Run on Wednesdays", 'Repeated scheduling must retain Wednesdays.');
+        this.Assert.IsTrue(JobQueueEntry."Run on Thursdays", 'Repeated scheduling must retain Thursdays.');
+        this.Assert.IsTrue(JobQueueEntry."Run on Fridays", 'Repeated scheduling must retain Fridays.');
+        this.Assert.IsTrue(JobQueueEntry."Run on Saturdays", 'Repeated scheduling must retain Saturdays.');
+        this.Assert.IsTrue(JobQueueEntry."Run on Sundays", 'Repeated scheduling must retain Sundays.');
         CollaborationSetupPage.Close();
     end;
 
@@ -291,8 +316,6 @@ codeunit 50143 "AMC Access Token Tests"
     var
         ExistingTokenExpiryJobMsg: Label 'The token expiry job is already scheduled. No new job queue entry was created.';
     begin
-        ;
-
         this.ExistingTokenExpiryJobMessageCount += 1;
         this.Assert.AreEqual(ExistingTokenExpiryJobMsg, Message, 'The existing token expiry job message must match the expected text.');
     end;
@@ -301,7 +324,7 @@ codeunit 50143 "AMC Access Token Tests"
     var
         VCHAut0003Err: Label 'VCH-AUT-0003: This access link is no longer valid.';
     begin
-        Commit();
+        Commit(); // Preserve the caller's token state and request fixture across the expected token-validation rollback.
         asserterror AccessTokenMgt.Assert(VendorAccessToken."Token Id", RequestNo, VendorNo);
         this.Assert.ExpectedError(VCHAut0003Err);
     end;
@@ -314,13 +337,14 @@ codeunit 50143 "AMC Access Token Tests"
     begin
         RequestNo := this.CreateUniqueCode();
         VendorNo := this.CreateUniqueCode();
+        this.TestLibrary.PrepareManualNumbering();
         Vendor.Init();
-        Vendor."No." := VendorNo;
-        Vendor.Name := VendorNo;
+        Vendor.Validate("No.", VendorNo);
+        Vendor.Validate(Name, VendorNo);
         Vendor.Insert(false);
         VendorRequest.Init();
-        VendorRequest."No." := RequestNo;
-        VendorRequest."Vendor No." := VendorNo;
+        VendorRequest.Validate("No.", RequestNo);
+        VendorRequest.Validate("Vendor No.", VendorNo);
         VendorRequest.Insert(false);
         exit(RequestNo);
     end;
@@ -332,7 +356,7 @@ codeunit 50143 "AMC Access Token Tests"
     begin
         RawToken := AccessTokenMgt.Issue(RequestNo);
         VendorAccessToken.SetRange("Token Hash", AccessTokenMgt.HashToken(RawToken));
-        VendorAccessToken.FindFirst();
+        this.Assert.IsTrue(VendorAccessToken.FindFirst(), 'The expected vendor access token record must exist.');
         exit(RawToken);
     end;
 

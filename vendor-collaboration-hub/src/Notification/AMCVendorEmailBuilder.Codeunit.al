@@ -2,31 +2,45 @@ namespace Addmecode.VendorCollaborationHub;
 
 using System.Globalization;
 using System.Integration;
+using System.IO;
 
+/// <summary>
+/// Builds localized vendor email content with request metadata and a secure access link.
+/// </summary>
 codeunit 50119 "AMC Vendor Email Builder"
 {
   Permissions = tabledata "AMC Vendor Request Line" = r;
 
+  /// <summary>
+  /// Builds request-language email content with an HTTPS access link and restores the prior global language on success or failure.
+  /// </summary>
+  /// <param name="VendorRequest">The request snapshot used for language and message metadata.</param>
+  /// <param name="AccessLink">An absolute HTTPS bearer link that must not be logged.</param>
+  /// <param name="Subject">Receives the localized message subject.</param>
+  /// <param name="HtmlBody">Receives the HTML body with encoded request values and link.</param>
+  /// <param name="PlainTextBody">Receives the plain-text body.</param>
+  [NonDebuggable]
   procedure Build(VendorRequest: Record "AMC Vendor Request"; AccessLink: Text; var Subject: Text; var HtmlBody: Text; var PlainTextBody: Text)
   var
-    OriginalLanguageId: Integer;
+    TranslationHelper: Codeunit "Translation Helper";
     LastErrorText: Text;
+    EmailBuildFailedErr: Label 'The vendor email could not be built: %1', Comment = '%1 = original error detail';
   begin
-    OriginalLanguageId := GlobalLanguage();
-    if not this.TryBuild(VendorRequest, AccessLink, Subject, HtmlBody, PlainTextBody) then begin
+    if not this.TryBuild(VendorRequest, AccessLink, Subject, HtmlBody, PlainTextBody, TranslationHelper) then begin
       LastErrorText := GetLastErrorText();
-      GlobalLanguage(OriginalLanguageId);
-      Error(LastErrorText);
+      TranslationHelper.RestoreGlobalLanguage();
+      Error(EmailBuildFailedErr, LastErrorText);
     end;
-    GlobalLanguage(OriginalLanguageId);
+    TranslationHelper.RestoreGlobalLanguage();
   end;
 
   [TryFunction]
-  local procedure TryBuild(VendorRequest: Record "AMC Vendor Request"; AccessLink: Text; var Subject: Text; var HtmlBody: Text; var PlainTextBody: Text)
+  [NonDebuggable]
+  local procedure TryBuild(VendorRequest: Record "AMC Vendor Request"; AccessLink: Text; var Subject: Text; var HtmlBody: Text; var PlainTextBody: Text; var TranslationHelper: Codeunit "Translation Helper")
   var
     Language: Codeunit Language;
   begin
-    GlobalLanguage(this.GetLanguageId(VendorRequest, Language));
+    TranslationHelper.SetGlobalLanguageById(this.GetLanguageId(VendorRequest, Language));
     this.BuildContent(VendorRequest, AccessLink, Subject, HtmlBody, PlainTextBody);
   end;
 
@@ -38,8 +52,10 @@ codeunit 50119 "AMC Vendor Email Builder"
     exit(Language.GetLanguageId(VendorRequest."Language Code"));
   end;
 
+  [NonDebuggable]
   local procedure BuildContent(VendorRequest: Record "AMC Vendor Request"; AccessLink: Text; var Subject: Text; var HtmlBody: Text; var PlainTextBody: Text)
   var
+    WebRequestHelper: Codeunit "Web Request Helper";
     LineCount: Integer;
     LineExcerpt: Text;
     SubjectLbl: Label 'Action requested for purchase order %1', Comment = '%1 = purchase order number';
@@ -51,7 +67,6 @@ codeunit 50119 "AMC Vendor Email Builder"
     ItemsLbl: Label 'Items';
     OpenRequestLbl: Label 'Open vendor request';
     InvalidAccessLinkErr: Label 'The vendor access link must be an absolute HTTPS URL.';
-    WebRequestHelper: Codeunit "Web Request Helper";
   begin
     if not WebRequestHelper.IsSecureHttpUrl(AccessLink) then
       Error(InvalidAccessLinkErr);
@@ -109,6 +124,7 @@ codeunit 50119 "AMC Vendor Email Builder"
     exit('<tr><th>' + this.HtmlEncode(Caption) + '</th><td>' + this.HtmlEncode(Value) + '</td></tr>');
   end;
 
+  [NonDebuggable]
   local procedure HtmlEncode(Value: Text): Text
   begin
     Value := Value.Replace('&', '&amp;');

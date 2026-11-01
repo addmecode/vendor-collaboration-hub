@@ -2,6 +2,9 @@ namespace Addmecode.VendorCollaborationHub;
 
 using Microsoft.Purchases.Document;
 
+/// <summary>
+/// Applies an approved proposal through line handlers, records field changes and closes its request on success.
+/// </summary>
 codeunit 50104 "AMC Apply Proposal Svc"
 {
   TableNo = "AMC Vendor Proposal";
@@ -23,18 +26,16 @@ codeunit 50104 "AMC Apply Proposal Svc"
     PurchaseHeader: Record "Purchase Header";
     VendorProposal: Record "AMC Vendor Proposal";
     VendorProposalLine: Record "AMC Vendor Proposal Line";
-    VendorRequest: Record "AMC Vendor Request";
     CollabLog: Codeunit "AMC Collab Log";
     OrderLockMgt: Codeunit "AMC Order Lock Mgt";
     ProposalMgt: Codeunit "AMC Proposal Mgt";
-    RequestMgt: Codeunit "AMC Request Mgt";
-    ReleasePurchaseDocument: Codeunit "Release Purchase Document";
     PreviousPurchaseOrderNo: Code[20];
     PreviousRequestNo: Code[20];
   begin
     this.VerifyDecisionContext(DecisionContext);
-    VendorProposal.LockTable();
-    VendorProposal.Get(DecisionContext."No.");
+    VendorProposal.ReadIsolation(IsolationLevel::UpdLock);
+    if not VendorProposal.Get(DecisionContext."No.") then
+      Error(this.RequiredRecordNotFoundErr, VendorProposal.TableCaption());
     this.VerifyApprovalAllowed(VendorProposal);
     this.ApproveProposal(VendorProposal, DecisionContext);
 
@@ -52,14 +53,9 @@ codeunit 50104 "AMC Apply Proposal Svc"
       until VendorProposalLine.Next() = 0;
 
     this.RecalculateRequestLines(VendorProposal."No.", VendorProposal."Request No.");
-    ReleasePurchaseDocument.ReleasePurchaseHeader(PurchaseHeader, false);
-    PurchaseHeader.Get(PurchaseHeader."Document Type"::Order, VendorProposal."Purchase Order No.");
-    if PurchaseHeader.Status <> PurchaseHeader.Status::Released then
-      Error(this.PurchaseOrderNotReleasedErr, PurchaseHeader."No.");
-    VendorRequest.Get(VendorProposal."Request No.");
-    RequestMgt.CloseAfterApply(VendorRequest, PurchaseHeader);
+    this.ReleaseOrderAndCloseRequest(VendorProposal, PurchaseHeader);
     this.SupersedeOtherOpenProposals(VendorProposal, ProposalMgt, CollabLog);
-    VendorProposal."Applied Date Time" := CurrentDateTime();
+    VendorProposal.Validate("Applied Date Time", CurrentDateTime());
     ProposalMgt.SetStatus(VendorProposal, VendorProposal.Status::Applied);
   end;
 
@@ -82,20 +78,20 @@ codeunit 50104 "AMC Apply Proposal Svc"
     CollabLog: Codeunit "AMC Collab Log";
     ProposalMgt: Codeunit "AMC Proposal Mgt";
   begin
-    VendorProposal."Decision Date Time" := CurrentDateTime();
-    VendorProposal."Decision User ID" := DecisionContext."Decision User ID";
-    VendorProposal."Decision Reason" := DecisionContext."Decision Reason";
-    VendorProposal."Apply Attempt Count" += 1;
-    VendorProposal."Last Error Code" := '';
-    VendorProposal."Last Error Message" := '';
+    VendorProposal.Validate("Decision Date Time", CurrentDateTime());
+    VendorProposal.Validate("Decision User ID", DecisionContext."Decision User ID");
+    VendorProposal.Validate("Decision Reason", DecisionContext."Decision Reason");
+    VendorProposal.Validate("Apply Attempt Count", VendorProposal."Apply Attempt Count" + 1);
+    VendorProposal.Validate("Last Error Code", '');
+    VendorProposal.Validate("Last Error Message", '');
     ProposalMgt.SetStatus(VendorProposal, VendorProposal.Status::Approved);
-    CollabLog.LogEvent("AMC Source Type"::Proposal, VendorProposal."No.", 0, "AMC Collab Entry Type"::ProposalApproved, "AMC Actor Type"::Buyer, '', UserId(), this.ProposalApprovedDescriptionLbl, VendorProposal."Correlation Id");
+    CollabLog.LogEvent("AMC Source Type"::Proposal, VendorProposal."No.", 0, "AMC Collab Entry Type"::ProposalApproved, "AMC Actor Type"::Buyer, '', CopyStr(UserId(), 1, 50), this.ProposalApprovedDescriptionLbl, VendorProposal."Correlation Id");
   end;
 
   local procedure ApplyLine(VendorProposal: Record "AMC Vendor Proposal"; var VendorProposalLine: Record "AMC Vendor Proposal Line"; var PurchaseHeader: Record "Purchase Header"; CollabLog: Codeunit "AMC Collab Log")
   var
-    LineHandler: Interface "AMC IProposalLineHandler";
     OriginalPurchaseLine: Record "Purchase Line";
+    LineHandler: Interface "AMC IProposalLineHandler";
   begin
     this.GetOriginPurchaseLine(VendorProposal, VendorProposalLine, OriginalPurchaseLine);
     LineHandler := VendorProposalLine."Line Type";
@@ -103,24 +99,44 @@ codeunit 50104 "AMC Apply Proposal Svc"
     this.LogPurchaseLineChanges(VendorProposal, VendorProposalLine, OriginalPurchaseLine, CollabLog);
     this.LogInsertedPurchaseLines(VendorProposal, VendorProposalLine, OriginalPurchaseLine, CollabLog);
     this.LogAppliedLine(VendorProposal, VendorProposalLine, CollabLog);
-    VendorProposalLine.Applied := true;
-    VendorProposalLine."Applied Purchase Line No." := OriginalPurchaseLine."Line No.";
-    VendorProposalLine.Modify(true);
+    VendorProposalLine.Validate(Applied, true);
+    VendorProposalLine.Validate("Applied Purchase Line No.", OriginalPurchaseLine."Line No.");
+    VendorProposalLine.Modify(false);
   end;
 
   local procedure GetOriginPurchaseLine(VendorProposal: Record "AMC Vendor Proposal"; VendorProposalLine: Record "AMC Vendor Proposal Line"; var PurchaseLine: Record "Purchase Line")
   var
     VendorRequestLine: Record "AMC Vendor Request Line";
   begin
-    VendorRequestLine.Get(VendorProposal."Request No.", VendorProposalLine."Request Line No.");
-    PurchaseLine.Get(PurchaseLine."Document Type"::Order, VendorProposal."Purchase Order No.", VendorRequestLine."Purchase Line No.");
+    VendorRequestLine.SetLoadFields("Purchase Line No.");
+    if not VendorRequestLine.Get(VendorProposal."Request No.", VendorProposalLine."Request Line No.") then
+      Error(this.RequiredRecordNotFoundErr, VendorRequestLine.TableCaption());
+    if not PurchaseLine.Get(PurchaseLine."Document Type"::Order, VendorProposal."Purchase Order No.", VendorRequestLine."Purchase Line No.") then
+      Error(this.RequiredRecordNotFoundErr, PurchaseLine.TableCaption());
+  end;
+
+  local procedure ReleaseOrderAndCloseRequest(VendorProposal: Record "AMC Vendor Proposal"; var PurchaseHeader: Record "Purchase Header")
+  var
+    VendorRequest: Record "AMC Vendor Request";
+    RequestMgt: Codeunit "AMC Request Mgt";
+    ReleasePurchaseDocument: Codeunit "Release Purchase Document";
+  begin
+    ReleasePurchaseDocument.ReleasePurchaseHeader(PurchaseHeader, false);
+    if not PurchaseHeader.Get(PurchaseHeader."Document Type"::Order, VendorProposal."Purchase Order No.") then
+      Error(this.PurchaseOrderNotFoundErr, VendorProposal."Purchase Order No.");
+    if PurchaseHeader.Status <> PurchaseHeader.Status::Released then
+      Error(this.PurchaseOrderNotReleasedErr, PurchaseHeader."No.");
+    if not VendorRequest.Get(VendorProposal."Request No.") then
+      Error(this.RequiredRecordNotFoundErr, VendorRequest.TableCaption());
+    RequestMgt.CloseAfterApply(VendorRequest, PurchaseHeader);
   end;
 
   local procedure LogPurchaseLineChanges(VendorProposal: Record "AMC Vendor Proposal"; VendorProposalLine: Record "AMC Vendor Proposal Line"; OriginalPurchaseLine: Record "Purchase Line"; CollabLog: Codeunit "AMC Collab Log")
   var
     UpdatedPurchaseLine: Record "Purchase Line";
   begin
-    UpdatedPurchaseLine.Get(OriginalPurchaseLine."Document Type", OriginalPurchaseLine."Document No.", OriginalPurchaseLine."Line No.");
+    if not UpdatedPurchaseLine.Get(OriginalPurchaseLine."Document Type", OriginalPurchaseLine."Document No.", OriginalPurchaseLine."Line No.") then
+      Error(this.RequiredRecordNotFoundErr, UpdatedPurchaseLine.TableCaption());
     if OriginalPurchaseLine.Quantity <> UpdatedPurchaseLine.Quantity then
       this.LogAppliedField(VendorProposal, VendorProposalLine, CollabLog, 'Quantity', Format(OriginalPurchaseLine.Quantity), Format(UpdatedPurchaseLine.Quantity));
     if OriginalPurchaseLine."Promised Receipt Date" <> UpdatedPurchaseLine."Promised Receipt Date" then
@@ -139,6 +155,7 @@ codeunit 50104 "AMC Apply Proposal Svc"
     InsertedPurchaseLine.SetRange("AMC Origin Proposal No.", VendorProposal."No.");
     InsertedPurchaseLine.SetRange("AMC Origin Proposal Line No.", VendorProposalLine."Line No.");
     InsertedPurchaseLine.SetFilter("Line No.", '<>%1', OriginalPurchaseLine."Line No.");
+    InsertedPurchaseLine.SetLoadFields("Line No.", "No.", Quantity, "Promised Receipt Date", "Direct Unit Cost", "Line Discount %");
     if InsertedPurchaseLine.FindSet() then
       repeat
         this.LogAppliedField(VendorProposal, VendorProposalLine, CollabLog, 'Purchase Line No.', '', Format(InsertedPurchaseLine."Line No."));
@@ -162,56 +179,57 @@ codeunit 50104 "AMC Apply Proposal Svc"
 
   local procedure LogAppliedField(VendorProposal: Record "AMC Vendor Proposal"; VendorProposalLine: Record "AMC Vendor Proposal Line"; CollabLog: Codeunit "AMC Collab Log"; FieldName: Text[80]; OldValue: Text[250]; NewValue: Text[250])
   begin
-    CollabLog.LogFieldChange("AMC Source Type"::Proposal, VendorProposal."No.", VendorProposalLine."Line No.", "AMC Collab Entry Type"::ProposalApplied, "AMC Actor Type"::Buyer, '', UserId(), FieldName, OldValue, NewValue, this.ProposalAppliedDescriptionLbl, VendorProposal."Correlation Id");
+    CollabLog.LogFieldChange("AMC Source Type"::Proposal, VendorProposal."No.", VendorProposalLine."Line No.", "AMC Collab Entry Type"::ProposalApplied, "AMC Actor Type"::Buyer, '', CopyStr(UserId(), 1, 50), FieldName, OldValue, NewValue, this.ProposalAppliedDescriptionLbl, VendorProposal."Correlation Id");
   end;
 
   local procedure LogAppliedLine(VendorProposal: Record "AMC Vendor Proposal"; VendorProposalLine: Record "AMC Vendor Proposal Line"; CollabLog: Codeunit "AMC Collab Log")
   begin
-    CollabLog.LogEvent("AMC Source Type"::Proposal, VendorProposal."No.", VendorProposalLine."Line No.", "AMC Collab Entry Type"::ProposalApplied, "AMC Actor Type"::Buyer, '', UserId(), this.ProposalLineAppliedDescriptionLbl, VendorProposal."Correlation Id");
+    CollabLog.LogEvent("AMC Source Type"::Proposal, VendorProposal."No.", VendorProposalLine."Line No.", "AMC Collab Entry Type"::ProposalApplied, "AMC Actor Type"::Buyer, '', CopyStr(UserId(), 1, 50), this.ProposalLineAppliedDescriptionLbl, VendorProposal."Correlation Id");
   end;
 
   local procedure LogPriceRecalculated(VendorProposal: Record "AMC Vendor Proposal"; VendorProposalLine: Record "AMC Vendor Proposal Line"; CollabLog: Codeunit "AMC Collab Log"; FieldName: Text[80]; OldValue: Text[250]; NewValue: Text[250])
   begin
-    CollabLog.LogFieldChange("AMC Source Type"::Proposal, VendorProposal."No.", VendorProposalLine."Line No.", "AMC Collab Entry Type"::PriceRecalculated, "AMC Actor Type"::Buyer, '', UserId(), FieldName, OldValue, NewValue, this.PriceRecalculatedDescriptionLbl, VendorProposal."Correlation Id");
+    CollabLog.LogFieldChange("AMC Source Type"::Proposal, VendorProposal."No.", VendorProposalLine."Line No.", "AMC Collab Entry Type"::PriceRecalculated, "AMC Actor Type"::Buyer, '', CopyStr(UserId(), 1, 50), FieldName, OldValue, NewValue, this.PriceRecalculatedDescriptionLbl, VendorProposal."Correlation Id");
   end;
 
   local procedure RecalculateRequestLines(ProposalNo: Code[20]; RequestNo: Code[20])
   var
     VendorProposalLine: Record "AMC Vendor Proposal Line";
     VendorRequestLine: Record "AMC Vendor Request Line";
-    ConfirmedQuantity: Decimal;
   begin
     VendorRequestLine.SetRange("Request No.", RequestNo);
     if VendorRequestLine.FindSet(true) then
       repeat
-        ConfirmedQuantity := this.GetConfirmedQuantity(ProposalNo, VendorRequestLine."Line No.", VendorProposalLine);
-        if ConfirmedQuantity > VendorRequestLine."Requested Quantity" then
-          ConfirmedQuantity := VendorRequestLine."Requested Quantity";
-        VendorRequestLine."Confirmed Quantity" := ConfirmedQuantity;
-        VendorRequestLine."Outstanding Quantity" := VendorRequestLine."Requested Quantity" - ConfirmedQuantity;
-        if VendorRequestLine."Outstanding Quantity" <= 0 then
-          VendorRequestLine.Status := VendorRequestLine.Status::Confirmed
-        else
-          if ConfirmedQuantity > 0 then
-            VendorRequestLine.Status := VendorRequestLine.Status::"Partially Confirmed"
-          else
-            VendorRequestLine.Status := VendorRequestLine.Status::Open;
-        VendorRequestLine.Modify(true);
+        this.RecalculateRequestLine(ProposalNo, VendorRequestLine, VendorProposalLine);
       until VendorRequestLine.Next() = 0;
   end;
 
-  local procedure GetConfirmedQuantity(ProposalNo: Code[20]; RequestLineNo: Integer; var VendorProposalLine: Record "AMC Vendor Proposal Line"): Decimal
+  local procedure RecalculateRequestLine(ProposalNo: Code[20]; var VendorRequestLine: Record "AMC Vendor Request Line"; var VendorProposalLine: Record "AMC Vendor Proposal Line")
   var
     ConfirmedQuantity: Decimal;
+  begin
+    ConfirmedQuantity := this.GetConfirmedQuantity(ProposalNo, VendorRequestLine."Line No.", VendorProposalLine);
+    if ConfirmedQuantity > VendorRequestLine."Requested Quantity" then
+      ConfirmedQuantity := VendorRequestLine."Requested Quantity";
+    VendorRequestLine.Validate("Confirmed Quantity", ConfirmedQuantity);
+    VendorRequestLine.Validate("Outstanding Quantity", VendorRequestLine."Requested Quantity" - ConfirmedQuantity);
+    if VendorRequestLine."Outstanding Quantity" <= 0 then
+      VendorRequestLine.Validate(Status, VendorRequestLine.Status::Confirmed)
+    else
+      if ConfirmedQuantity > 0 then
+        VendorRequestLine.Validate(Status, VendorRequestLine.Status::"Partially Confirmed")
+      else
+        VendorRequestLine.Validate(Status, VendorRequestLine.Status::Open);
+    VendorRequestLine.Modify(true);
+  end;
+
+  local procedure GetConfirmedQuantity(ProposalNo: Code[20]; RequestLineNo: Integer; var VendorProposalLine: Record "AMC Vendor Proposal Line"): Decimal
   begin
     VendorProposalLine.Reset();
     VendorProposalLine.SetRange("Proposal No.", ProposalNo);
     VendorProposalLine.SetRange("Request Line No.", RequestLineNo);
-    if VendorProposalLine.FindSet() then
-      repeat
-        ConfirmedQuantity += VendorProposalLine."Proposed Quantity";
-      until VendorProposalLine.Next() = 0;
-    exit(ConfirmedQuantity);
+    VendorProposalLine.CalcSums("Proposed Quantity");
+    exit(VendorProposalLine."Proposed Quantity");
   end;
 
   local procedure SupersedeOtherOpenProposals(VendorProposal: Record "AMC Vendor Proposal"; ProposalMgt: Codeunit "AMC Proposal Mgt"; CollabLog: Codeunit "AMC Collab Log")
@@ -225,12 +243,13 @@ codeunit 50104 "AMC Apply Proposal Svc"
       repeat
         if OtherVendorProposal."No." <> VendorProposal."No." then begin
           ProposalMgt.SetStatus(OtherVendorProposal, OtherVendorProposal.Status::Superseded);
-          CollabLog.LogEvent("AMC Source Type"::Proposal, OtherVendorProposal."No.", 0, "AMC Collab Entry Type"::ProposalSuperseded, "AMC Actor Type"::Buyer, '', UserId(), ProposalSupersededDescriptionLbl, OtherVendorProposal."Correlation Id");
+          CollabLog.LogEvent("AMC Source Type"::Proposal, OtherVendorProposal."No.", 0, "AMC Collab Entry Type"::ProposalSuperseded, "AMC Actor Type"::Buyer, '', CopyStr(UserId(), 1, 50), ProposalSupersededDescriptionLbl, OtherVendorProposal."Correlation Id");
         end;
       until OtherVendorProposal.Next() = 0;
   end;
 
   var
+    RequiredRecordNotFoundErr: Label 'The %1 record required to apply the vendor proposal could not be found.', Comment = '%1 = table caption';
     ProposalNotApprovedErr: Label 'VCH-APL-0001: Vendor proposal must be approved before it can be applied.';
     PurchaseOrderNotFoundErr: Label 'VCH-APL-0002: Purchase order %1 does not exist.', Comment = '%1 = purchase order number';
     PurchaseOrderNotReleasedErr: Label 'Purchase order %1 could not be released.', Comment = '%1 = purchase order number';

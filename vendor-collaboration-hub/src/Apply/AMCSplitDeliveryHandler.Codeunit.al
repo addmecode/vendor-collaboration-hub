@@ -2,6 +2,9 @@ namespace Addmecode.VendorCollaborationHub;
 
 using Microsoft.Purchases.Document;
 
+/// <summary>
+/// Applies split deliveries by updating the origin line and inserting subsequent split lines.
+/// </summary>
 codeunit 50114 "AMC Split Delivery Handler" implements "AMC IProposalLineHandler"
 {
   Permissions = tabledata "AMC Vendor Proposal" = r,
@@ -9,10 +12,21 @@ codeunit 50114 "AMC Split Delivery Handler" implements "AMC IProposalLineHandler
                 tabledata "AMC Vendor Request Line" = r,
                 tabledata "Purchase Line" = rm;
 
+  /// <summary>
+  /// Adds no handler-specific checks; shared proposal validation checks split counts, quantities and dates.
+  /// </summary>
+  /// <param name="ProposalLine">The split proposal line; unchanged.</param>
+  /// <param name="RequestLine">The request-line snapshot; unchanged.</param>
+  /// <param name="Result">The validation result; no errors are appended by this handler.</param>
   procedure Validate(var ProposalLine: Record "AMC Vendor Proposal Line"; var RequestLine: Record "AMC Vendor Request Line"; var Result: Codeunit "AMC Validation Result")
   begin
   end;
 
+  /// <summary>
+  /// Updates the origin for the first split or builds a new line after the preceding applied split, stamping proposal origin.
+  /// </summary>
+  /// <param name="ProposalLine">Supplies the split quantity, date and sequence; callers apply splits in sequence order.</param>
+  /// <param name="PurchaseHeader">Identifies the target order under the caller's application context.</param>
   procedure Apply(var ProposalLine: Record "AMC Vendor Proposal Line"; var PurchaseHeader: Record "Purchase Header")
   var
     NewPurchaseLine: Record "Purchase Line";
@@ -26,7 +40,8 @@ codeunit 50114 "AMC Split Delivery Handler" implements "AMC IProposalLineHandler
       exit;
     end;
 
-    OriginPurchaseLine.Get(PurchaseHeader."Document Type", PurchaseHeader."No.", RequestLine."Purchase Line No.");
+    if not OriginPurchaseLine.Get(PurchaseHeader."Document Type", PurchaseHeader."No.", RequestLine."Purchase Line No.") then
+      Error(this.RequiredRecordNotFoundErr, OriginPurchaseLine.TableCaption());
     OriginPurchaseLine.Validate(Quantity, ProposalLine."Proposed Quantity");
     OriginPurchaseLine.Validate("Promised Receipt Date", ProposalLine."Proposed Delivery Date");
     OriginPurchaseLine.Validate("AMC Origin Proposal No.", ProposalLine."Proposal No.");
@@ -38,8 +53,11 @@ codeunit 50114 "AMC Split Delivery Handler" implements "AMC IProposalLineHandler
   var
     VendorProposal: Record "AMC Vendor Proposal";
   begin
-    VendorProposal.Get(ProposalLine."Proposal No.");
-    RequestLine.Get(VendorProposal."Request No.", ProposalLine."Request Line No.");
+    VendorProposal.SetLoadFields("Request No.");
+    if not VendorProposal.Get(ProposalLine."Proposal No.") then
+      Error(this.RequiredRecordNotFoundErr, VendorProposal.TableCaption());
+    if not RequestLine.Get(VendorProposal."Request No.", ProposalLine."Request Line No.") then
+      Error(this.RequiredRecordNotFoundErr, RequestLine.TableCaption());
   end;
 
   local procedure GetPreviousSplitPurchaseLine(ProposalLine: Record "AMC Vendor Proposal Line"; PurchaseHeader: Record "Purchase Header"; var PreviousPurchaseLine: Record "Purchase Line"): Boolean
@@ -51,6 +69,7 @@ codeunit 50114 "AMC Split Delivery Handler" implements "AMC IProposalLineHandler
     PreviousProposalLine.SetRange("Request Line No.", ProposalLine."Request Line No.");
     PreviousProposalLine.SetRange("Line Type", ProposalLine."Line Type"::"Split Delivery");
     PreviousProposalLine.SetFilter("Sequence No.", '<%1', ProposalLine."Sequence No.");
+    PreviousProposalLine.SetLoadFields("Line No.");
     if not PreviousProposalLine.FindLast() then
       exit(false);
 
@@ -60,4 +79,7 @@ codeunit 50114 "AMC Split Delivery Handler" implements "AMC IProposalLineHandler
     PreviousPurchaseLine.SetRange("AMC Origin Proposal Line No.", PreviousProposalLine."Line No.");
     exit(PreviousPurchaseLine.FindFirst());
   end;
+
+  var
+    RequiredRecordNotFoundErr: Label 'VCH-DAT-0001: The %1 record required to process the proposal could not be found.', Comment = '%1 = table caption';
 }

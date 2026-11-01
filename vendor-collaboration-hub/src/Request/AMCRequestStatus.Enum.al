@@ -1,5 +1,8 @@
 namespace Addmecode.VendorCollaborationHub;
 
+/// <summary>
+/// Defines the request lifecycle from draft through vendor response, review, closure or cancellation.
+/// </summary>
 enum 50100 "AMC Request Status"
 {
     Extensible = true;

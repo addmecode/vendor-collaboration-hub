@@ -1,5 +1,8 @@
 namespace Addmecode.VendorCollaborationHub;
 
+/// <summary>
+/// Classifies collaboration comments and request, proposal and access-link lifecycle events.
+/// </summary>
 enum 50104 "AMC Collab Entry Type"
 {
     Extensible = true;

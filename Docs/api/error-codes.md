@@ -4,6 +4,7 @@
 | VCH-AUT-0002 | Vendor missing or not enabled for collaboration |
 | VCH-AUT-0003 | Token unknown, expired, revoked or superseded |
 | VCH-AUT-0004 | Token/request/vendor or comment source pairing mismatch |
+| VCH-DAT-0001 | Required proposal-processing record is missing, or a newly created comment cannot be reread; technical failure, not business validation |
 | VCH-VAL-0001 | Request missing/foreign/not open; invalid proposal structure or comment source/text |
 | VCH-VAL-0002 | Request line does not exist |
 | VCH-VAL-0003 | Unsupported persisted proposal line-type ordinal |

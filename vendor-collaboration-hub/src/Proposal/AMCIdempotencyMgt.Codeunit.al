@@ -2,11 +2,20 @@ namespace Addmecode.VendorCollaborationHub;
 
 using System.Security.Encryption;
 
+/// <summary>
+/// Detects reused vendor idempotency keys using a canonical proposal payload hash.
+/// </summary>
 codeunit 50121 "AMC Idempotency Mgt"
 {
   Permissions = tabledata "AMC Vendor Proposal" = r,
                 tabledata "AMC Vendor Proposal Line" = r;
 
+  /// <summary>
+  /// Rejects a missing or previously used vendor key, then assigns key and hash to the buffer for the caller to persist.
+  /// </summary>
+  /// <param name="VendorProposal">Supplies the vendor and receives the validated key and hash.</param>
+  /// <param name="IdempotencyKey">The vendor-scoped client submission key.</param>
+  /// <param name="PayloadHash">The canonical payload digest used to distinguish duplicate and conflicting retries.</param>
   procedure Register(var VendorProposal: Record "AMC Vendor Proposal"; IdempotencyKey: Text[64]; PayloadHash: Text[64])
   var
     ExistingProposal: Record "AMC Vendor Proposal";
@@ -18,7 +27,7 @@ codeunit 50121 "AMC Idempotency Mgt"
       Error(KeyRequiredErr);
 
     // Keep the duplicate check and the unique-index write in the caller's transaction.
-    ExistingProposal.LockTable();
+    ExistingProposal.ReadIsolation(IsolationLevel::UpdLock);
     ExistingProposal.SetLoadFields("Payload Hash", SystemId, "No.");
     ExistingProposal.SetRange("Vendor No.", VendorProposal."Vendor No.");
     ExistingProposal.SetRange("Idempotency Key", IdempotencyKey);
@@ -28,10 +37,16 @@ codeunit 50121 "AMC Idempotency Mgt"
       Error(DifferentPayloadErr);
     end;
 
-    VendorProposal."Idempotency Key" := IdempotencyKey;
-    VendorProposal."Payload Hash" := PayloadHash;
+    VendorProposal.Validate("Idempotency Key", IdempotencyKey);
+    VendorProposal.Validate("Payload Hash", PayloadHash);
   end;
 
+  /// <summary>
+  /// Hashes canonical business payload JSON with lines ordered by request line and sequence, excluding generated and tracing metadata.
+  /// </summary>
+  /// <param name="VendorProposal">The proposal header whose persisted lines are included.</param>
+  /// <param name="AccessTokenId">The API token SystemId included in the payload identity.</param>
+  /// <returns>The complete uppercase 64-character hexadecimal SHA-256 digest.</returns>
   procedure HashPayload(VendorProposal: Record "AMC Vendor Proposal"; AccessTokenId: Guid): Text[64]
   var
     ProposalLine: Record "AMC Vendor Proposal Line";
@@ -40,7 +55,7 @@ codeunit 50121 "AMC Idempotency Mgt"
     Lines: JsonArray;
     Line: JsonObject;
     PayloadText: Text;
-    HashAlgorithmType: Option MD5,SHA1,SHA256,SHA384,SHA512;
+    HashAlgorithmType: Enum "Hash Algorithm";
   begin
     // Fixed property order, typed JSON scalars and business-line ordering are independent
     // of JSON input order, locale, generated numbers/SystemIds and tracing metadata.
@@ -69,6 +84,8 @@ codeunit 50121 "AMC Idempotency Mgt"
       until ProposalLine.Next() = 0;
     Payload.Add('vendorProposalLines', Lines);
     Payload.WriteTo(PayloadText);
-    exit(UpperCase(CryptographyManagement.GenerateHash(PayloadText, HashAlgorithmType::SHA256)));
+    // Convert only at the standard Option-based API boundary (SHA256 = 2).
+    // SHA256 produces exactly 64 hexadecimal characters; the bound preserves the full digest.
+    exit(CopyStr(UpperCase(CryptographyManagement.GenerateHash(PayloadText, HashAlgorithmType::SHA256.AsInteger())), 1, 64));
   end;
 }

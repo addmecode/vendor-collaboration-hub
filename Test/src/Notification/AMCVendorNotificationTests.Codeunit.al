@@ -7,14 +7,25 @@ using Microsoft.Purchases.Document;
 using Microsoft.Purchases.Vendor;
 using System.Email;
 using System.Globalization;
+using System.IO;
 using System.TestLibraries.Utilities;
 
 codeunit 50144 "AMC Vendor Notification Tests"
 {
   Subtype = Test;
+  Permissions = tabledata "AMC Collaboration Setup" = m,
+                tabledata "AMC Vendor Access Token" = r,
+                tabledata "AMC Vendor Request" = r,
+                tabledata "No. Series" = i,
+                tabledata "No. Series Line" = i,
+                tabledata "Purchase Header" = m,
+                tabledata "Purchase Line" = i,
+                tabledata "Salesperson/Purchaser" = i,
+                tabledata Vendor = i;
 
   var
     Assert: Codeunit "Library Assert";
+    TestLibrary: Codeunit "AMC Test Library";
 
   [Test]
   procedure GivenVendorRequest_WhenBuildingEmail_ThenSubjectAndSafeBodiesContainTheAccessLink()
@@ -30,7 +41,7 @@ codeunit 50144 "AMC Vendor Notification Tests"
   begin
     // Given
     RequestNo := this.CreateVendorRequest('portal@contoso.com', 'vendor@contoso.com', 'buyer@contoso.com', '');
-    VendorRequest.Get(RequestNo);
+    this.Assert.IsTrue(VendorRequest.Get(RequestNo), 'The expected vendor request record must exist.');
     AccessLink := 'https://portal.contoso.com/request/' + RequestNo + '?token=abc&source=email';
     OriginalLanguageId := GlobalLanguage();
 
@@ -53,12 +64,11 @@ codeunit 50144 "AMC Vendor Notification Tests"
   end;
 
   [Test]
-  procedure GivenVendorRequest_WhenPreparingNotification_ThenCollaborationScenarioAndBuyerReplyToAreUsed()
+  procedure GivenVendorRequest_WhenPreparingNotification_ThenAccessLinkAndBuyerReplyToAreUsed()
   var
-    Body: Text;
     EmailMessage: Codeunit "Email Message";
     VendorNotification: Codeunit "AMC Vendor Notification";
-    EmailScenario: Enum "Email Scenario";
+    Body: Text;
     ReplyTo: Text;
     RequestNo: Code[20];
   begin
@@ -66,10 +76,9 @@ codeunit 50144 "AMC Vendor Notification Tests"
     RequestNo := this.CreateVendorRequest('portal@contoso.com', 'vendor@contoso.com', 'buyer@contoso.com', '');
 
     // When
-    VendorNotification.Prepare(RequestNo, 'https://portal.contoso.com/access', EmailMessage, EmailScenario);
+    VendorNotification.Prepare(RequestNo, 'https://portal.contoso.com/access', EmailMessage);
 
     // Then
-    this.Assert.AreEqual(Enum::"Email Scenario"::"Vendor Collaboration", EmailScenario, 'The collaboration email scenario must be used.');
     Body := EmailMessage.GetBody();
     this.Assert.IsTrue(StrPos(Body, '<a href="https://portal.contoso.com/access">Open vendor request</a>') > 0, 'The prepared notification must retain the access link.');
     this.Assert.IsTrue(EmailMessage.GetHeader('Reply-To', ReplyTo), 'The prepared notification must include a Reply-To header.');
@@ -120,15 +129,16 @@ codeunit 50144 "AMC Vendor Notification Tests"
   procedure GivenVendorWithoutEmailAddresses_WhenSendingNotification_ThenNoTokenIsIssued()
   var
     VendorAccessToken: Record "AMC Vendor Access Token";
+    VendorRequest: Record "AMC Vendor Request";
     VendorNotification: Codeunit "AMC Vendor Notification";
     RequestNo: Code[20];
     VCHReq0003Err: Label 'VCH-REQ-0003: Vendor %1 does not have a portal contact email address or email address.', Comment = '%1 = vendor number';
-    VendorRequest: Record "AMC Vendor Request";
   begin
     // Given
     RequestNo := this.CreateVendorRequest('', '', 'buyer@contoso.com', '');
-    VendorRequest.Get(RequestNo);
-    Commit();
+    VendorRequest.SetLoadFields("Vendor No.");
+    this.Assert.IsTrue(VendorRequest.Get(RequestNo), 'The expected vendor request record must exist.');
+    Commit(); // Preserve the vendor/request fixtures so token absence is checked after the expected send-error rollback.
 
     // When
     asserterror VendorNotification.Send(RequestNo);
@@ -142,16 +152,17 @@ codeunit 50144 "AMC Vendor Notification Tests"
   [Test]
   procedure GivenVendorWithoutEmailAddresses_WhenPreparingNotification_ThenVCHReq0003IsRaised()
   var
+    VendorRequest: Record "AMC Vendor Request";
     EmailMessage: Codeunit "Email Message";
     VendorNotification: Codeunit "AMC Vendor Notification";
     RequestNo: Code[20];
     VCHReq0003Err: Label 'VCH-REQ-0003: Vendor %1 does not have a portal contact email address or email address.', Comment = '%1 = vendor number';
-    VendorRequest: Record "AMC Vendor Request";
   begin
     // Given
     RequestNo := this.CreateVendorRequest('', '', 'buyer@contoso.com', '');
-    VendorRequest.Get(RequestNo);
-    Commit();
+    VendorRequest.SetLoadFields("Vendor No.");
+    this.Assert.IsTrue(VendorRequest.Get(RequestNo), 'The expected vendor request record must exist.');
+    Commit(); // Keep the missing-email fixture outside the expected notification-preparation rollback.
 
     // When
     asserterror VendorNotification.Prepare(RequestNo, 'https://portal.contoso.com/access', EmailMessage);
@@ -163,35 +174,43 @@ codeunit 50144 "AMC Vendor Notification Tests"
   [Test]
   procedure GivenBuilderError_WhenBuildingEmail_ThenGlobalLanguageIsRestored()
   var
-    Language: Codeunit Language;
     TempVendorRequest: Record "AMC Vendor Request" temporary;
+    Language: Codeunit Language;
+    TranslationHelper: Codeunit "Translation Helper";
     VendorEmailBuilder: Codeunit "AMC Vendor Email Builder";
     HtmlBody: Text;
+    LastErrorText: Text;
     OriginalLanguageId: Integer;
+    RestoredLanguageId: Integer;
     PlainTextBody: Text;
     Subject: Text;
     InvalidAccessLinkErr: Label 'The vendor access link must be an absolute HTTPS URL.';
+    EmailBuildFailedErr: Label 'The vendor email could not be built: %1', Comment = '%1 = original error detail';
   begin
     // Given
     TempVendorRequest.Init();
     TempVendorRequest."No." := this.CreateUniqueCode();
     TempVendorRequest."Language Code" := Language.GetLanguageCode(Language.GetDefaultApplicationLanguageId());
     OriginalLanguageId := GlobalLanguage();
-    Commit();
+    Commit(); // End the arrange transaction before the expected builder error and language-restoration checks.
 
     // When
     asserterror VendorEmailBuilder.Build(TempVendorRequest, 'javascript:alert(1)', Subject, HtmlBody, PlainTextBody);
+    LastErrorText := GetLastErrorText();
+    RestoredLanguageId := GlobalLanguage();
+    TranslationHelper.SetGlobalLanguageById(OriginalLanguageId);
+    ClearLastError();
 
     // Then
-    this.Assert.ExpectedError(InvalidAccessLinkErr);
-    this.Assert.AreEqual(OriginalLanguageId, GlobalLanguage(), 'The email builder must restore GlobalLanguage after an error.');
+    this.Assert.AreEqual(StrSubstNo(EmailBuildFailedErr, InvalidAccessLinkErr), LastErrorText, 'The builder must retain the exact wrapper and original error detail.');
+    this.Assert.AreEqual(OriginalLanguageId, RestoredLanguageId, 'The email builder must restore GlobalLanguage after an error.');
   end;
 
   local procedure CreateVendorRequest(PortalContactEmail: Text[80]; VendorEmail: Text[80]; BuyerEmail: Text[80]; VendorLanguageCode: Code[10]): Code[20]
   var
     PurchaseHeader: Record "Purchase Header";
-    RequestMgt: Codeunit "AMC Request Mgt";
     Vendor: Record Vendor;
+    RequestMgt: Codeunit "AMC Request Mgt";
     BuyerCode: Code[20];
     VendorNo: Code[20];
   begin
@@ -218,13 +237,13 @@ codeunit 50144 "AMC Vendor Notification Tests"
     this.CreateNoSeries(ProposalNoSeriesCode);
 
     CollaborationSetup.GetSetup();
-    CollaborationSetup.Enabled := false;
+    CollaborationSetup.Validate(Enabled, false);
     CollaborationSetup.Modify(true);
-    CollaborationSetup."Request Nos." := RequestNoSeriesCode;
-    CollaborationSetup."Proposal Nos." := ProposalNoSeriesCode;
-    CollaborationSetup."Portal Base URL" := 'https://portal.contoso.com';
-    CollaborationSetup."Portal Support E-Mail" := 'support@contoso.com';
-    CollaborationSetup."Attach Order PDF" := false;
+    CollaborationSetup.Validate("Request Nos.", RequestNoSeriesCode);
+    CollaborationSetup.Validate("Proposal Nos.", ProposalNoSeriesCode);
+    CollaborationSetup.Validate("Portal Base URL", 'https://portal.contoso.com');
+    CollaborationSetup.Validate("Portal Support E-Mail", 'support@contoso.com');
+    CollaborationSetup.Validate("Attach Order PDF", false);
     CollaborationSetup.Validate(Enabled, true);
     CollaborationSetup.Modify(true);
   end;
@@ -237,29 +256,30 @@ codeunit 50144 "AMC Vendor Notification Tests"
   begin
     StartingNo := CopyStr('R' + DelChr(Format(CreateGuid()), '=', '{}-') + '1', 1, 20);
     NoSeries.Init();
-    NoSeries.Code := NoSeriesCode;
-    NoSeries.Description := NoSeriesCode;
-    NoSeries."Default Nos." := true;
+    NoSeries.Validate(Code, NoSeriesCode);
+    NoSeries.Validate(Description, NoSeriesCode);
+    NoSeries.Validate("Default Nos.", true);
     NoSeries.Insert(false);
 
     NoSeriesLine.Init();
-    NoSeriesLine."Series Code" := NoSeriesCode;
-    NoSeriesLine."Line No." := 10000;
-    NoSeriesLine."Starting No." := StartingNo;
-    NoSeriesLine."Increment-by No." := 1;
-    NoSeriesLine.Open := true;
+    NoSeriesLine.Validate("Series Code", NoSeriesCode);
+    NoSeriesLine.Validate("Line No.", 10000);
+    NoSeriesLine.Validate("Starting No.", StartingNo);
+    NoSeriesLine.Validate("Increment-by No.", 1);
+    NoSeriesLine.Validate(Open, true);
     NoSeriesLine.Insert(false);
   end;
 
   local procedure CreateVendor(var Vendor: Record Vendor; VendorNo: Code[20]; PortalContactEmail: Text[80]; VendorEmail: Text[80]; VendorLanguageCode: Code[10])
   begin
+    this.TestLibrary.PrepareManualNumbering();
     Vendor.Init();
-    Vendor."No." := VendorNo;
-    Vendor.Name := VendorNo;
-    Vendor."E-Mail" := VendorEmail;
-    Vendor."Language Code" := VendorLanguageCode;
-    Vendor."AMC Collaboration Enabled" := true;
-    Vendor."AMC Portal Contact E-Mail" := PortalContactEmail;
+    Vendor.Validate("No.", VendorNo);
+    Vendor.Validate(Name, VendorNo);
+    Vendor.Validate("E-Mail", VendorEmail);
+    Vendor.Validate("Language Code", VendorLanguageCode);
+    Vendor.Validate("AMC Collaboration Enabled", true);
+    Vendor.Validate("AMC Portal Contact E-Mail", PortalContactEmail);
     Vendor.Insert(false);
   end;
 
@@ -268,34 +288,35 @@ codeunit 50144 "AMC Vendor Notification Tests"
     SalespersonPurchaser: Record "Salesperson/Purchaser";
   begin
     SalespersonPurchaser.Init();
-    SalespersonPurchaser.Code := BuyerCode;
-    SalespersonPurchaser.Name := BuyerCode;
-    SalespersonPurchaser."E-Mail" := BuyerEmail;
+    SalespersonPurchaser.Validate(Code, BuyerCode);
+    SalespersonPurchaser.Validate(Name, BuyerCode);
+    SalespersonPurchaser.Validate("E-Mail", BuyerEmail);
     SalespersonPurchaser.Insert(false);
   end;
 
   local procedure CreatePurchaseOrder(var PurchaseHeader: Record "Purchase Header"; VendorNo: Code[20]; BuyerCode: Code[20])
   begin
-    PurchaseHeader.Init();
-    PurchaseHeader."Document Type" := PurchaseHeader."Document Type"::Order;
-    PurchaseHeader."No." := this.CreateUniqueCode();
-    PurchaseHeader."Buy-from Vendor No." := VendorNo;
-    PurchaseHeader."Purchaser Code" := BuyerCode;
-    PurchaseHeader.Status := PurchaseHeader.Status::Open;
-    PurchaseHeader.Insert(false);
+    this.TestLibrary.CreatePurchaseOrder(PurchaseHeader, this.CreateUniqueCode(), VendorNo);
+    PurchaseHeader.Validate("Purchaser Code", BuyerCode);
+    PurchaseHeader.Validate(Status, PurchaseHeader.Status::Open);
+    PurchaseHeader.Modify(false);
   end;
 
   local procedure CreatePurchaseLine(PurchaseHeader: Record "Purchase Header"; LineNo: Integer; Description: Text[100])
   var
     PurchaseLine: Record "Purchase Line";
+    ItemNo: Code[20];
   begin
+    ItemNo := this.CreateUniqueCode();
+    this.TestLibrary.EnsureItem(ItemNo, 'PCS');
     PurchaseLine.Init();
-    PurchaseLine."Document Type" := PurchaseHeader."Document Type";
-    PurchaseLine."Document No." := PurchaseHeader."No.";
-    PurchaseLine."Line No." := LineNo;
-    PurchaseLine."No." := this.CreateUniqueCode();
-    PurchaseLine.Description := Description;
-    PurchaseLine.Quantity := 1;
+    PurchaseLine.Validate("Document Type", PurchaseHeader."Document Type");
+    PurchaseLine.Validate("Document No.", PurchaseHeader."No.");
+    PurchaseLine.Validate("Line No.", LineNo);
+    PurchaseLine.Validate(Type, PurchaseLine.Type::Item);
+    PurchaseLine.Validate("No.", ItemNo);
+    PurchaseLine.Validate(Description, Description);
+    PurchaseLine.Validate(Quantity, 1);
     PurchaseLine.Insert(false);
   end;
 
