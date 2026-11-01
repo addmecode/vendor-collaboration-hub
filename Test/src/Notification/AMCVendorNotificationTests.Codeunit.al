@@ -129,6 +129,7 @@ codeunit 50144 "AMC Vendor Notification Tests"
   begin
     // Given
     RequestNo := this.CreateVendorRequest('', '', 'buyer@contoso.com', '');
+    VendorRequest.SetLoadFields("Vendor No.");
     this.Assert.IsTrue(VendorRequest.Get(RequestNo), 'The expected vendor request record must exist.');
     Commit(); // Preserve the vendor/request fixtures so token absence is checked after the expected send-error rollback.
 
@@ -152,6 +153,7 @@ codeunit 50144 "AMC Vendor Notification Tests"
   begin
     // Given
     RequestNo := this.CreateVendorRequest('', '', 'buyer@contoso.com', '');
+    VendorRequest.SetLoadFields("Vendor No.");
     this.Assert.IsTrue(VendorRequest.Get(RequestNo), 'The expected vendor request record must exist.');
     Commit(); // Keep the missing-email fixture outside the expected notification-preparation rollback.
 

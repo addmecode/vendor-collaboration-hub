@@ -40,6 +40,7 @@ codeunit 50139 "AMC Substitute Item Tests"
 
     // Then
     this.Assert.IsTrue(PurchaseLine.Get(PurchaseHeader."Document Type", PurchaseHeader."No.", 10000), 'The expected purchase line record must exist.');
+    SubstitutePurchaseLine.SetLoadFields("No.", Quantity, "Promised Receipt Date", "AMC Origin Proposal Line No.");
     this.Assert.IsTrue(SubstitutePurchaseLine.Get(PurchaseHeader."Document Type", PurchaseHeader."No.", 15000), 'The expected substitute purchase line record must exist.');
     this.Assert.AreEqual(0, PurchaseLine.Quantity, 'The original purchase line must be cancelled.');
     this.Assert.AreEqual(ProposalLine."Proposal No.", PurchaseLine."AMC Origin Proposal No.", 'The cancelled origin line must be stamped with the proposal.');

@@ -97,6 +97,7 @@ codeunit 50132 "AMC Collab Log Tests"
     Entry.SetRange("Source No.", SourceNo);
     this.Assert.AreEqual(3, Entry.Count(), 'Every wrapper appends one entry to the same mixed history.');
     Entry.SetRange("Entry Type", "AMC Collab Entry Type"::Comment);
+    Entry.SetLoadFields("Correlation Id", Description, "Actor Type", "Actor Name", "User ID", "Date Time");
     this.Assert.IsTrue(Entry.FindFirst(), 'The expected entry record must exist.');
     this.Assert.AreEqual(CorrelationId, Entry."Correlation Id", 'The comment wrapper must preserve the correlation ID.');
     this.Assert.AreEqual('Vendor-facing comment.', Entry.Description, 'Keep the comment text.');
@@ -105,12 +106,14 @@ codeunit 50132 "AMC Collab Log Tests"
     this.Assert.AreEqual('BUYER', Entry."User ID", 'Keep the internal author identity.');
     this.Assert.IsTrue(Entry."Date Time" <> 0DT, 'Stamp the comment time.');
     Entry.SetRange("Entry Type", "AMC Collab Entry Type"::RequestCreated);
+    Entry.SetLoadFields("Correlation Id", Description, "Actor Type", "Date Time");
     this.Assert.IsTrue(Entry.FindFirst(), 'The expected entry record must exist.');
     this.Assert.AreEqual(CorrelationId, Entry."Correlation Id", 'The event wrapper must preserve the correlation ID.');
     this.Assert.AreEqual('Request created.', Entry.Description, 'Keep the internal event description.');
     this.Assert.AreEqual("AMC Actor Type"::System, Entry."Actor Type", 'Keep the event actor type.');
     this.Assert.IsTrue(Entry."Date Time" <> 0DT, 'Stamp the event time.');
     Entry.SetRange("Entry Type", "AMC Collab Entry Type"::ProposalApplied);
+    Entry.SetLoadFields("Correlation Id", "Source Line No.", "Field Name", "Old Value", "New Value", Description, "Date Time");
     this.Assert.IsTrue(Entry.FindFirst(), 'The expected entry record must exist.');
     this.Assert.AreEqual(CorrelationId, Entry."Correlation Id", 'The field-change wrapper must preserve the correlation ID.');
     this.Assert.AreEqual(10000, Entry."Source Line No.", 'Keep the field-change source line.');
@@ -423,6 +426,7 @@ codeunit 50132 "AMC Collab Log Tests"
         CollaborationEntry.SetRange("Source Type", "AMC Source Type"::Request);
         CollaborationEntry.SetRange("Source No.", RequestNo);
         CollaborationEntry.SetRange("Entry Type", EntryType);
+        CollaborationEntry.SetLoadFields("Entry No.");
         this.Assert.IsTrue(CollaborationEntry.FindFirst(), 'The expected collaboration entry record must exist.');
         exit(CollaborationEntry."Entry No.");
     end;

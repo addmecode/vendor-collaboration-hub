@@ -40,6 +40,7 @@ codeunit 50131 "AMC Request Tests"
         RequestNo := RequestMgt.CreateFromOrder(PurchaseHeader);
 
         // Then
+        VendorRequest.SetLoadFields(Status, "Vendor No.", "Purchase Order No.", "Assigned User ID");
         this.Assert.IsTrue(VendorRequest.Get(RequestNo), 'The expected vendor request record must exist.');
         this.Assert.AreEqual(VendorRequest.Status::Draft, VendorRequest.Status, 'The request must be created as Draft.');
         this.Assert.AreEqual(VendorNo, VendorRequest."Vendor No.", 'The request must refer to the purchase order vendor.');
@@ -80,6 +81,7 @@ codeunit 50131 "AMC Request Tests"
 
         // Then
         this.Assert.IsTrue(PurchaseHeader.Get(PurchaseHeader."Document Type"::Order, PurchaseHeader."No."), 'The expected purchase header record must exist.');
+        VendorRequest.SetLoadFields("Purchase Order No.");
         this.Assert.IsTrue(VendorRequest.Get(PurchaseHeader."AMC Active Request No."), 'The expected vendor request record must exist.');
         this.Assert.AreEqual(PurchaseHeader."No.", VendorRequest."Purchase Order No.", 'The created request must refer to the source purchase order.');
         this.Assert.IsTrue(this.VendorRequestPageWasOpened, 'The created vendor request page must open when the buyer chooses Yes.');
@@ -108,6 +110,7 @@ codeunit 50131 "AMC Request Tests"
 
         // Then
         this.Assert.IsTrue(PurchaseHeader.Get(PurchaseHeader."Document Type"::Order, PurchaseHeader."No."), 'The expected purchase header record must exist.');
+        VendorRequest.SetLoadFields("Purchase Order No.");
         this.Assert.IsTrue(VendorRequest.Get(PurchaseHeader."AMC Active Request No."), 'The expected vendor request record must exist.');
         this.Assert.AreEqual(PurchaseHeader."No.", VendorRequest."Purchase Order No.", 'The created request must refer to the source purchase order.');
         this.Assert.AreEqual(PurchaseHeader."AMC Collaboration Status"::Draft, PurchaseHeader."AMC Collaboration Status", 'The purchase order collaboration status must be Draft.');
@@ -226,6 +229,7 @@ codeunit 50131 "AMC Request Tests"
 
         // Then
         this.AssertExpectedError(StrSubstNo(PurchaseOrderLockedErr, PurchaseHeader."No.", RequestNo));
+        VendorRequestLine.SetLoadFields(Description);
         this.Assert.IsTrue(VendorRequestLine.Get(RequestNo, 10000), 'The expected vendor request line record must exist.');
         this.Assert.AreEqual('Original description', VendorRequestLine.Description, 'The request line must retain the original purchase line description.');
     end;
@@ -271,6 +275,7 @@ codeunit 50131 "AMC Request Tests"
         RequestNo := RequestMgt.CreateFromOrder(PurchaseHeader);
 
         // Then
+        VendorRequest.SetLoadFields("Language Code");
         this.Assert.IsTrue(VendorRequest.Get(RequestNo), 'The expected vendor request record must exist.');
         this.Assert.AreEqual(VendorLanguageCode, VendorRequest."Language Code", 'The request must snapshot the vendor language code instead of the company language.');
 
@@ -396,6 +401,7 @@ codeunit 50131 "AMC Request Tests"
         this.Assert.AreEqual(PurchaseHeader."AMC Collaboration Status"::"Awaiting Vendor", PurchaseHeader."AMC Collaboration Status", 'Sending must update the purchase order collaboration status.');
         VendorAccessToken.SetRange("Request No.", RequestNo);
         this.Assert.AreEqual(1, VendorAccessToken.Count(), 'Sending must issue one access token.');
+        VendorAccessToken.SetLoadFields(Status, "Sent To E-Mail", "Sent At");
         this.Assert.IsTrue(VendorAccessToken.FindFirst(), 'The expected vendor access token record must exist.');
         this.Assert.AreEqual(VendorAccessToken.Status::Active, VendorAccessToken.Status, 'The sent access token must be active.');
         this.Assert.AreEqual('vendor@contoso.com', VendorAccessToken."Sent To E-Mail", 'The sent access token must retain the recipient.');
@@ -496,12 +502,15 @@ codeunit 50131 "AMC Request Tests"
         this.Assert.IsTrue(VendorRequest.Get(RequestNo), 'The expected vendor request record must exist.');
         this.SendRequestWithEmailHandOff(VendorRequest, true);
         VendorAccessToken.SetRange("Request No.", RequestNo);
+        VendorAccessToken.SetLoadFields("Token Id");
         this.Assert.IsTrue(VendorAccessToken.FindFirst(), 'The expected vendor access token record must exist.');
+        OldVendorAccessToken.SetLoadFields(Status);
         this.Assert.IsTrue(OldVendorAccessToken.Get(VendorAccessToken."Token Id"), 'The expected old vendor access token record must exist.');
 
         this.CreatePurchaseOrder(OtherPurchaseHeader, VendorNo, OtherPurchaseHeader.Status::Open);
         OtherRequestNo := RequestMgt.CreateFromOrder(OtherPurchaseHeader);
         OtherVendorAccessToken.SetRange("Token Hash", this.HashAndIssueToken(OtherRequestNo));
+        OtherVendorAccessToken.SetLoadFields(Status);
         this.Assert.IsTrue(OtherVendorAccessToken.FindFirst(), 'The expected other vendor access token record must exist.');
 
         // When
@@ -717,6 +726,7 @@ codeunit 50131 "AMC Request Tests"
         LanguageRecord: Record Language;
     begin
         LanguageRecord.SetFilter(Code, '<>%1', CompanyLanguageCode);
+        LanguageRecord.SetLoadFields(Code);
         if LanguageRecord.FindFirst() then
             exit(LanguageRecord.Code);
         exit('');
@@ -778,6 +788,7 @@ codeunit 50131 "AMC Request Tests"
     var
         VendorRequestLine: Record "AMC Vendor Request Line";
     begin
+        VendorRequestLine.SetLoadFields("Purchase Line No.", "Item No.", "Variant Code", Description, "Location Code", "Unit of Measure Code", "Requested Quantity", "Requested Delivery Date", "Confirmed Quantity", "Outstanding Quantity", Status);
         this.Assert.IsTrue(VendorRequestLine.Get(RequestNo, LineNo), 'The expected vendor request line record must exist.');
         this.Assert.AreEqual(LineNo, VendorRequestLine."Purchase Line No.", 'The request line must retain its source purchase line number.');
         this.Assert.AreEqual(ItemNo, VendorRequestLine."Item No.", 'The request line item must be snapshotted.');

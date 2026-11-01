@@ -35,6 +35,7 @@ codeunit 50113 "AMC Change Date Handler" implements "AMC IProposalLineHandler"
   var
     VendorProposal: Record "AMC Vendor Proposal";
   begin
+    VendorProposal.SetLoadFields("Request No.");
     if not VendorProposal.Get(ProposalLine."Proposal No.") then
       Error(this.RequiredRecordNotFoundErr, VendorProposal.TableCaption());
     if not RequestLine.Get(VendorProposal."Request No.", ProposalLine."Request Line No.") then

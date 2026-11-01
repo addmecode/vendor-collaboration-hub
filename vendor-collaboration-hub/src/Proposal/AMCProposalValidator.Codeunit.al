@@ -17,6 +17,7 @@ codeunit 50102 "AMC Proposal Validator"
     CollaborationSetup: Record "AMC Collaboration Setup";
     VendorRequest: Record "AMC Vendor Request";
   begin
+    VendorRequest.SetLoadFields("Vendor No.", Status);
     if not VendorRequest.Get(VendorProposal."Request No.") then begin
       this.AddRequestError(Result, this.RequestNotOpenCodeLbl, this.RequestNotFoundErr);
       exit;
@@ -97,6 +98,7 @@ codeunit 50102 "AMC Proposal Validator"
       exit;
     end;
 
+    ReasonCode.SetLoadFields(Code);
     if VendorProposalLine."Reason Code" <> '' then
       if not ReasonCode.Get(VendorProposalLine."Reason Code") then
         this.AddLineError(Result, this.ReasonCodeRequiredCodeLbl, VendorProposalLine,

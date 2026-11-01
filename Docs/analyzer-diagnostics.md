@@ -2,7 +2,7 @@
 
 Stan: 2026-11-01. Wyniki kompilacji z analizatorami skonfigurowanymi w projektach `vendor-collaboration-hub` (App) i `Test`.
 
-Łącznie: **0 błędów, 3 ostrzeżenia i 647 informacji**. Liczby w tabelach oznaczają wystąpienia komunikatów. **PC0037: 0 wystąpień.**
+Łącznie: **0 błędów, 3 ostrzeżenia i 589 informacji**. Liczby w tabelach oznaczają wystąpienia komunikatów. **PC0037: 0 wystąpień.**
 
 ## Warning — według kodu reguły
 
@@ -20,7 +20,6 @@ Stan: 2026-11-01. Wyniki kompilacji z analizatorami skonfigurowanymi w projektac
 | `DC0004` | Publiczna procedura bez dokumentacji XML | 85 | 15 | 100 |
 | `DC0007` | Publiczny obiekt bez dokumentacji XML | 62 | 2 | 64 |
 | `LC0031` | `LockTable()` zamiast `ReadIsolation(UpdLock)` | 4 | 0 | 4 |
-| `PC0030` | Brak `SetLoadFields` przed odczytem | 20 | 38 | 58 |
 
 ## Pozostawione świadomie — AC0019
 

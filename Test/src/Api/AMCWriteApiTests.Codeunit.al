@@ -50,7 +50,9 @@ codeunit 50147 "AMC Write API Tests"
   begin
     // Given: two manually entered lines share a line number under different parents.
     this.TestLibrary.CreateWriteContext(VendorRequest, AccessToken);
+    Proposal.SetLoadFields("No.");
     this.Assert.IsTrue(Proposal.Get(ProposalMgt.CreateDraftFromRequest(VendorRequest)), 'The expected proposal record must exist.');
+    OtherProposal.SetLoadFields("No.");
     this.Assert.IsTrue(OtherProposal.Get(ProposalMgt.CreateDraftFromRequest(VendorRequest)), 'The expected other proposal record must exist.');
     ProposalLine.Init();
     ProposalLine.Validate("Proposal No.", Proposal."No.");
@@ -63,6 +65,7 @@ codeunit 50147 "AMC Write API Tests"
     OtherProposalLine.Validate("Request Line No.", 10000);
     OtherProposalLine.Insert(false);
     // When: this is the record filter used by the API part's SubPageLink.
+    LineView.SetLoadFields(SystemId);
     LineView.SetRange("Proposal No.", Proposal."No.");
     // Then: each parent exposes only its own number-linked line.
     this.Assert.AreEqual(1, LineView.Count(), 'The first parent must expose exactly one line.');

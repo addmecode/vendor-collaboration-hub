@@ -47,8 +47,10 @@ codeunit 50134 "AMC Apply Orchestration Tests"
         this.Assert.IsTrue(PurchaseHeader.Get(PurchaseHeader."Document Type"::Order, PurchaseHeader."No."), 'The expected purchase header record must exist.');
         this.Assert.AreEqual(PurchaseHeader.Status::Released, PurchaseHeader.Status, 'Applying a proposal must release the purchase order.');
         this.Assert.AreEqual('', PurchaseHeader."AMC Active Request No.", 'Applying a proposal must unlock the purchase order.');
+        VendorRequest.SetLoadFields(Status);
         this.Assert.IsTrue(VendorRequest.Get(VendorProposal."Request No."), 'The expected vendor request record must exist.');
         this.Assert.AreEqual(VendorRequest.Status::Closed, VendorRequest.Status, 'Applying a proposal must close its request.');
+        VendorRequestLine.SetLoadFields("Confirmed Quantity", "Outstanding Quantity", Status);
         this.Assert.IsTrue(VendorRequestLine.Get(VendorProposal."Request No.", 10000), 'The expected vendor request line record must exist.');
         this.Assert.AreEqual(10, VendorRequestLine."Confirmed Quantity", 'Applying a confirmed line must recalculate confirmed quantity.');
         this.Assert.AreEqual(0, VendorRequestLine."Outstanding Quantity", 'Applying a confirmed line must clear outstanding quantity.');
@@ -145,6 +147,7 @@ codeunit 50134 "AMC Apply Orchestration Tests"
     begin
         // Given
         this.CreateProposalForApply(PurchaseHeader, VendorProposal, ProposalNo);
+        PurchaseLine.SetLoadFields("Promised Receipt Date");
         this.Assert.IsTrue(PurchaseLine.Get(PurchaseHeader."Document Type", PurchaseHeader."No.", 10000), 'The expected purchase line record must exist.');
         OriginalPromisedReceiptDate := PurchaseLine."Promised Receipt Date";
         this.Assert.IsTrue(VendorProposalLine.Get(ProposalNo, 10000), 'The expected vendor proposal line record must exist.');

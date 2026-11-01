@@ -275,6 +275,7 @@ codeunit 50100 "AMC Request Mgt"
     begin
         VendorRequest.SetRange("Purchase Order No.", PurchaseOrderNo);
         VendorRequest.SetFilter(Status, '%1|%2|%3|%4', VendorRequest.Status::Draft, VendorRequest.Status::"Awaiting Vendor", VendorRequest.Status::"Vendor Responded", VendorRequest.Status::"In Review");
+        VendorRequest.SetLoadFields("No.");
         if VendorRequest.FindFirst() then // todo: use isempty?
             Error(VCHReq0001Err, PurchaseOrderNo, VendorRequest."No.");
     end;

@@ -39,6 +39,7 @@ codeunit 50114 "AMC Split Delivery Handler" implements "AMC IProposalLineHandler
   var
     VendorProposal: Record "AMC Vendor Proposal";
   begin
+    VendorProposal.SetLoadFields("Request No.");
     if not VendorProposal.Get(ProposalLine."Proposal No.") then
       Error(this.RequiredRecordNotFoundErr, VendorProposal.TableCaption());
     if not RequestLine.Get(VendorProposal."Request No.", ProposalLine."Request Line No.") then
@@ -54,6 +55,7 @@ codeunit 50114 "AMC Split Delivery Handler" implements "AMC IProposalLineHandler
     PreviousProposalLine.SetRange("Request Line No.", ProposalLine."Request Line No.");
     PreviousProposalLine.SetRange("Line Type", ProposalLine."Line Type"::"Split Delivery");
     PreviousProposalLine.SetFilter("Sequence No.", '<%1', ProposalLine."Sequence No.");
+    PreviousProposalLine.SetLoadFields("Line No.");
     if not PreviousProposalLine.FindLast() then
       exit(false);
 

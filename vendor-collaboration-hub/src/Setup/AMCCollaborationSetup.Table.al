@@ -116,6 +116,7 @@ table 50100 "AMC Collaboration Setup"
     var
         PersistedCollaborationSetup: Record "AMC Collaboration Setup";
     begin
+        PersistedCollaborationSetup.SetLoadFields(Enabled);
         if PersistedCollaborationSetup.Get(Rec."Primary Key") then
             if Rec.Enabled and not PersistedCollaborationSetup.Enabled then
                 this.ValidateSetupForActivation();

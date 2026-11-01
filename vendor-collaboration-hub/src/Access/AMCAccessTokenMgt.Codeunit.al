@@ -21,6 +21,7 @@ codeunit 50117 "AMC Access Token Mgt"
         IssuedAt: DateTime;
         RequiredRecordNotFoundErr: Label 'The %1 record required to issue the vendor access link could not be found.', Comment = '%1 = table caption';
     begin
+        VendorRequest.SetLoadFields("Vendor No.");
         if not VendorRequest.Get(RequestNo) then
             Error(RequiredRecordNotFoundErr, VendorRequest.TableCaption());
         CollaborationSetup.GetSetup();
@@ -101,6 +102,7 @@ codeunit 50117 "AMC Access Token Mgt"
     begin
         VendorAccessToken.SetRange("Request No.", RequestNo);
         VendorAccessToken.SetRange(Status, VendorAccessToken.Status::Active);
+        VendorAccessToken.SetLoadFields("Token Id");
         while VendorAccessToken.FindFirst() do
             this.Revoke(VendorAccessToken."Token Id", RevocationReason);
     end;

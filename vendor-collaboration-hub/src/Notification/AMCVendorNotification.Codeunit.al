@@ -105,6 +105,7 @@ codeunit 50118 "AMC Vendor Notification"
     MissingRecipientError: ErrorInfo;
     OpenVendorCardLbl: Label 'Open %1', Comment = '%1 = page caption';
   begin
+    Vendor.SetLoadFields("AMC Portal Contact E-Mail", "E-Mail");
     if not Vendor.Get(VendorRequest."Vendor No.") then
       Error(this.RequiredRecordNotFoundErr, Vendor.TableCaption());
     if Vendor."AMC Portal Contact E-Mail" <> '' then
@@ -123,6 +124,7 @@ codeunit 50118 "AMC Vendor Notification"
   var
     SalespersonPurchaser: Record "Salesperson/Purchaser";
   begin
+    SalespersonPurchaser.SetLoadFields("E-Mail");
     if (VendorRequest."Purchaser Code" <> '') and SalespersonPurchaser.Get(VendorRequest."Purchaser Code") then
       exit(SalespersonPurchaser."E-Mail");
     exit('');

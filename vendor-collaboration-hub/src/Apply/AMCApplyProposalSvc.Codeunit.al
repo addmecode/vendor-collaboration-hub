@@ -105,6 +105,7 @@ codeunit 50104 "AMC Apply Proposal Svc"
   var
     VendorRequestLine: Record "AMC Vendor Request Line";
   begin
+    VendorRequestLine.SetLoadFields("Purchase Line No.");
     if not VendorRequestLine.Get(VendorProposal."Request No.", VendorProposalLine."Request Line No.") then
       Error(this.RequiredRecordNotFoundErr, VendorRequestLine.TableCaption());
     if not PurchaseLine.Get(PurchaseLine."Document Type"::Order, VendorProposal."Purchase Order No.", VendorRequestLine."Purchase Line No.") then
@@ -151,6 +152,7 @@ codeunit 50104 "AMC Apply Proposal Svc"
     InsertedPurchaseLine.SetRange("AMC Origin Proposal No.", VendorProposal."No.");
     InsertedPurchaseLine.SetRange("AMC Origin Proposal Line No.", VendorProposalLine."Line No.");
     InsertedPurchaseLine.SetFilter("Line No.", '<>%1', OriginalPurchaseLine."Line No.");
+    InsertedPurchaseLine.SetLoadFields("Line No.", "No.", Quantity, "Promised Receipt Date", "Direct Unit Cost", "Line Discount %");
     if InsertedPurchaseLine.FindSet() then
       repeat
         this.LogAppliedField(VendorProposal, VendorProposalLine, CollabLog, 'Purchase Line No.', '', Format(InsertedPurchaseLine."Line No."));

@@ -139,6 +139,7 @@ table 50101 "AMC Vendor Request"
         RequestSnapshotCannotBeChangedErr: Label 'Vendor request snapshot fields cannot be changed.';
     begin
         //todo: is this check needed?
+        PersistedVendorRequest.SetLoadFields("Vendor No.", "Purchase Order No.", "Purchaser Code", "Assigned User ID", "Currency Code");
         if PersistedVendorRequest.Get(this."No.") and
            ((this."Vendor No." <> PersistedVendorRequest."Vendor No.") or
             (this."Purchase Order No." <> PersistedVendorRequest."Purchase Order No.") or
